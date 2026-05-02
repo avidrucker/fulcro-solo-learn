@@ -7,11 +7,13 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(defsc Root [this props]
-  {}
+(defsc Root [this {:keys [greeting subtitle]}]
+  {:query [:greeting :subtitle]
+   :initial-state {:greeting "Hello Fulcro!"
+                   :subtitle "Now my props come from the database."}}
   (dom/div
-    (dom/h1 "Hello, Fulcro!")
-    (dom/p "If you can see this hiccup, you are rendering.")))
+    (dom/h1 greeting)
+    (dom/p subtitle)))
 
 (defonce SPA (atom nil))
 
