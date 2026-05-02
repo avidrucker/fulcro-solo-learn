@@ -1,0 +1,30 @@
+
+# Build output
+target/
+out/
+classes/
+pom.xml
+pom.xml.asc
+
+# shadow-cljs (typical for Fulcro frontends)
+.shadow-cljs/
+node_modules/
+resources/public/js/main/
+resources/public/js/test/
+
+# Editor / OS
+.lsp/.cache/
+.calva/
+.vscode/
+.idea/
+.clj-kondo/
+.cpcache/
+*.iml
+.DS_Store
+Thumbs.db
+*~
+
+# Logs / REPL
+*.log
+.nrepl-port
+.rebel_readline_history

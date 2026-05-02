@@ -1,0 +1,9 @@
+{:paths ["src"]
+ :deps {com.fulcrologic/fulcro
+        {:mvn/version "3.9.5"}}
+ :aliases
+ {:nrepl
+  {:extra-deps
+   {nrepl/nrepl {:mvn/version "1.5.1"}}
+   :main-opts
+   ["-m" "nrepl.cmdline" "--port" "7888"]}}}
