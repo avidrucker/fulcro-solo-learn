@@ -7,13 +7,26 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(defsc Root [this {:keys [greeting subtitle]}]
-  {:query [:greeting :subtitle]
-   :initial-state {:greeting "Hello Fulcro!"
-                   :subtitle "Now my props come from the database."}}
+(defsc Greeting [this {:greeting/keys [id text]}]
+  {:query [:greeting/id :greeting/text]
+   :ident :greeting/id
+   :initial-state (fn [{:keys [id text]}]
+                    {:greeting/id id :greeting/text text})}
+  (dom/h1 text))
+
+(def ui-greeting (comp/factory Greeting {:keyfn :greeting/id}))
+
+(defsc Root [this {:keys [greeting]}]
+  {:query [{:greeting (comp/get-query Greeting)}]
+   :initial-state
+   (fn [_]
+     {:greeting (comp/get-initial-state Greeting
+                  {:id 1 :text "Hello Fulcro!"})})}
   (dom/div
-    (dom/h1 greeting)
-    (dom/p subtitle)))
+    (when greeting
+      (ui-greeting greeting))
+    (dom/p "Below the heading, in plain Root.")
+    ))
 
 (defonce SPA (atom nil))
 
