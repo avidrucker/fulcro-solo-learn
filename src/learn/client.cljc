@@ -52,22 +52,33 @@
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 
+(defn add-todo* [state-map list-ident text]
+  (let [next-id  (inc (count (keys (:todo/id state-map))))
+        new-todo {:todo/id next-id :todo/text text :todo/done? false}]
+    (-> state-map
+      (merge/merge-component TodoItem new-todo
+        :append (conj list-ident :list/todos))
+      (assoc-in (conj list-ident :ui/new-todo-text) ""))))
+
+(defn delete-todo* [state-map todo-id]
+  (nsh/remove-entity state-map [:todo/id todo-id]))
+
 (defmutation add-todo [{:keys [text]}]
   (action [{:keys [state ref]}]
-    (let [next-id (inc (count (keys (:todo/id @state))))
-          new-todo {:todo/id next-id
-                    :todo/text text
-                    :todo/done? false}]
-      (swap! state
-        (fn [s]
-          (-> s
-            (merge/merge-component
-              TodoItem new-todo :append (conj ref :list/todos))
-            (assoc-in (conj ref :ui/new-todo-text) "")))))))
+    (swap! state add-todo* ref text)))
 
 (defmutation delete-todo [{:keys [todo-id]}]
   (action [{:keys [state]}]
-    (swap! state nsh/remove-entity [:todo/id todo-id])))
+    (swap! state delete-todo* todo-id)))
+
+(defn edit-todo* [state-map todo-id new-text]
+  state-map)
+
+(defn delete-all* [state-map list-ident]
+  state-map)
+
+(defn mark-all-complete* [state-map list-ident done?]
+  state-map)
 
 (defsc Root [this {:keys [list]}]
   {:query [{:list (comp/get-query TodoList)}]
@@ -125,4 +136,26 @@
   (do (h/click-on-text! @SPA "Delete" 0)
       (h/render-frame! @SPA)
       (snapshot))
+  )
+
+(comment
+  ;; Build a tiny fake state and run the helper directly:
+  (def fake-state {:list/id  {1 {:list/id 1
+                                 :list/todos []
+                                 :ui/new-todo-text "draft"}}
+                   :todo/id {}})
+
+  ;; one-off, note that fake-state actually doesn't change,
+  ;; this mutation returns a new database
+  (add-todo* fake-state [:list/id 1] "Try the helper")
+  ;; => the new state, ready to inspect
+
+  fake-state ;; note that this is still empty
+
+  (-> fake-state
+    (add-todo* [:list/id 1] "First")
+    (add-todo* [:list/id 1] "Second")
+    #_(delete-todo* 1)
+    )
+  ;; => composable
   )

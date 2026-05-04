@@ -4,6 +4,11 @@
  :aliases
  {:nrepl
   {:extra-deps
-   {nrepl/nrepl {:mvn/version "1.5.1"}}
+   {nrepl/nrepl {:mvn/version "1.7.0"}}
    :main-opts
-   ["-m" "nrepl.cmdline" "--port" "7888"]}}}
+   ["-m" "nrepl.cmdline" "--port" "7888"]}
+  :test {:extra-paths ["test"]
+         :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}}
+  }
+
+ }
