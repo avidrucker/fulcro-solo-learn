@@ -53,7 +53,9 @@
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 
 (defn add-todo* [state-map list-ident text]
-  (let [next-id  (inc (count (keys (:todo/id state-map))))
+  ;; idiomatic Clojure trick: using apply with a sentinel default is how
+  ;; one safely handles empty-collection cases without an explicit if
+  (let [next-id  (inc (apply max 0 (keys (:todo/id state-map))))
         new-todo {:todo/id next-id :todo/text text :todo/done? false}]
     (-> state-map
       (merge/merge-component TodoItem new-todo
@@ -72,13 +74,32 @@
     (swap! state delete-todo* todo-id)))
 
 (defn edit-todo* [state-map todo-id new-text]
-  state-map)
+  (if (get-in state-map [:todo/id todo-id])
+    (assoc-in state-map [:todo/id todo-id :todo/text] new-text)
+    state-map))
 
 (defn delete-all* [state-map list-ident]
-  state-map)
+  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
+    (reduce (fn [s [_table id]] (delete-todo* s id))
+      state-map
+      todo-idents)))
+
+(defmutation delete-all [_]
+  (action [{:keys [state ref]}]
+    (swap! state delete-all* ref)))
+
+(defn set-complete* [state-map todo-id done?]
+  (assoc-in state-map [:todo/id todo-id :todo/done?] done?))
 
 (defn mark-all-complete* [state-map list-ident done?]
-  state-map)
+  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
+    (reduce (fn [s [_table id]] (set-complete* s id done?))
+      state-map
+      todo-idents)))
+
+(defmutation mark-all-complete [{:keys [done?]}]
+  (action [{:keys [state ref]}]
+    (swap! state mark-all-complete* ref done?)))
 
 (defsc Root [this {:keys [list]}]
   {:query [{:list (comp/get-query TodoList)}]

@@ -85,7 +85,7 @@
 ;; until these specifications all pass.
 ;; ============================================================================
 
-(specification "edit-todo*" :focus
+(specification "edit-todo*"
   (component "for an existing todo"
     (let [result (sut/edit-todo* (fixture-state) 1 "Updated text")]
       (assertions
@@ -110,7 +110,7 @@
       "empties :list/todos at the given list"
       (get-in result [:list/id 1 :list/todos]) => []
       "removes every entity from the :todo/id table"
-      (:todo/id result) => {}
+      (:todo/id result) => nil ;; was {}, now nil
       "preserves the list entity itself"
       (contains? (:list/id result) 1) => true
       "preserves :ui/new-todo-text on the list"
