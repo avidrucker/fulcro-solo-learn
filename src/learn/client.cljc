@@ -3,9 +3,14 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.headless :as h]
-    ; reader conditional CLJC pattern
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj [com.fulcrologic.fulcro.dom-server :as dom])))
+       :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
+
+(defmutation delete-person [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state nsh/remove-entity [:person/id person-id])))
 
 (defsc Person [this {:person/keys [id name age]}]
   {:query [:person/id :person/name :person/age]
@@ -87,4 +92,32 @@
       (get-in
         (app/current-state @SPA)
         [:person/id 2]))
+  )
+
+;; phase 3A: remove a person from the database via
+;; "mutations" (state change transactions)
+(comment
+  ;; Set up fresh state and confirm Alice and Bob exist:
+  (do (init) (snapshot))
+
+  ;; Fire the mutation:
+  (comp/transact! @SPA [(delete-person {:person-id 1})])
+
+  ;; Snapshot again — Alice should be gone:
+  (do (h/render-frame! @SPA) (snapshot))
+
+  ;; Delete Bob too:
+  (comp/transact! @SPA [(delete-person {:person-id 2})])
+  (do (h/render-frame! @SPA) (snapshot))
+
+  ;; Now :people is empty and the table is empty too.
+  ;; Re-init to start over:
+  (do (init) (snapshot))
+
+  ;; Also try transacting two mutations in a single call — that's why transact! takes a vector of mutations:
+  (comp/transact! @SPA
+    [(delete-person {:person-id 1})
+     (delete-person {:person-id 2})])
+  (do (h/render-frame! @SPA) (snapshot))
+
   )
