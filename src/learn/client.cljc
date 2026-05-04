@@ -4,51 +4,78 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.headless :as h]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(defmutation delete-person [{:keys [person-id]}]
-  (action [{:keys [state]}]
-    (swap! state nsh/remove-entity [:person/id person-id])))
+(declare delete-todo add-todo)
 
-(defsc Person [this {:person/keys [id name age]}]
-  {:query [:person/id :person/name :person/age]
-   :ident :person/id
-   :initial-state (fn [{:keys [id name age]}]
-                    {:person/id id
-                     :person/name name
-                     :person/age age})}
-  (dom/li (str name " (age " age ")")))
+(defsc TodoItem [this {:todo/keys [id text done?]}]
+  {:query [:todo/id :todo/text :todo/done?]
+   :ident :todo/id
+   :initial-state
+   (fn [{:keys [id text done?]}]
+     {:todo/id id
+      :todo/text text
+      :todo/done? (boolean done?)})}
+  (dom/li
+    (dom/span (if done? (str "[x] " text) (str "[ ] " text)))
+    (dom/button {:onClick #(m/toggle! this :todo/done?)}
+      "Toggle")
+    (dom/button {:onClick #(comp/transact! this [(delete-todo {:todo-id id})])}
+      "Delete")))
 
-(def ui-person (comp/factory Person {:keyfn :person/id}))
+(def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
 
-(defsc Greeting [this {:greeting/keys [id text]}]
-  {:query [:greeting/id :greeting/text]
-   :ident :greeting/id
-   :initial-state (fn [{:keys [id text]}]
-                    {:greeting/id id :greeting/text text})}
-  (dom/h1 text))
-
-(def ui-greeting (comp/factory Greeting {:keyfn :greeting/id}))
-
-(defsc Root [this {:keys [greeting people]}]
-  {:query [{:greeting (comp/get-query Greeting)}
-           {:people (comp/get-query Person)}]
+(defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
+  {:query [:list/id {:list/todos (comp/get-query TodoItem)}
+           :ui/new-todo-text]
+   :ident :list/id
    :initial-state
    (fn [_]
-     {:greeting (comp/get-initial-state Greeting
-                  {:id 1 :text "Hello Fulcro!"})
-      :people [(comp/get-initial-state Person
-                 {:id 1 :name "Alice" :age 30})
-               (comp/get-initial-state Person
-                 {:id 2 :name "Bob" :age 25})]})}
+     {:list/id 1
+      :ui/new-todo-text ""
+      :list/todos [(comp/get-initial-state TodoItem
+                     {:id 1 :text "Learn Fulcro" :done? false})
+                   (comp/get-initial-state TodoItem
+                     {:id 2 :text "Build a TODO app" :done? false})]})}
   (dom/div
-    (when greeting
-      (ui-greeting greeting))
-    (dom/h2 "People:")
-    (dom/ul (mapv ui-person people))
-    ))
+    (dom/h1 "TODOs")
+    (dom/ul (mapv ui-todo-item todos))
+    (dom/label {:htmlFor "new-todo"} "New TODO:")
+    (dom/input {:id       "new-todo"
+                :value    (or new-todo-text "")
+                :onChange #(m/set-string! this :ui/new-todo-text :event %)})
+    (dom/button {:onClick #(comp/transact! this [(add-todo {:text new-todo-text})])}
+      "Add")))
+
+(def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
+
+(defmutation add-todo [{:keys [text]}]
+  (action [{:keys [state ref]}]
+    (let [next-id (inc (count (keys (:todo/id @state))))
+          new-todo {:todo/id next-id
+                    :todo/text text
+                    :todo/done? false}]
+      (swap! state
+        (fn [s]
+          (-> s
+            (merge/merge-component
+              TodoItem new-todo :append (conj ref :list/todos))
+            (assoc-in (conj ref :ui/new-todo-text) "")))))))
+
+(defmutation delete-todo [{:keys [todo-id]}]
+  (action [{:keys [state]}]
+    (swap! state nsh/remove-entity [:todo/id todo-id])))
+
+(defsc Root [this {:keys [list]}]
+  {:query [{:list (comp/get-query TodoList)}]
+   :initial-state
+   (fn [_]
+     {:list (comp/get-initial-state TodoList {})})}
+  (dom/div
+    (when list (ui-todo-list list))))
 
 (defonce SPA (atom nil))
 
@@ -66,58 +93,36 @@
 (defn snapshot []
   {:state
    (app/current-state @SPA) ; app/current-state cannot be resolved
-   :hiccup
+   #_#_:hiccup
    (h/hiccup-frame @SPA)})
 
 (comment
-  (do
-    (init)
-    (snapshot))
-
-  ;; What does Root see as its props? Useful for
-  ;; understanding denormalization. This shows us
-  ;; the denormalized tree that Root's props
-  ;; argument actually receives.
-  (do (init)
-      (com.fulcrologic.fulcro.algorithms.denormalize/db->tree
-        (comp/get-query Root)
-        (app/current-state @SPA)
-        (app/current-state @SPA)))
-
-  ;; Just the people table:
-  (do (init) (get (app/current-state @SPA) :person/id))
-
-  ;; Getting a specific entity by ident:
-  (do (init)
-      (get-in
-        (app/current-state @SPA)
-        [:person/id 2]))
-  )
-
-;; phase 3A: remove a person from the database via
-;; "mutations" (state change transactions)
-(comment
-  ;; Set up fresh state and confirm Alice and Bob exist:
+  ;; 1) Fresh start. You should see two TODOs in :todo/id and in :todos.
   (do (init) (snapshot))
 
-  ;; Fire the mutation:
-  (comp/transact! @SPA [(delete-person {:person-id 1})])
+  ;; 2) Toggle "Learn Fulcro" via the first Toggle button.
+  ;;    :done? on todo 1 should flip from false to true,
+  ;;    and the hiccup should now show "[x] Learn Fulcro".
+  (do (h/click-on-text! @SPA "Toggle" 0)
+      (h/render-frame! @SPA)
+      (snapshot))
 
-  ;; Snapshot again — Alice should be gone:
-  (do (h/render-frame! @SPA) (snapshot))
+  ;; 3) Type into the labeled input. Watch :ui/new-todo-text fill in
+  ;;    in :state, and the input's :value attribute update in :hiccup.
+  (do (h/type-into-labeled! @SPA "New TODO" "Try out mutations")
+      (h/render-frame! @SPA)
+      (snapshot))
 
-  ;; Delete Bob too:
-  (comp/transact! @SPA [(delete-person {:person-id 2})])
-  (do (h/render-frame! @SPA) (snapshot))
+  ;; 4) Click Add. A new entity appears in :todo/id keyed by 3,
+  ;;    its ident appears at the end of :todos, and :ui/new-todo-text
+  ;;    is cleared (because add-todo's action does that).
+  (do (h/click-on-text! @SPA "Add")
+      (h/render-frame! @SPA)
+      (snapshot))
 
-  ;; Now :people is empty and the table is empty too.
-  ;; Re-init to start over:
-  (do (init) (snapshot))
-
-  ;; Also try transacting two mutations in a single call — that's why transact! takes a vector of mutations:
-  (comp/transact! @SPA
-    [(delete-person {:person-id 1})
-     (delete-person {:person-id 2})])
-  (do (h/render-frame! @SPA) (snapshot))
-
+  ;; 5) Delete the first TODO. Both the entity AND the ident reference
+  ;;    are gone from the DB.
+  (do (h/click-on-text! @SPA "Delete" 0)
+      (h/render-frame! @SPA)
+      (snapshot))
   )
