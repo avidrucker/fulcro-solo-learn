@@ -114,6 +114,73 @@
 
 (defonce SPA (atom nil))
 
+;; -------------------------------------------------------------------
+;; "Server" — a plain atom holding the canonical state.
+;; In a real app this would be a database. For us, it's an atom
+;; that lives in the same process but is conceptually separate
+;; from the client's normalized DB.
+;; -------------------------------------------------------------------
+
+(def init-state
+  {:todo/id {#uuid "11111111-1111-1111-1111-111111111111"
+             {:todo/id    #uuid "11111111-1111-1111-1111-111111111111"
+              :todo/text  "Read the Fulcro book"
+              :todo/done? false}
+             #uuid "22222222-2222-2222-2222-222222222222"
+             {:todo/id    #uuid "22222222-2222-2222-2222-222222222222"
+              :todo/text  "Try out remotes"
+              :todo/done? true}}})
+
+(defonce SERVER-DB
+  (atom init-state))
+
+(defn reset-server!
+  "Resets the server to a known seed state. Useful between REPL runs."
+  []
+  (reset! SERVER-DB init-state))
+
+;; -------------------------------------------------------------------
+;; "Server" handler — receives EQL, returns a tree response.
+;; This is a hand-rolled minimal parser. In real apps you'd use
+;; Pathom for this; we're staying primitive to make the mechanics clear.
+;; -------------------------------------------------------------------
+
+(defn server-handler
+  "Receives EQL from the client and returns a tree response.
+
+   Supports:
+   - The query [:all-todos] — returns all todos as a vector under :all-todos
+   - The mutation `add-todo with {:todo/text \"...\"} — creates and returns the new todo
+   - The mutation `delete-todo with {:todo/id ...}    — removes from server DB
+
+   Other EQL is ignored (returns {})."
+  [eql]
+  (reduce
+    (fn [response query-element]
+      (cond
+        ;; Query: a keyword or join-map asking for data
+        (= query-element :all-todos)
+        (assoc response :all-todos (vec (vals (:todo/id @SERVER-DB))))
+
+        ;; Mutation: a list with a symbol head, e.g. (add-todo {:todo/text "..."})
+        (and (list? query-element)
+          (= 'learn.client/add-todo (first query-element)))
+        (let [{:todo/keys [text]} (second query-element)
+              new-id              (random-uuid)
+              new-todo            {:todo/id new-id :todo/text text :todo/done? false}]
+          (swap! SERVER-DB assoc-in [:todo/id new-id] new-todo)
+          (assoc response 'learn.client/add-todo new-todo))
+
+        (and (list? query-element)
+          (= 'learn.client/delete-todo (first query-element)))
+        (let [{:todo/keys [id]} (second query-element)]
+          (swap! SERVER-DB update :todo/id dissoc id)
+          (assoc response 'learn.client/delete-todo {}))
+
+        :else response))
+    {}
+    eql))
+
 (defn init []
   (let [spa
         ; headless equivalent of app/fulcro-app
