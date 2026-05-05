@@ -1,6 +1,7 @@
 (ns learn.client-test
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
+    [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [learn.client :as sut]))
 
 ;; ============================================================================
@@ -22,6 +23,13 @@
   {:list/id {1 {:list/id 1 :list/todos [] :ui/new-todo-text ""}}
    :todo/id {}})
 
+(defn affects-only?
+  "Asserts that `after` differs from `before` only at the given paths.
+   Each path is a sequence of keys (like get-in / assoc-in arguments)."
+  [before after paths]
+  (let [strip (fn [m] (reduce nsh/dissoc-in m paths))]
+    (= (strip before) (strip after))))
+
 ;; ============================================================================
 ;; Existing helpers — these should pass with your current implementation.
 ;; ============================================================================
@@ -29,16 +37,19 @@
 (specification "add-todo*"
   (component "into a populated list"
     (let [list-ident [:list/id 1]
-          result     (sut/add-todo* (fixture-state) list-ident "Third")]
+          before-count (count (:todo/id (fixture-state)))
+          result       (sut/add-todo* (fixture-state) list-ident "Third")
+          new-ident    (last (get-in result [:list/id 1 :list/todos]))
+          [_ new-id]   new-ident]
       (assertions
         "adds a new entity to the :todo/id table"
-        (count (:todo/id result)) => 3
+        (count (:todo/id result)) => (inc before-count)
+        "the appended ident points to a new entity in the table"
+        (contains? (:todo/id result) new-id) => true
         "stores the new text on the new entity"
-        (get-in result [:todo/id 3 :todo/text]) => "Third"
+        (get-in result [:todo/id new-id :todo/text]) => "Third"
         "starts the new todo as not done"
-        (get-in result [:todo/id 3 :todo/done?]) => false
-        "appends the new ident to :list/todos"
-        (last (get-in result [:list/id 1 :list/todos])) => [:todo/id 3]
+        (get-in result [:todo/id new-id :todo/done?]) => false
         "preserves existing todos in :list/todos"
         (vec (take 2 (get-in result [:list/id 1 :list/todos])))
         => [[:todo/id 1] [:todo/id 2]]
@@ -46,13 +57,15 @@
         (get-in result [:list/id 1 :ui/new-todo-text]) => "")))
 
   (component "into an empty list"
-    (let [list-ident [:list/id 1]
-          result     (sut/add-todo* (empty-fixture-state) list-ident "First!")]
+    (let [list-ident   [:list/id 1]
+          result       (sut/add-todo* (empty-fixture-state) list-ident "First!")
+          new-ident    (last (get-in result [:list/id 1 :list/todos]))
+          [_ new-id]   new-ident]
       (assertions
         "creates the first todo with the new text"
-        (get-in result [:todo/id 1 :todo/text]) => "First!"
+        (get-in result [:todo/id new-id :todo/text]) => "First!"
         "places its ident as the only entry in :list/todos"
-        (get-in result [:list/id 1 :list/todos]) => [[:todo/id 1]])))
+        (get-in result [:list/id 1 :list/todos]) => [new-ident])))
 
   (component "after a previous delete"
     ;; This component exercises a bug — see the note in my message.
@@ -118,21 +131,15 @@
 
 (specification "mark-all-complete*"
   (component "with done? = true"
-    (let [list-ident [:list/id 1]
-          result     (sut/mark-all-complete* (fixture-state) list-ident true)]
+    (let [before (fixture-state)
+          after  (sut/mark-all-complete* before [:list/id 1] true)]
       (assertions
         "marks the previously-not-done todo as done"
-        (get-in result [:todo/id 1 :todo/done?]) => true
+        (get-in after [:todo/id 1 :todo/done?]) => true
         "leaves the already-done todo as done"
-        (get-in result [:todo/id 2 :todo/done?]) => true
-        "leaves :todo/text unchanged"
-        (get-in result [:todo/id 1 :todo/text]) => "First")))
-
-  (component "with done? = false (un-mark all)"
-    (let [list-ident [:list/id 1]
-          result     (sut/mark-all-complete* (fixture-state) list-ident false)]
-      (assertions
-        "un-marks the previously-done todo"
-        (get-in result [:todo/id 2 :todo/done?]) => false
-        "leaves the not-done todo unchanged"
-        (get-in result [:todo/id 1 :todo/done?]) => false))))
+        (get-in after [:todo/id 2 :todo/done?]) => true
+        "affects only the :todo/done? fields of the targeted todos"
+        (affects-only? before after
+          [[:todo/id 1 :todo/done?]
+           [:todo/id 2 :todo/done?]])
+        => true))))

@@ -23,7 +23,7 @@
     (dom/span (if done? (str "[x] " text) (str "[ ] " text)))
     (dom/button {:onClick #(m/toggle! this :todo/done?)}
       "Toggle")
-    (dom/button {:onClick #(comp/transact! this [(delete-todo {:todo-id id})])}
+    (dom/button {:onClick #(comp/transact! this [(delete-todo {:todo/id id})])}
       "Delete")))
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
@@ -55,34 +55,37 @@
 (defn add-todo* [state-map list-ident text]
   ;; idiomatic Clojure trick: using apply with a sentinel default is how
   ;; one safely handles empty-collection cases without an explicit if
-  (let [next-id  (inc (apply max 0 (keys (:todo/id state-map))))
-        new-todo {:todo/id next-id :todo/text text :todo/done? false}]
+  (let [new-id   (random-uuid)
+        new-todo {:todo/id new-id :todo/text text :todo/done? false}]
     (-> state-map
       (merge/merge-component TodoItem new-todo
         :append (conj list-ident :list/todos))
       (assoc-in (conj list-ident :ui/new-todo-text) ""))))
 
-(defn delete-todo* [state-map todo-id]
-  (nsh/remove-entity state-map [:todo/id todo-id]))
+(defn delete-todo* [state-map id]
+  (nsh/remove-entity state-map [:todo/id id]))
 
-(defmutation add-todo [{:keys [text]}]
+(defmutation add-todo [{:todo/keys [text]}]
   (action [{:keys [state ref]}]
     (swap! state add-todo* ref text)))
 
-(defmutation delete-todo [{:keys [todo-id]}]
+(defmutation delete-todo [{:todo/keys [id]}]
   (action [{:keys [state]}]
-    (swap! state delete-todo* todo-id)))
+    (swap! state delete-todo* id)))
 
 (defn edit-todo* [state-map todo-id new-text]
   (if (get-in state-map [:todo/id todo-id])
     (assoc-in state-map [:todo/id todo-id :todo/text] new-text)
     state-map))
 
+(defmutation edit-todo [{:todo/keys [id]
+                         new-text :todo/text}]
+  (action [{:keys [state]}]
+    (swap! state edit-todo* id new-text)))
+
 (defn delete-all* [state-map list-ident]
   (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
-    (reduce (fn [s [_table id]] (delete-todo* s id))
-      state-map
-      todo-idents)))
+    (reduce nsh/remove-entity state-map todo-idents)))
 
 (defmutation delete-all [_]
   (action [{:keys [state ref]}]
@@ -97,7 +100,7 @@
       state-map
       todo-idents)))
 
-(defmutation mark-all-complete [{:keys [done?]}]
+(defmutation mark-all-complete [{:list/keys [done?]}]
   (action [{:keys [state ref]}]
     (swap! state mark-all-complete* ref done?)))
 
