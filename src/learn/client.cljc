@@ -6,6 +6,7 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
+    [com.fulcrologic.fulcro.headless.loopback-remotes :as lr]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -184,7 +185,8 @@
 (defn init []
   (let [spa
         ; headless equivalent of app/fulcro-app
-        (h/build-test-app {:root-class Root})]
+        (h/build-test-app {:root-class Root
+                           :remotes    {:remote (lr/sync-remote server-handler)}})]
     (reset! SPA spa)
     ; :app == CLJ "mount target" (like DOM element id '#app')
     (app/mount! spa Root :app)
