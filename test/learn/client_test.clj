@@ -3,10 +3,11 @@
     [fulcro-spec.core :refer [specification component assertions =>]]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.headless :as h]
-    [com.fulcrologic.fulcro.components :as comp]
-    [learn.client :as sut]))
+    [learn.client :as sut]
+    [learn.server :as server]))
 
 ;; ============================================================================
 ;; Test fixtures
@@ -32,6 +33,11 @@
   [before after paths]
   (let [strip (fn [m] (reduce nsh/dissoc-in m paths))]
     (= (strip before) (strip after))))
+
+;; Server seed UUIDs — declared once so both fixtures and assertions
+;; can reference them by name rather than copying the literal each time.
+(def server-id-1 #uuid "11111111-1111-1111-1111-111111111111")
+(def server-id-2 #uuid "22222222-2222-2222-2222-222222222222")
 
 ;; ============================================================================
 ;; Pure helper specifications
@@ -163,22 +169,23 @@
         => true))))
 
 ;; ============================================================================
-;; Integration specifications — these touch live Fulcro state and the
-;; loopback remote. We don't use affects-only? here because Fulcro mutates
-;; many internal keys (active-remotes, transaction queue, marker tables)
-;; that we don't want to assert about.
+;; Integration specifications
+;;
+;; These build a real (loopback) Fulcro app, exercise mutations end-to-end,
+;; and assert observable outcomes on both the client DB and the server atom.
+;;
+;; They do NOT use affects-only? — Fulcro maintains many internal keys
+;; (:active-remotes, transaction queue, marker tables) that we don't want
+;; to assert about, so we focus on the specific observations that matter.
+;;
+;; Each spec resets the server first so they don't leak state into each other.
 ;; ============================================================================
 
-(specification "df/load! integration"
-  (component "loads server todos into the client DB"
-    (sut/reset-server!)
-    (let [spa         (sut/init)
-          _           (df/load! spa :all-todos sut/TodoItem
-                        {:target [:list/id 1 :list/todos]})
-          _           (h/render-frame! spa)
-          db          (app/current-state spa)
-          server-id-1 #uuid "11111111-1111-1111-1111-111111111111"
-          server-id-2 #uuid "22222222-2222-2222-2222-222222222222"]
+(specification "df/load! integration (via init)"
+  (component "init triggers an initial load that populates :list/todos"
+    (server/seed!)
+    (let [spa (sut/init)
+          db  (app/current-state spa)]
       (assertions
         "the server's todos appear in the :todo/id table"
         (contains? (:todo/id db) server-id-1) => true
@@ -189,19 +196,94 @@
         "loaded entities have the expected text"
         (get-in db [:todo/id server-id-1 :todo/text]) => "Read the Fulcro book"))))
 
-(specification "add-todo with :remote true"
-  (component "client-side add reaches the server"
-    (sut/reset-server!)
+(specification "add-todo mutation (with :remote true)"
+  (component "client-side add reaches the server and the client"
+    (server/seed!)
     (let [spa (sut/init)
           _   (h/type-into-labeled! spa "New TODO" "Pet the cat")
           _   (h/click-on-text! spa "Add")
           _   (h/render-frame! spa)]
       (assertions
         "the server's :todo/id table grew by one entry"
-        (count (:todo/id @sut/SERVER-DB)) => 3
+        (count (:todo/id @server/SERVER-DB)) => 3
         "the new entry on the server has the typed text"
         (some #(= "Pet the cat" (:todo/text %))
-          (vals (:todo/id @sut/SERVER-DB))) => true
+          (vals (:todo/id @server/SERVER-DB))) => true
         "the client also has a todo with that text"
         (some #(= "Pet the cat" (:todo/text %))
           (vals (:todo/id (app/current-state spa)))) => true))))
+
+(specification "delete-todo mutation (with :remote true)"
+  (component "client-side delete reaches the server"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa [(sut/delete-todo {:todo/id server-id-1})])
+          _   (h/render-frame! spa)]
+      (assertions
+        "the targeted todo is gone from the server"
+        (contains? (:todo/id @server/SERVER-DB) server-id-1) => false
+        "the other todo is still on the server"
+        (contains? (:todo/id @server/SERVER-DB) server-id-2) => true
+        "the client's :list/todos no longer references the deleted ident"
+        (some #(= [:todo/id server-id-1] %)
+          (get-in (app/current-state spa) [:list/id 1 :list/todos]))
+        => nil))))
+
+(specification "edit-todo mutation"
+  (component "updates :todo/text on the targeted entity"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/edit-todo {:todo/id   server-id-1
+                                 :todo/text "Updated via mutation"})])
+          db  (app/current-state spa)]
+      (assertions
+        "the entity's :todo/text reflects the new value"
+        (get-in db [:todo/id server-id-1 :todo/text]) => "Updated via mutation"
+        "the entity's :todo/done? remains unchanged"
+        (get-in db [:todo/id server-id-1 :todo/done?]) => false
+        "other entities are unaffected"
+        (get-in db [:todo/id server-id-2 :todo/text]) => "Try out remotes"))))
+
+(specification "delete-all mutation"
+  (component "removes every todo referenced by the list"
+    ;; delete-all uses (action [{:keys [state ref]}]) — it pulls the list
+    ;; from `ref`. When transacting from outside a component, we pass
+    ;; `{:ref ...}` as transact options so the mutation knows which list.
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa [(sut/delete-all)] {:ref [:list/id 1]})
+          db  (app/current-state spa)]
+      (assertions
+        ":list/todos is empty"
+        (get-in db [:list/id 1 :list/todos]) => []
+        "no loaded entities remain in the :todo/id table"
+        (contains? (:todo/id db) server-id-1) => false
+        (contains? (:todo/id db) server-id-2) => false))))
+
+(specification "mark-all-complete mutation"
+  (component "with :list/done? true — marks every todo as done"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/mark-all-complete {:list/done? true})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)]
+      (assertions
+        "the previously-undone todo is now done"
+        (get-in db [:todo/id server-id-1 :todo/done?]) => true
+        "the previously-done todo remains done"
+        (get-in db [:todo/id server-id-2 :todo/done?]) => true)))
+
+  (component "with :list/done? false — unmarks every todo"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/mark-all-complete {:list/done? false})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)]
+      (assertions
+        "the previously-done todo is now undone"
+        (get-in db [:todo/id server-id-2 :todo/done?]) => false
+        "the previously-undone todo remains undone"
+        (get-in db [:todo/id server-id-1 :todo/done?]) => false))))
