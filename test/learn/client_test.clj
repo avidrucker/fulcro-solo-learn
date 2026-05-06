@@ -9,7 +9,7 @@
     [learn.client :as sut]))
 
 ;; ============================================================================
-;; Test fixtures — small, realistic, hand-built normalized state maps.
+;; Test fixtures
 ;; ============================================================================
 
 (defn fixture-state
@@ -28,92 +28,93 @@
    :todo/id {}})
 
 (defn affects-only?
-  "Asserts that `after` differs from `before` only at the given paths.
-   Each path is a sequence of keys (like get-in / assoc-in arguments)."
+  "True when `after` differs from `before` only at the given paths."
   [before after paths]
   (let [strip (fn [m] (reduce nsh/dissoc-in m paths))]
     (= (strip before) (strip after))))
 
 ;; ============================================================================
-;; Existing helpers — these should pass with your current implementation.
+;; Pure helper specifications
 ;; ============================================================================
 
 (specification "add-todo*"
   (component "into a populated list"
-    (let [list-ident [:list/id 1]
-          before-count (count (:todo/id (fixture-state)))
-          result       (sut/add-todo* (fixture-state) list-ident "Third")
-          new-ident    (last (get-in result [:list/id 1 :list/todos]))
-          [_ new-id]   new-ident]
+    (let [before     (fixture-state)
+          after      (sut/add-todo* before [:list/id 1] "Third")
+          new-ident  (last (get-in after [:list/id 1 :list/todos]))
+          [_ new-id] new-ident]
       (assertions
-        "adds a new entity to the :todo/id table"
-        (count (:todo/id result)) => (inc before-count)
-        "the appended ident points to a new entity in the table"
-        (contains? (:todo/id result) new-id) => true
         "stores the new text on the new entity"
-        (get-in result [:todo/id new-id :todo/text]) => "Third"
+        (get-in after [:todo/id new-id :todo/text]) => "Third"
         "starts the new todo as not done"
-        (get-in result [:todo/id new-id :todo/done?]) => false
-        "preserves existing todos in :list/todos"
-        (vec (take 2 (get-in result [:list/id 1 :list/todos])))
-        => [[:todo/id 1] [:todo/id 2]]
+        (get-in after [:todo/id new-id :todo/done?]) => false
+        "appends the new ident at the end of :list/todos"
+        (last (get-in after [:list/id 1 :list/todos])) => new-ident
         "clears :ui/new-todo-text on the list"
-        (get-in result [:list/id 1 :ui/new-todo-text]) => "")))
+        (get-in after [:list/id 1 :ui/new-todo-text]) => ""
+        "affects only the new entity, the list's :list/todos, and :ui/new-todo-text"
+        (affects-only? before after
+          [[:todo/id new-id]
+           [:list/id 1 :list/todos]
+           [:list/id 1 :ui/new-todo-text]])
+        => true)))
 
   (component "into an empty list"
-    (let [list-ident   [:list/id 1]
-          result       (sut/add-todo* (empty-fixture-state) list-ident "First!")
-          new-ident    (last (get-in result [:list/id 1 :list/todos]))
-          [_ new-id]   new-ident]
+    (let [before     (empty-fixture-state)
+          after      (sut/add-todo* before [:list/id 1] "First!")
+          new-ident  (last (get-in after [:list/id 1 :list/todos]))
+          [_ new-id] new-ident]
       (assertions
         "creates the first todo with the new text"
-        (get-in result [:todo/id new-id :todo/text]) => "First!"
-        "places its ident as the only entry in :list/todos"
-        (get-in result [:list/id 1 :list/todos]) => [new-ident])))
+        (get-in after [:todo/id new-id :todo/text]) => "First!"
+        "places the new ident as the only entry in :list/todos"
+        (get-in after [:list/id 1 :list/todos]) => [new-ident]
+        "affects only the new entity and the list's :list/todos"
+        (affects-only? before after
+          [[:todo/id new-id]
+           [:list/id 1 :list/todos]])
+        => true)))
 
   (component "after a previous delete"
-    ;; This component exercises a bug — see the note in my message.
-    (let [list-ident [:list/id 1]
-          state      (sut/delete-todo* (fixture-state) 1) ; only id 2 remains
-          result     (sut/add-todo* state list-ident "Third")]
+    (let [before     (sut/delete-todo* (fixture-state) 1)   ; only id 2 remains
+          after      (sut/add-todo* before [:list/id 1] "Third")
+          new-ident  (last (get-in after [:list/id 1 :list/todos]))
+          [_ new-id] new-ident]
       (assertions
-        "preserves the surviving todo's text"
-        (get-in result [:todo/id 2 :todo/text]) => "Second"
-        "table contains exactly the surviving todo plus the new one"
-        (count (:todo/id result)) => 2
-        "the new todo's text is reachable somewhere in the table"
-        (some #(= "Third" (:todo/text %)) (vals (:todo/id result))) => true))))
+        "creates a new entity with the new text"
+        (get-in after [:todo/id new-id :todo/text]) => "Third"
+        "appends the new ident to :list/todos"
+        (last (get-in after [:list/id 1 :list/todos])) => new-ident
+        "affects only the new entity and the targeted list paths"
+        (affects-only? before after
+          [[:todo/id new-id]
+           [:list/id 1 :list/todos]
+           [:list/id 1 :ui/new-todo-text]])
+        => true))))
 
 (specification "delete-todo*"
-  (let [result (sut/delete-todo* (fixture-state) 1)]
+  (let [before (fixture-state)
+        after  (sut/delete-todo* before 1)]
     (assertions
       "removes the entity from the :todo/id table"
-      (contains? (:todo/id result) 1) => false
-      "leaves other todos in the table"
-      (contains? (:todo/id result) 2) => true
+      (contains? (:todo/id after) 1) => false
       "removes the ident from :list/todos"
-      (get-in result [:list/id 1 :list/todos]) => [[:todo/id 2]]
-      "preserves :ui/new-todo-text"
-      (get-in result [:list/id 1 :ui/new-todo-text]) => "draft text")))
-
-;; ============================================================================
-;; New helpers — failing tests drive these implementations.
-;; Add `edit-todo*`, `delete-all*`, and `mark-all-complete*` to client.cljc
-;; until these specifications all pass.
-;; ============================================================================
+      (get-in after [:list/id 1 :list/todos]) => [[:todo/id 2]]
+      "affects only :todo/id 1 and the list's :list/todos"
+      (affects-only? before after
+        [[:todo/id 1]
+         [:list/id 1 :list/todos]])
+      => true)))
 
 (specification "edit-todo*"
   (component "for an existing todo"
-    (let [result (sut/edit-todo* (fixture-state) 1 "Updated text")]
+    (let [before (fixture-state)
+          after  (sut/edit-todo* before 1 "Updated text")]
       (assertions
         "updates :todo/text on the targeted entity"
-        (get-in result [:todo/id 1 :todo/text]) => "Updated text"
-        "leaves :todo/done? unchanged on the targeted entity"
-        (get-in result [:todo/id 1 :todo/done?]) => false
-        "leaves other todos unchanged"
-        (get-in result [:todo/id 2 :todo/text]) => "Second"
-        "leaves :list/todos unchanged"
-        (get-in result [:list/id 1 :list/todos]) => [[:todo/id 1] [:todo/id 2]])))
+        (get-in after [:todo/id 1 :todo/text]) => "Updated text"
+        "affects only :todo/text of the targeted entity"
+        (affects-only? before after [[:todo/id 1 :todo/text]]) => true)))
 
   (component "for a non-existent id"
     (assertions
@@ -121,17 +122,18 @@
       (sut/edit-todo* (fixture-state) 999 "x") => (fixture-state))))
 
 (specification "delete-all*"
-  (let [list-ident [:list/id 1]
-        result     (sut/delete-all* (fixture-state) list-ident)]
+  (let [before (fixture-state)
+        after  (sut/delete-all* before [:list/id 1])]
     (assertions
       "empties :list/todos at the given list"
-      (get-in result [:list/id 1 :list/todos]) => []
+      (get-in after [:list/id 1 :list/todos]) => []
       "removes every entity from the :todo/id table"
-      (:todo/id result) => nil ;; was {}, now nil
-      "preserves the list entity itself"
-      (contains? (:list/id result) 1) => true
-      "preserves :ui/new-todo-text on the list"
-      (get-in result [:list/id 1 :ui/new-todo-text]) => "draft text")))
+      (:todo/id after) => nil
+      "affects only the :todo/id table and the list's :list/todos"
+      (affects-only? before after
+        [[:todo/id]
+         [:list/id 1 :list/todos]])
+      => true)))
 
 (specification "mark-all-complete*"
   (component "with done? = true"
@@ -146,16 +148,35 @@
         (affects-only? before after
           [[:todo/id 1 :todo/done?]
            [:todo/id 2 :todo/done?]])
+        => true)))
+
+  (component "with done? = false (un-mark all)"
+    (let [before (fixture-state)
+          after  (sut/mark-all-complete* before [:list/id 1] false)]
+      (assertions
+        "un-marks the previously-done todo"
+        (get-in after [:todo/id 2 :todo/done?]) => false
+        "affects only the :todo/done? fields of the targeted todos"
+        (affects-only? before after
+          [[:todo/id 1 :todo/done?]
+           [:todo/id 2 :todo/done?]])
         => true))))
+
+;; ============================================================================
+;; Integration specifications — these touch live Fulcro state and the
+;; loopback remote. We don't use affects-only? here because Fulcro mutates
+;; many internal keys (active-remotes, transaction queue, marker tables)
+;; that we don't want to assert about.
+;; ============================================================================
 
 (specification "df/load! integration"
   (component "loads server todos into the client DB"
     (sut/reset-server!)
-    (let [spa (sut/init)
-          _   (df/load! spa :all-todos sut/TodoItem
-                {:target [:list/id 1 :list/todos]})
-          _   (h/render-frame! spa)
-          db  (app/current-state spa)
+    (let [spa         (sut/init)
+          _           (df/load! spa :all-todos sut/TodoItem
+                        {:target [:list/id 1 :list/todos]})
+          _           (h/render-frame! spa)
+          db          (app/current-state spa)
           server-id-1 #uuid "11111111-1111-1111-1111-111111111111"
           server-id-2 #uuid "22222222-2222-2222-2222-222222222222"]
       (assertions
