@@ -46,7 +46,7 @@
     (dom/input {:id       "new-todo"
                 :value    (or new-todo-text "")
                 :onChange #(m/set-string! this :ui/new-todo-text :event %)})
-    (dom/button {:onClick #(comp/transact! this [(add-todo {:text new-todo-text})])}
+    (dom/button {:onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
       "Add")))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -66,7 +66,12 @@
 
 (defmutation add-todo [{:todo/keys [text]}]
   (action [{:keys [state ref]}]
-    (swap! state add-todo* ref text)))
+    (swap! state add-todo* ref text))
+  ;; send this mutation to the default remote
+  ;; TODO: implement tempids, what tempids solve - they're Fulcro's mechanism for
+  ;; "the client picks a placeholder id, sends it to the server, the server returns
+  ;; the real id, Fulcro rewrites all references on the client."
+  (remote [_] true))
 
 (defmutation delete-todo [{:todo/keys [id]}]
   (action [{:keys [state]}]
@@ -265,4 +270,23 @@
   ;; This should be nil or whatever initial-state put there
   (:todo/id (app/current-state @SPA))
 
+  )
+
+(comment
+  (do (reset-server!) (init))
+
+  ;; Server starts with 2 todos:
+  (count (:todo/id @SERVER-DB))     ;; => 2
+
+  ;; Trigger a client-side add. Type then click:
+  (h/type-into-labeled! @SPA "New TODO" "Pet the cat")
+  (h/click-on-text! @SPA "Add")
+  (h/render-frame! @SPA)
+
+  ;; Server should now have 3 todos:
+  (count (:todo/id @SERVER-DB))     ;; => 3
+
+  ;; And one of them should have the text we typed:
+  (some #(= "Pet the cat" (:todo/text %))
+    (vals (:todo/id @SERVER-DB)))   ;; => true
   )

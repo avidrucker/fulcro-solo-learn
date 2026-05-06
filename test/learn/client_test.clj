@@ -2,6 +2,10 @@
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.headless :as h]
+    [com.fulcrologic.fulcro.components :as comp]
     [learn.client :as sut]))
 
 ;; ============================================================================
@@ -143,3 +147,40 @@
           [[:todo/id 1 :todo/done?]
            [:todo/id 2 :todo/done?]])
         => true))))
+
+(specification "df/load! integration"
+  (component "loads server todos into the client DB"
+    (sut/reset-server!)
+    (let [spa (sut/init)
+          _   (df/load! spa :all-todos sut/TodoItem
+                {:target [:list/id 1 :list/todos]})
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)
+          server-id-1 #uuid "11111111-1111-1111-1111-111111111111"
+          server-id-2 #uuid "22222222-2222-2222-2222-222222222222"]
+      (assertions
+        "the server's todos appear in the :todo/id table"
+        (contains? (:todo/id db) server-id-1) => true
+        (contains? (:todo/id db) server-id-2) => true
+        "the loaded idents replace :list/todos at the targeted path"
+        (set (get-in db [:list/id 1 :list/todos]))
+        => #{[:todo/id server-id-1] [:todo/id server-id-2]}
+        "loaded entities have the expected text"
+        (get-in db [:todo/id server-id-1 :todo/text]) => "Read the Fulcro book"))))
+
+(specification "add-todo with :remote true"
+  (component "client-side add reaches the server"
+    (sut/reset-server!)
+    (let [spa (sut/init)
+          _   (h/type-into-labeled! spa "New TODO" "Pet the cat")
+          _   (h/click-on-text! spa "Add")
+          _   (h/render-frame! spa)]
+      (assertions
+        "the server's :todo/id table grew by one entry"
+        (count (:todo/id @sut/SERVER-DB)) => 3
+        "the new entry on the server has the typed text"
+        (some #(= "Pet the cat" (:todo/text %))
+          (vals (:todo/id @sut/SERVER-DB))) => true
+        "the client also has a todo with that text"
+        (some #(= "Pet the cat" (:todo/text %))
+          (vals (:todo/id (app/current-state spa)))) => true))))
