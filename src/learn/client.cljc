@@ -2,6 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.headless :as h]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -37,10 +38,7 @@
    (fn [_]
      {:list/id 1
       :ui/new-todo-text ""
-      :list/todos [(comp/get-initial-state TodoItem
-                     {:id 1 :text "Learn Fulcro" :done? false})
-                   (comp/get-initial-state TodoItem
-                     {:id 2 :text "Build a TODO app" :done? false})]})}
+      :list/todos []})}
   (dom/div
     (dom/h1 "TODOs")
     (dom/ul (mapv ui-todo-item todos))
@@ -145,42 +143,42 @@
 ;; This is a hand-rolled minimal parser. In real apps you'd use
 ;; Pathom for this; we're staying primitive to make the mechanics clear.
 ;; -------------------------------------------------------------------
+(defn server-handler [eql]
+  (println "SERVER got EQL:" (pr-str eql))
+  (let [response (reduce
+                   (fn [response query-element]
+                     (cond
+                       ;; Join: a map like {:all-todos [:todo/id ...]}
+                       (and (map? query-element)
+                         (contains? query-element :all-todos))
+                       (assoc response :all-todos (vec (vals (:todo/id @SERVER-DB))))
 
-(defn server-handler
-  "Receives EQL from the client and returns a tree response.
+                       ;; Note: Hardcoded 'learn.client/add-todo symbols couple the server to the client
+                       ;; namespace. When mutations gain remotes, the client sends (add-todo {...}) which
+                       ;; gets fully-qualified to learn.client/add-todo because that's where it's defined.
+                       ;; The server then has to match on that exact symbol. If you ever rename the
+                       ;; namespace, the server breaks silently. In a real app, server-side mutations live
+                       ;; in their own namespace (e.g., myapp.api/add-todo) and you tell the client mutation
+                       ;; what symbol to send via the remote section.
+                       (and (list? query-element)
+                         (= 'learn.client/add-todo (first query-element)))
+                       (let [{:todo/keys [text]} (second query-element)
+                             new-id              (random-uuid)
+                             new-todo            {:todo/id new-id :todo/text text :todo/done? false}]
+                         (swap! SERVER-DB assoc-in [:todo/id new-id] new-todo)
+                         (assoc response 'learn.client/add-todo new-todo))
 
-   Supports:
-   - The query [:all-todos] — returns all todos as a vector under :all-todos
-   - The mutation `add-todo with {:todo/text \"...\"} — creates and returns the new todo
-   - The mutation `delete-todo with {:todo/id ...}    — removes from server DB
+                       (and (list? query-element)
+                         (= 'learn.client/delete-todo (first query-element)))
+                       (let [{:todo/keys [id]} (second query-element)]
+                         (swap! SERVER-DB update :todo/id dissoc id)
+                         (assoc response 'learn.client/delete-todo {}))
 
-   Other EQL is ignored (returns {})."
-  [eql]
-  (reduce
-    (fn [response query-element]
-      (cond
-        ;; Query: a keyword or join-map asking for data
-        (= query-element :all-todos)
-        (assoc response :all-todos (vec (vals (:todo/id @SERVER-DB))))
-
-        ;; Mutation: a list with a symbol head, e.g. (add-todo {:todo/text "..."})
-        (and (list? query-element)
-          (= 'learn.client/add-todo (first query-element)))
-        (let [{:todo/keys [text]} (second query-element)
-              new-id              (random-uuid)
-              new-todo            {:todo/id new-id :todo/text text :todo/done? false}]
-          (swap! SERVER-DB assoc-in [:todo/id new-id] new-todo)
-          (assoc response 'learn.client/add-todo new-todo))
-
-        (and (list? query-element)
-          (= 'learn.client/delete-todo (first query-element)))
-        (let [{:todo/keys [id]} (second query-element)]
-          (swap! SERVER-DB update :todo/id dissoc id)
-          (assoc response 'learn.client/delete-todo {}))
-
-        :else response))
-    {}
-    eql))
+                       :else response))
+                   {}
+                   eql)]
+    #_(println "SERVER returning:" (pr-str response))
+    response))
 
 (defn init []
   (let [spa
@@ -190,6 +188,10 @@
     (reset! SPA spa)
     ; :app == CLJ "mount target" (like DOM element id '#app')
     (app/mount! spa Root :app)
+
+    (df/load! spa :all-todos TodoItem
+      {:target [:list/id 1 :list/todos]})
+
     ; force render & capture as hiccup to read it back
     (h/render-frame! spa)
     spa))
@@ -251,4 +253,16 @@
     #_(delete-todo* 1)
     )
   ;; => composable
+  )
+
+(comment
+  ;; Fresh app, fresh server
+  (do (reset-server!) (init) (snapshot))
+
+  ;; The server has data, but the client doesn't yet, let's inspect both:
+  @SERVER-DB
+
+  ;; This should be nil or whatever initial-state put there
+  (:todo/id (app/current-state @SPA))
+
   )
