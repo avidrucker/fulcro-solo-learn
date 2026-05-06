@@ -5,6 +5,7 @@ out/
 classes/
 pom.xml
 pom.xml.asc
+*.zip
 
 # shadow-cljs (typical for Fulcro frontends)
 .shadow-cljs/
