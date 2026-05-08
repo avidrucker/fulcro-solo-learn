@@ -15,14 +15,37 @@
 ;; ----------------------------------------------------------------------
 
 (defn run-resolver
-  "Invoke a Pathom resolver's function with a fresh empty env."
-  [resolver input]
-  ((::pc/resolve resolver) {} input))
+  "Invoke a Pathom resolver's function. Defaults to an empty env;
+   pass one (typically built with `test-env`) to simulate parameterized
+   queries or other parser-supplied context."
+  ([resolver input] (run-resolver resolver {} input))
+  ([resolver env input] ((::pc/resolve resolver) env input)))
 
 (defn run-mutation
   "Invoke a Pathom mutation's function with a fresh empty env."
   [mutation params]
   ((::pc/mutate mutation) {} params))
+
+(defn test-env
+  "Build a Pathom-shaped env for resolver/mutation testing.
+
+   Options map:
+     :params - query parameters, e.g. {:done? true}. Placed where the
+               real Pathom parser would put them when EQL contains a
+               parameterized call like (:all-todos {:done? true}).
+
+   Returns an env map. Empty when called with no options.
+
+   Why this exists: Pathom's env shape is an implementation detail of
+   the framework. By constructing the env in one place, every spec
+   declares its intent (here are the params) without depending on
+   Pathom's current internal representation. If the contract changes,
+   we update this function rather than every spec that constructs
+   an env by hand."
+  ([] (test-env {}))
+  ([{:keys [params]}]
+   (cond-> {}
+     params (assoc-in [:ast :params] params))))
 
 ;; Server seed UUIDs — same as in client-test, repeated here for clarity.
 (def seed-id-1 #uuid "11111111-1111-1111-1111-111111111111")
@@ -50,16 +73,15 @@
 (specification "all-todos-resolver with :done? parameter"
   (component "no parameter — returns every todo"
     (server/seed!)
-    (let [env    {}
-          result ((::pc/resolve sut/all-todos-resolver) env {})]
+    (let [result (run-resolver sut/all-todos-resolver {})]
       (assertions
         "returns both seeded todos"
         (count (:all-todos result)) => 2)))
 
   (component "{:done? true} — returns only completed todos"
     (server/seed!)
-    (let [env    {:ast {:params {:done? true}}}
-          result ((::pc/resolve sut/all-todos-resolver) env {})]
+    (let [env    (test-env {:params {:done? true}})
+          result (run-resolver sut/all-todos-resolver env {})]
       (assertions
         "returns only the done todo (seed-id-2)"
         (count (:all-todos result)) => 1
@@ -67,8 +89,8 @@
 
   (component "{:done? false} — returns only incomplete todos"
     (server/seed!)
-    (let [env    {:ast {:params {:done? false}}}
-          result ((::pc/resolve sut/all-todos-resolver) env {})]
+    (let [env    (test-env {:params {:done? false}})
+          result (run-resolver sut/all-todos-resolver env {})]
       (assertions
         "returns only the not-done todo (seed-id-1)"
         (count (:all-todos result)) => 1
