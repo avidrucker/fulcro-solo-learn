@@ -4,6 +4,7 @@
     [com.wsscode.pathom.connect :as pc]
     [com.fulcrologic.guardrails.malli.fulcro-spec-helpers :refer [when-mocking! provided!]]
     [learn.resolvers :as sut]
+    [learn.parser :as parser]
     [learn.server :as server]))
 
 ;; ----------------------------------------------------------------------
@@ -150,3 +151,15 @@
         (contains? (:todo/id @server/SERVER-DB) seed-id-2) => true
         "returns the id that was deleted"
         result => {:todo/id seed-id-1}))))
+
+;; ============================================================================
+;; Error handling specifications
+;; ============================================================================
+
+(specification "parser error handling"
+  (component "missing keys are elided rather than appearing as not-found markers"
+    (server/seed!)
+    (let [response (parser/handler [:nonexistent/key])]
+      (assertions
+        ":nonexistent/key is elided from response"
+        (contains? response :nonexistent/key) => false))))
