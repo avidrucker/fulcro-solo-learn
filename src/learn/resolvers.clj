@@ -21,10 +21,20 @@
 ;; Global resolver: entry point for loading every todo.
 ;; Returns a vector of *idents* — Pathom will call the entity resolver
 ;; below to fill in :todo/text and :todo/done? for each one.
-(pc/defresolver all-todos-resolver [_env _input]
+;;
+;; Supports an optional :done? query parameter:
+;;   nil   - returns all todos
+;;   true  - returns only completed todos
+;;   false - returns only incomplete todos
+(pc/defresolver all-todos-resolver [env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
-  {:all-todos (mapv (fn [id] {:todo/id id})
-                (keys (:todo/id @server/SERVER-DB)))})
+  (let [params       (-> env ::p/parent-query meta :params)
+        done-filter? (contains? params :done?)
+        target-state (:done? params)
+        all-todos    (vals (:todo/id @server/SERVER-DB))
+        filtered     (cond->> all-todos
+                       done-filter? (filter #(= target-state (:todo/done? %))))]
+    {:all-todos (mapv (fn [t] {:todo/id (:todo/id t)}) filtered)}))
 
 ;; Entity resolver: given a :todo/id, produces the rest of a todo's fields.
 ;; This is the resolver Pathom chains to from the all-todos result.

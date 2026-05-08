@@ -2,6 +2,7 @@
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
     [com.wsscode.pathom.connect :as pc]
+    [com.wsscode.pathom.core :as p]
     [com.fulcrologic.guardrails.malli.fulcro-spec-helpers :refer [when-mocking! provided!]]
     [learn.resolvers :as sut]
     [learn.server :as server]))
@@ -46,6 +47,33 @@
         "the ids match what's in the server"
         (set (map :todo/id (:all-todos result)))
         => #{seed-id-1 seed-id-2}))))
+
+(specification "all-todos-resolver with :done? parameter"
+  (component "no parameter — returns every todo"
+    (server/seed!)
+    (let [env    {::p/parent-query (with-meta [] {})}
+          result ((::pc/resolve sut/all-todos-resolver) env {})]
+      (assertions
+        "returns both seeded todos"
+        (count (:all-todos result)) => 2)))
+
+  (component "{:done? true} — returns only completed todos"
+    (server/seed!)
+    (let [env    {::p/parent-query (with-meta [] {:params {:done? true}})}
+          result ((::pc/resolve sut/all-todos-resolver) env {})]
+      (assertions
+        "returns only the done todo (seed-id-2)"
+        (count (:all-todos result)) => 1
+        (set (map :todo/id (:all-todos result))) => #{seed-id-2})))
+
+  (component "{:done? false} — returns only incomplete todos"
+    (server/seed!)
+    (let [env    {::p/parent-query (with-meta [] {:params {:done? false}})}
+          result ((::pc/resolve sut/all-todos-resolver) env {})]
+      (assertions
+        "returns only the not-done todo (seed-id-1)"
+        (count (:all-todos result)) => 1
+        (set (map :todo/id (:all-todos result))) => #{seed-id-1}))))
 
 (specification "todo-resolver"
   (component "given a known todo id, returns text and done?"
