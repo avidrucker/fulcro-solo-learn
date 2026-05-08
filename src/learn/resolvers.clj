@@ -11,7 +11,6 @@
    forms in this file use `;;` comments above the definition instead."
   (:require
     [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
     [learn.server :as server]))
 
 ;; ----------------------------------------------------------------------
@@ -28,7 +27,8 @@
 ;;   false - returns only incomplete todos
 (pc/defresolver all-todos-resolver [env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
-  (let [params       (-> env ::p/parent-query meta :params)
+  (println "RESOLVER env :ast =" (:ast env))
+  (let [params       (-> env :ast :params)
         done-filter? (contains? params :done?)
         target-state (:done? params)
         all-todos    (vals (:todo/id @server/SERVER-DB))
