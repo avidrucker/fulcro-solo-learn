@@ -27,7 +27,6 @@
 ;;   false - returns only incomplete todos
 (pc/defresolver all-todos-resolver [env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
-  (println "RESOLVER env :ast =" (:ast env))
   (let [params       (-> env :ast :params)
         done-filter? (contains? params :done?)
         target-state (:done? params)
