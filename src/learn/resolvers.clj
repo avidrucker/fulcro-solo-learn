@@ -73,3 +73,8 @@
    todo-resolver
    add-todo-mutation
    delete-todo-mutation])
+
+;; Note: To see Pathom in action, enable debug from the REPL:
+;; (require 'learn.parser :reload)
+;; (in-ns 'learn.parser)
+;; (alter-var-root #'*debug?* (constantly true))
