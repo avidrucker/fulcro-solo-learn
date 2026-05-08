@@ -6,9 +6,9 @@
      - Resolvers declare their inputs and outputs; Pathom composes them.
      - Mutations declare a wire symbol (::pc/sym) that the client sends.
 
-   At Dataico, this is roughly the shape of every server-side namespace,
-   though real production code adds security checks, request-scoped env,
-   and connects to a real database (Datomic) instead of an atom."
+   Pathom 2's pc/defmutation does NOT accept docstrings between the
+   name and the arglist (unlike pc/defresolver). For consistency, all
+   forms in this file use `;;` comments above the definition instead."
   (:require
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
@@ -18,19 +18,17 @@
 ;; Resolvers — read-only operations that produce data.
 ;; ----------------------------------------------------------------------
 
-(pc/defresolver all-todos-resolver
-  "Global resolver: entry point for loading every todo.
-   Returns a vector of *idents* — Pathom will call the entity resolver
-   below to fill in :todo/text and :todo/done? for each one."
-  [_env _input]
+;; Global resolver: entry point for loading every todo.
+;; Returns a vector of *idents* — Pathom will call the entity resolver
+;; below to fill in :todo/text and :todo/done? for each one.
+(pc/defresolver all-todos-resolver [_env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
   {:all-todos (mapv (fn [id] {:todo/id id})
                 (keys (:todo/id @server/SERVER-DB)))})
 
-(pc/defresolver todo-resolver
-  "Entity resolver: given a :todo/id, produces the rest of a todo's fields.
-   This is the resolver Pathom chains to from the all-todos result."
-  [_env {:todo/keys [id]}]
+;; Entity resolver: given a :todo/id, produces the rest of a todo's fields.
+;; This is the resolver Pathom chains to from the all-todos result.
+(pc/defresolver todo-resolver [_env {:todo/keys [id]}]
   {::pc/input  #{:todo/id}
    ::pc/output [:todo/text :todo/done?]}
   (let [todo (get-in @server/SERVER-DB [:todo/id id])]
@@ -44,10 +42,9 @@
 ;; protocol, addressing the namespace-coupling concern from Phase 4.
 ;; ----------------------------------------------------------------------
 
-(pc/defmutation add-todo-mutation
-  "Server-side handler for the client's add-todo mutation.
-   Adds a todo to SERVER-DB and returns it so the client can merge."
-  [_env {:todo/keys [text]}]
+;; Server-side handler for the client's add-todo mutation.
+;; Adds a todo to SERVER-DB and returns it so the client can merge.
+(pc/defmutation add-todo-mutation [_env {:todo/keys [text]}]
   {::pc/sym    'learn.client/add-todo
    ::pc/output [:todo/id :todo/text :todo/done?]}
   (let [[new-state new-todo] (server/add-todo @server/SERVER-DB
@@ -55,9 +52,8 @@
     (reset! server/SERVER-DB new-state)
     new-todo))
 
-(pc/defmutation delete-todo-mutation
-  "Server-side handler for the client's delete-todo mutation."
-  [_env {:todo/keys [id]}]
+;; Server-side handler for the client's delete-todo mutation.
+(pc/defmutation delete-todo-mutation [_env {:todo/keys [id]}]
   {::pc/sym    'learn.client/delete-todo
    ::pc/output [:todo/id]}
   (swap! server/SERVER-DB server/delete-todo {:todo/id id})
