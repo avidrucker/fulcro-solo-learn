@@ -1,6 +1,6 @@
 {:paths ["src"]
- :deps {com.fulcrologic/fulcro
-        {:mvn/version "3.9.5"}}
+ :deps {com.fulcrologic/fulcro {:mvn/version "3.9.5"}
+        com.wsscode/pathom {:mvn/version "2.4.0"}}
  :aliases
  {:nrepl
   {:extra-deps
@@ -10,5 +10,4 @@
   :test {:extra-paths ["test"]
          :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}}
   }
-
  }
