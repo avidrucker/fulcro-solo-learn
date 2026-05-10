@@ -10,16 +10,16 @@
    what bridges this to Fulcro's query model.")
 
 (def initial-state
-  "Seed data for the server. Two todos, one done and one not.
+  "Seed data for the server. Two todos, demonstrating 2 of the 3 statuses.
    UUIDs are hardcoded so we can predict and assert in tests."
   {:todo/id {#uuid "11111111-1111-1111-1111-111111111111"
              {:todo/id    #uuid "11111111-1111-1111-1111-111111111111"
               :todo/text  "Read the Fulcro book"
-              :todo/done? false}
+              :todo/status :status/ready}
              #uuid "22222222-2222-2222-2222-222222222222"
              {:todo/id    #uuid "22222222-2222-2222-2222-222222222222"
               :todo/text  "Try out remotes"
-              :todo/done? true}}})
+              :todo/status :status/new}}})
 
 (defonce SERVER-DB
   (atom initial-state))
@@ -42,10 +42,12 @@
   (vec (vals (:todo/id server-state))))
 
 (defn add-todo
-  "Adds a todo to the server state. Returns [new-state new-todo]."
+  "Adds a todo to the server state. New todos start w/ :status/new. Returns [new-state new-todo]."
   [server-state {:todo/keys [text]}]
   (let [new-id   (random-uuid)
-        new-todo {:todo/id new-id :todo/text text :todo/done? false}]
+        new-todo {:todo/id new-id
+                  :todo/text text
+                  :todo/status :status/new}]
     [(assoc-in server-state [:todo/id new-id] new-todo)
      new-todo]))
 

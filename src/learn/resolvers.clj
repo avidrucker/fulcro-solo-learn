@@ -19,29 +19,30 @@
 
 ;; Global resolver: entry point for loading every todo.
 ;; Returns a vector of *idents* — Pathom will call the entity resolver
-;; below to fill in :todo/text and :todo/done? for each one.
+;; below to fill in :todo/text and :todo/status for each one.
 ;;
-;; Supports an optional :done? query parameter:
-;;   nil   - returns all todos
-;;   true  - returns only completed todos
-;;   false - returns only incomplete todos
+;; Supports an optional :status query parameter:
+;;   nil           - returns all todos
+;;   :status/new   - returns only new todos
+;;   :status/ready - returns only ready todos
+;;   etc.
 (pc/defresolver all-todos-resolver [env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
   (let [params       (-> env :ast :params)
-        done-filter? (contains? params :done?)
-        target-state (:done? params)
+        status-filter? (contains? params :status)
+        target-state (:status params)
         all-todos    (vals (:todo/id @server/SERVER-DB))
         filtered     (cond->> all-todos
-                       done-filter? (filter #(= target-state (:todo/done? %))))]
+                       status-filter? (filter #(= target-status (:todo/status %))))]
     {:all-todos (mapv (fn [t] {:todo/id (:todo/id t)}) filtered)}))
 
 ;; Entity resolver: given a :todo/id, produces the rest of a todo's fields.
 ;; This is the resolver Pathom chains to from the all-todos result.
 (pc/defresolver todo-resolver [_env {:todo/keys [id]}]
   {::pc/input  #{:todo/id}
-   ::pc/output [:todo/text :todo/done?]}
+   ::pc/output [:todo/text :todo/status]}
   (let [todo (get-in @server/SERVER-DB [:todo/id id])]
-    (select-keys todo [:todo/text :todo/done?])))
+    (select-keys todo [:todo/text :todo/status])))
 
 ;; ----------------------------------------------------------------------
 ;; Mutations — writes that change the server's state.
@@ -55,7 +56,7 @@
 ;; Adds a todo to SERVER-DB and returns it so the client can merge.
 (pc/defmutation add-todo-mutation [_env {:todo/keys [text]}]
   {::pc/sym    'learn.client/add-todo
-   ::pc/output [:todo/id :todo/text :todo/done?]}
+   ::pc/output [:todo/id :todo/text :todo/status]}
   (let [[new-state new-todo] (server/add-todo @server/SERVER-DB
                                {:todo/text text})]
     (reset! server/SERVER-DB new-state)

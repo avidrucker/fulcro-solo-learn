@@ -11,6 +11,7 @@
    Server and parser live in sibling namespaces. The client sees them
    only via the loopback remote configured in `init`."
   (:require
+    [com.fulcrologic.devtools.common.resolvers :refer [remote-mutations]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -23,24 +24,32 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(declare delete-todo add-todo)
+(declare cancel-todo add-todo)
 
 ;; ============================================================================
 ;; UI components
 ;; ============================================================================
 
-(defsc TodoItem [this {:todo/keys [id text done?]}]
-  {:query [:todo/id :todo/text :todo/done?]
+(defn status-symbol
+  "Renders a four-status enum to a small text symbol."
+  [status]
+  (case status
+    :status/new       "[ ]"
+    :status/done      "[x]"
+    :status/ready     "[o]"
+    :status/cancelled "[~]"
+    "[?]"))             ; default — covers any unexpected value
+
+(defsc TodoItem [this {:todo/keys [id text status]}]
+  {:query [:todo/id :todo/text :todo/status]
    :ident :todo/id}
   ;; No :initial-state — TodoItems are populated by loads or by add-todo,
   ;; never seeded by their parent. Keeping initial-state off makes that
   ;; expectation explicit.
   (dom/li
-    (dom/span (if done? (str "[x] " text) (str "[ ] " text)))
-    (dom/button {:onClick #(m/toggle! this :todo/done?)}
-      "Toggle")
-    (dom/button {:onClick #(comp/transact! this [(delete-todo {:todo/id id})])}
-      "Delete")))
+    (dom/span (str (status-symbol status) " " text))
+    (dom/button {:onClick #(comp/transact! this [(cancel-todo {:todo/id id})])}
+      "Cancel")))
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
 
@@ -74,33 +83,23 @@
 
 ;; ============================================================================
 ;; Pure state helpers — independently testable; mutations wrap them.
+;; Note: The AutoFocus model intentionally keeps the API surface minimal.
+;; There is no edit-todo, no delete-todo, etc.. The user is prevented from
+;; micromanaging their to-do list in these ways.
 ;; ============================================================================
 
 (defn add-todo*
   "Returns a new state-map with a fresh todo appended to the given list
-   and :ui/new-todo-text on that list cleared. The new todo's id is a
-   client-generated UUID (Phase 5 will introduce tempids for client/server
-   id reconciliation)."
+   and :ui/new-todo-text on that list cleared. New todos start :status/new."
   [state-map list-ident text]
   (let [new-id   (random-uuid)
-        new-todo {:todo/id new-id :todo/text text :todo/done? false}]
+        new-todo {:todo/id new-id
+                  :todo/text text
+                  :todo/status :status/new}]
     (-> state-map
       (merge/merge-component TodoItem new-todo
         :append (conj list-ident :list/todos))
       (assoc-in (conj list-ident :ui/new-todo-text) ""))))
-
-(defn delete-todo*
-  "Removes the todo with `id` from `:todo/id` and from any list referencing it."
-  [state-map id]
-  (nsh/remove-entity state-map [:todo/id id]))
-
-(defn edit-todo*
-  "Updates :todo/text on an existing todo. No-op if the todo doesn't exist
-   (avoids `assoc-in` accidentally creating a partial entity)."
-  [state-map todo-id new-text]
-  (if (get-in state-map [:todo/id todo-id])
-    (assoc-in state-map [:todo/id todo-id :todo/text] new-text)
-    state-map))
 
 (defn delete-all*
   "Removes every todo referenced by the given list-ident's :list/todos.
@@ -110,19 +109,20 @@
   (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
     (reduce nsh/remove-entity state-map todo-idents)))
 
-(defn set-complete*
-  "Sets :todo/done? on a single todo. Centralizes the path so any future
-   schema change happens in one place."
-  [state-map todo-id done?]
-  (assoc-in state-map [:todo/id todo-id :todo/done?] done?))
-
-(defn mark-all-complete*
-  "Sets :todo/done? on every todo in the given list to `done?`."
-  [state-map list-ident done?]
-  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
-    (reduce (fn [s [_table id]] (set-complete* s id done?))
-      state-map
-      todo-idents)))
+;; TODO: add status change enforcement mechanics - perhaps this
+;; could/should be a state chart?
+(defn set-status*
+  "Sets :todo/status on a single todo. Centralizes the path so any future
+   schema change happens in one place. If todo is set to cancelled, then
+   :todo/was will also be set to the previous status for rendering purposes."
+  [state-map todo-id status]
+  (if (= status :status/cancelled)
+    (let [previous-status (get state-map [:todo-id todo-id :todo/status])]
+      (assoc-in state-map [:todo/id todo-id :todo/status] :status/cancelled)
+      (assoc-in state-map [:todo/id todo-id :todo/was] previous-status))
+    (assoc-in state-map [:todo/id todo-id :todo/status] status)
+    )
+  )
 
 ;; ============================================================================
 ;; Mutations — thin wrappers that route helpers through swap!.
@@ -138,23 +138,23 @@
     (swap! state add-todo* ref text))
   (remote [_] true))
 
-(defmutation delete-todo [{:todo/keys [id]}]
-  (action [{:keys [state]}]
-    (swap! state delete-todo* id))
-  (remote [_] true))
-
-(defmutation edit-todo [{:todo/keys [id]
-                         new-text   :todo/text}]
-  (action [{:keys [state]}]
-    (swap! state edit-todo* id new-text)))
-
 (defmutation delete-all [_]
   (action [{:keys [state ref]}]
-    (swap! state delete-all* ref)))
+    (swap! state delete-all* ref))
+  (remote [_] true)
+  )
 
-(defmutation mark-all-complete [{:list/keys [done?]}]
+(defmutation set-status [{:todo/keys [status]}]
   (action [{:keys [state ref]}]
-    (swap! state mark-all-complete* ref done?)))
+    (swap! state set-status* ref status))
+  (remote [_] true)
+  )
+
+(defmutation cancel-todo [{:todo/keys [id]}]
+  (action [{:keys [state ref]}]
+    (swap! state set-status* ref :status/cancelled))
+  (remote [_] true)
+  )
 
 ;; ============================================================================
 ;; App construction
@@ -209,18 +209,6 @@
   (do
     (h/type-into-labeled! @SPA "New TODO" "Pet the cat")
     (h/click-on-text! @SPA "Add")
-    (h/render-frame! @SPA)
-    (snapshot))
-
-  ;; Toggle the first todo's done state:
-  (do
-    (h/click-on-text! @SPA "Toggle" 0)
-    (h/render-frame! @SPA)
-    (snapshot))
-
-  ;; Delete the first todo (now also persists to the server):
-  (do
-    (h/click-on-text! @SPA "Delete" 0)
     (h/render-frame! @SPA)
     (snapshot))
 
