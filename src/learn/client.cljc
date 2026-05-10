@@ -1,17 +1,19 @@
 (ns learn.client
-  "Fulcro client UI, mutations, and pure state-helpers for the TODO app.
+  "Fulcro client UI, mutations, and pure state-helpers for the AutoFocus app.
+
+   Status enum (per AutoFocus spec):
+     :status/new       — added but not yet reviewed
+     :status/ready     — actionable
+     :status/done      — completed
+     :status/cancelled — explicitly cancelled (preserves prior status in :todo/was)
 
    Layered structure:
      - TodoItem / TodoList / Root  : UI components (defsc)
      - *-suffixed fns              : pure state-map → state-map helpers
      - defmutations                : thin wrappers that swap! the helpers
                                      into the live app state atom
-     - init / SPA                  : app construction + headless mount
-
-   Server and parser live in sibling namespaces. The client sees them
-   only via the loopback remote configured in `init`."
+     - init / SPA                  : app construction + headless mount"
   (:require
-    [com.fulcrologic.devtools.common.resolvers :refer [remote-mutations]]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -41,7 +43,7 @@
     "[?]"))             ; default — covers any unexpected value
 
 (defsc TodoItem [this {:todo/keys [id text status]}]
-  {:query [:todo/id :todo/text :todo/status]
+  {:query [:todo/id :todo/text :todo/status :todo/was]
    :ident :todo/id}
   ;; No :initial-state — TodoItems are populated by loads or by add-todo,
   ;; never seeded by their parent. Keeping initial-state off makes that
@@ -63,7 +65,7 @@
                      :list/todos       []
                      :ui/new-todo-text ""})}
   (dom/div
-    (dom/h1 "TODOs")
+    (dom/h1 "AutoFocus WIP in Fulcro")
     (dom/ul (mapv ui-todo-item todos))
     (dom/label {:htmlFor "new-todo"} "New TODO:")
     (dom/input {:id       "new-todo"
@@ -83,16 +85,22 @@
 
 ;; ============================================================================
 ;; Pure state helpers — independently testable; mutations wrap them.
+;;
 ;; Note: The AutoFocus model intentionally keeps the API surface minimal.
-;; There is no edit-todo, no delete-todo, etc.. The user is prevented from
-;; micromanaging their to-do list in these ways.
+;; There is no edit-todo, no individual delete - the user is prevented from
+;; micromanaging. Cancel + clone serve those needs from a different angle.
 ;; ============================================================================
 
 (defn add-todo*
-  "Returns a new state-map with a fresh todo appended to the given list
-   and :ui/new-todo-text on that list cleared. New todos start :status/new."
+  "Append a fresh todo to the given list and clear :ui/new-todo-text.
+  New todos start :status/new.
+
+  The next phase will add the AutoFocus auto-mark rle (if no :ready items
+  exist, the new todo should start :status/ready instead). For now, adds
+  always create :status/new - keeping this helper deliberately simple while
+  getting the schema migration green."
   [state-map list-ident text]
-  (let [new-id   (random-uuid)
+  (let [new-id   (random-uuid) ;; TODO: IDEA: implement optional custom id passing for testing purposes
         new-todo {:todo/id new-id
                   :todo/text text
                   :todo/status :status/new}]
@@ -103,8 +111,7 @@
 
 (defn delete-all*
   "Removes every todo referenced by the given list-ident's :list/todos.
-   Composes `delete-todo*` (via `nsh/remove-entity`) once per todo —
-   reusing the rule rather than re-implementing it."
+   Used by the 'Delete List' operation in the AutoFocus model."
   [state-map list-ident]
   (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
     (reduce nsh/remove-entity state-map todo-idents)))
@@ -116,13 +123,20 @@
    schema change happens in one place. If todo is set to cancelled, then
    :todo/was will also be set to the previous status for rendering purposes."
   [state-map todo-id status]
-  (if (= status :status/cancelled)
-    (let [previous-status (get state-map [:todo-id todo-id :todo/status])]
-      (assoc-in state-map [:todo/id todo-id :todo/status] :status/cancelled)
-      (assoc-in state-map [:todo/id todo-id :todo/was] previous-status))
-    (assoc-in state-map [:todo/id todo-id :todo/status] status)
-    )
-  )
+
+  (let [path [:todo/id todo-id :todo/status]
+        prev-status (get-in state-map path)]
+    (cond
+      ;; when transitioning into cancelled, we store the previous status
+      ;; and then update
+      (and (= status :status/cancelled)
+        (not= prev-status :status/cancelled))
+      (-> state-map
+        (assoc-in [:todo/id todo-id :todo/was] prev-status)
+        (assoc-in path :status/cancelled))
+      ;; any other status: just set it
+      :else
+      (assoc-in state-map path status))))
 
 ;; ============================================================================
 ;; Mutations — thin wrappers that route helpers through swap!.
@@ -141,19 +155,19 @@
 (defmutation delete-all [_]
   (action [{:keys [state ref]}]
     (swap! state delete-all* ref))
-  (remote [_] true)
+  #_(remote [_] true) ;; TODO: implement server handler for delete-all
   )
 
-(defmutation set-status [{:todo/keys [status]}]
-  (action [{:keys [state ref]}]
-    (swap! state set-status* ref status))
-  (remote [_] true)
+(defmutation set-status [{:todo/keys [id status]}]
+  (action [{:keys [state]}]
+    (swap! state set-status* id status))
+  #_(remote [_] true) ;; TODO: implement server handler for set-status
   )
 
 (defmutation cancel-todo [{:todo/keys [id]}]
-  (action [{:keys [state ref]}]
-    (swap! state set-status* ref :status/cancelled))
-  (remote [_] true)
+  (action [{:keys [state]}]
+    (swap! state set-status* id :status/cancelled))
+  #_(remote [_] true) ;; TODO: implement server handler for cancel-todo
   )
 
 ;; ============================================================================
@@ -200,8 +214,8 @@
 (comment
   ;; Fresh start: server seed + new app + load. snapshot to inspect.
   (do
-    (require 'learn.server)
-    (learn.server/reset!)
+    (require '[learn.server :as server])
+    (server/seed!)
     (init)
     (snapshot))
 
@@ -212,6 +226,15 @@
     (h/render-frame! @SPA)
     (snapshot))
 
+  ;; Cancel a loaded todo by id (use a real one from snapshot first):
+  (let [first-id (-> @SPA app/current-state :todo/id keys first)]
+    (comp/transact! @SPA [(cancel-todo {:todo/id first-id})])
+    (h/render-frame! @SPA)
+    (snapshot))
+
   ;; Compare both worlds:
   @learn.server/SERVER-DB
-  (:todo/id (app/current-state @SPA)))
+
+  (:todo/id (app/current-state @SPA))
+
+  )

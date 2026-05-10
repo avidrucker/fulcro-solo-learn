@@ -31,9 +31,9 @@
   "Build a Pathom-shaped env for resolver/mutation testing.
 
    Options map:
-     :params - query parameters, e.g. {:done? true}. Placed where the
+     :params - query parameters, e.g. .... Placed where the
                real Pathom parser would put them when EQL contains a
-               parameterized call like (:all-todos {:done? true}).
+               parameterized call like (:all-todos ...).
 
    Returns an env map. Empty when called with no options.
 
@@ -71,7 +71,7 @@
         (set (map :todo/id (:all-todos result)))
         => #{seed-id-1 seed-id-2}))))
 
-(specification "all-todos-resolver with :done? parameter"
+(specification "all-todos-resolver with :status parameter"
   (component "no parameter — returns every todo"
     (server/seed!)
     (let [result (run-resolver sut/all-todos-resolver {})]
@@ -79,35 +79,36 @@
         "returns both seeded todos"
         (count (:all-todos result)) => 2)))
 
-  (component "{:done? true} — returns only completed todos"
+  (component "{:status :status/ready} — returns only ready todos"
     (server/seed!)
-    (let [env    (test-env {:params {:done? true}})
+    (let [env    (test-env {:params {:status :status/ready}})
           result (run-resolver sut/all-todos-resolver env {})]
       (assertions
-        "returns only the done todo (seed-id-2)"
+        "returns only the ready todo (seed-id-1)"
         (count (:all-todos result)) => 1
-        (set (map :todo/id (:all-todos result))) => #{seed-id-2})))
+        (set (map :todo/id (:all-todos result))) => #{seed-id-1})))
 
-  (component "{:done? false} — returns only incomplete todos"
+  (component "{:status :status/new} — returns only new todos"
     (server/seed!)
-    (let [env    (test-env {:params {:done? false}})
+    (let [env    (test-env {:params {:status :status/new}})
           result (run-resolver sut/all-todos-resolver env {})]
       (assertions
-        "returns only the not-done todo (seed-id-1)"
+        "returns only the new todo (seed-id-2)"
         (count (:all-todos result)) => 1
-        (set (map :todo/id (:all-todos result))) => #{seed-id-1}))))
+        (set (map :todo/id (:all-todos result))) => #{seed-id-2}))))
 
 (specification "todo-resolver"
-  (component "given a known todo id, returns text and done?"
+  (component "given a known todo id, returns text and status"
     (server/seed!)
     (let [result (run-resolver sut/todo-resolver {:todo/id seed-id-1})]
       (assertions
         "returns the todo's text"
         (:todo/text result) => "Read the Fulcro book"
-        "returns the todo's done state"
-        (:todo/done? result) => false
+        "returns the todo's status"
+        (:todo/status result) => :status/ready
         "returns only those two keys"
-        (set (keys result)) => #{:todo/text :todo/done?})))
+        (set (keys result)) => #{:todo/text :todo/status}
+        )))
 
   (component "given an unknown id, returns an empty result"
     ;; The resolver currently just returns (select-keys nil [...]) → {}.
@@ -135,22 +136,11 @@
         (count (:todo/id @server/SERVER-DB)) => (inc before-count)
         "the returned map has the expected text"
         (:todo/text result) => "From a test"
-        "the returned map starts not-done"
-        (:todo/done? result) => false
+        "the returned map starts at :status/new"
+        (:todo/status result) => :status/new
         "the returned id matches an entry in the server"
-        (contains? (:todo/id @server/SERVER-DB) (:todo/id result)) => true))))
-
-(specification "delete-todo-mutation"
-  (component "removes the todo from the server"
-    (server/seed!)
-    (let [result (run-mutation sut/delete-todo-mutation {:todo/id seed-id-1})]
-      (assertions
-        "the targeted todo is gone"
-        (contains? (:todo/id @server/SERVER-DB) seed-id-1) => false
-        "other todos remain"
-        (contains? (:todo/id @server/SERVER-DB) seed-id-2) => true
-        "returns the id that was deleted"
-        result => {:todo/id seed-id-1}))))
+        (contains? (:todo/id @server/SERVER-DB) (:todo/id result)) => true
+        ))))
 
 ;; ============================================================================
 ;; Error handling specifications

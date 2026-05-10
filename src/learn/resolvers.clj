@@ -30,7 +30,7 @@
   {::pc/output [{:all-todos [:todo/id]}]}
   (let [params       (-> env :ast :params)
         status-filter? (contains? params :status)
-        target-state (:status params)
+        target-status (:status params)
         all-todos    (vals (:todo/id @server/SERVER-DB))
         filtered     (cond->> all-todos
                        status-filter? (filter #(= target-status (:todo/status %))))]

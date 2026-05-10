@@ -4,7 +4,6 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.headless :as h]
     [learn.client :as sut]
     [learn.server :as server]))
@@ -14,13 +13,13 @@
 ;; ============================================================================
 
 (defn fixture-state
-  "Two seeded todos: id 1 (not done), id 2 (done)."
+  "Two seeded todos: id 1 (new), id 2 (ready)."
   []
   {:list/id {1 {:list/id          1
                 :list/todos       [[:todo/id 1] [:todo/id 2]]
                 :ui/new-todo-text "draft text"}}
-   :todo/id {1 {:todo/id 1 :todo/text "First"  :todo/done? false}
-             2 {:todo/id 2 :todo/text "Second" :todo/done? true}}})
+   :todo/id {1 {:todo/id 1 :todo/text "First"  :todo/status :status/new}
+             2 {:todo/id 2 :todo/text "Second" :todo/status :status/ready}}})
 
 (defn empty-fixture-state
   "Empty list, no todos."
@@ -34,8 +33,6 @@
   (let [strip (fn [m] (reduce nsh/dissoc-in m paths))]
     (= (strip before) (strip after))))
 
-;; Server seed UUIDs — declared once so both fixtures and assertions
-;; can reference them by name rather than copying the literal each time.
 (def server-id-1 #uuid "11111111-1111-1111-1111-111111111111")
 (def server-id-2 #uuid "22222222-2222-2222-2222-222222222222")
 
@@ -52,13 +49,13 @@
       (assertions
         "stores the new text on the new entity"
         (get-in after [:todo/id new-id :todo/text]) => "Third"
-        "starts the new todo as not done"
-        (get-in after [:todo/id new-id :todo/done?]) => false
+        "starts the new todo at :status/new"
+        (get-in after [:todo/id new-id :todo/status]) => :status/new
         "appends the new ident at the end of :list/todos"
         (last (get-in after [:list/id 1 :list/todos])) => new-ident
         "clears :ui/new-todo-text on the list"
         (get-in after [:list/id 1 :ui/new-todo-text]) => ""
-        "affects only the new entity, the list's :list/todos, and :ui/new-todo-text"
+        "affects only the new entity and the targeted list paths"
         (affects-only? before after
           [[:todo/id new-id]
            [:list/id 1 :list/todos]
@@ -79,53 +76,46 @@
         (affects-only? before after
           [[:todo/id new-id]
            [:list/id 1 :list/todos]])
-        => true)))
-
-  (component "after a previous delete"
-    (let [before     (sut/delete-todo* (fixture-state) 1)   ; only id 2 remains
-          after      (sut/add-todo* before [:list/id 1] "Third")
-          new-ident  (last (get-in after [:list/id 1 :list/todos]))
-          [_ new-id] new-ident]
-      (assertions
-        "creates a new entity with the new text"
-        (get-in after [:todo/id new-id :todo/text]) => "Third"
-        "appends the new ident to :list/todos"
-        (last (get-in after [:list/id 1 :list/todos])) => new-ident
-        "affects only the new entity and the targeted list paths"
-        (affects-only? before after
-          [[:todo/id new-id]
-           [:list/id 1 :list/todos]
-           [:list/id 1 :ui/new-todo-text]])
         => true))))
 
-(specification "delete-todo*"
-  (let [before (fixture-state)
-        after  (sut/delete-todo* before 1)]
-    (assertions
-      "removes the entity from the :todo/id table"
-      (contains? (:todo/id after) 1) => false
-      "removes the ident from :list/todos"
-      (get-in after [:list/id 1 :list/todos]) => [[:todo/id 2]]
-      "affects only :todo/id 1 and the list's :list/todos"
-      (affects-only? before after
-        [[:todo/id 1]
-         [:list/id 1 :list/todos]])
-      => true)))
-
-(specification "edit-todo*"
-  (component "for an existing todo"
+(specification "set-status*"
+  (component "setting a non-cancelled status"
     (let [before (fixture-state)
-          after  (sut/edit-todo* before 1 "Updated text")]
+          after  (sut/set-status* before 1 :status/done)]
       (assertions
-        "updates :todo/text on the targeted entity"
-        (get-in after [:todo/id 1 :todo/text]) => "Updated text"
-        "affects only :todo/text of the targeted entity"
-        (affects-only? before after [[:todo/id 1 :todo/text]]) => true)))
+        "updates :todo/status on the targeted entity"
+        (get-in after [:todo/id 1 :todo/status]) => :status/done
+        "does not set :todo/was for non-cancelled transitions"
+        (contains? (get-in after [:todo/id 1]) :todo/was) => false
+        "affects only :todo/status of the targeted entity"
+        (affects-only? before after
+          [[:todo/id 1 :todo/status]])
+        => true)))
 
-  (component "for a non-existent id"
-    (assertions
-      "is a no-op (returns equivalent state)"
-      (sut/edit-todo* (fixture-state) 999 "x") => (fixture-state))))
+  (component "cancelling a :status/new todo"
+    (let [before (fixture-state)
+          after  (sut/set-status* before 1 :status/cancelled)]
+      (assertions
+        ":todo/status becomes :status/cancelled"
+        (get-in after [:todo/id 1 :todo/status]) => :status/cancelled
+        ":todo/was captures the previous :status/new"
+        (get-in after [:todo/id 1 :todo/was]) => :status/new)))
+
+  (component "cancelling a :status/ready todo"
+    (let [before (fixture-state)
+          after  (sut/set-status* before 2 :status/cancelled)]
+      (assertions
+        ":todo/status becomes :status/cancelled"
+        (get-in after [:todo/id 2 :todo/status]) => :status/cancelled
+        ":todo/was captures the previous :status/ready"
+        (get-in after [:todo/id 2 :todo/was]) => :status/ready)))
+
+  (component "double-cancel is idempotent — :todo/was is preserved"
+    (let [once  (sut/set-status* (fixture-state) 2 :status/cancelled)
+          twice (sut/set-status* once 2 :status/cancelled)]
+      (assertions
+        ":todo/was retains the original prior status, not :cancelled"
+        (get-in twice [:todo/id 2 :todo/was]) => :status/ready))))
 
 (specification "delete-all*"
   (let [before (fixture-state)
@@ -141,44 +131,8 @@
          [:list/id 1 :list/todos]])
       => true)))
 
-(specification "mark-all-complete*"
-  (component "with done? = true"
-    (let [before (fixture-state)
-          after  (sut/mark-all-complete* before [:list/id 1] true)]
-      (assertions
-        "marks the previously-not-done todo as done"
-        (get-in after [:todo/id 1 :todo/done?]) => true
-        "leaves the already-done todo as done"
-        (get-in after [:todo/id 2 :todo/done?]) => true
-        "affects only the :todo/done? fields of the targeted todos"
-        (affects-only? before after
-          [[:todo/id 1 :todo/done?]
-           [:todo/id 2 :todo/done?]])
-        => true)))
-
-  (component "with done? = false (un-mark all)"
-    (let [before (fixture-state)
-          after  (sut/mark-all-complete* before [:list/id 1] false)]
-      (assertions
-        "un-marks the previously-done todo"
-        (get-in after [:todo/id 2 :todo/done?]) => false
-        "affects only the :todo/done? fields of the targeted todos"
-        (affects-only? before after
-          [[:todo/id 1 :todo/done?]
-           [:todo/id 2 :todo/done?]])
-        => true))))
-
 ;; ============================================================================
 ;; Integration specifications
-;;
-;; These build a real (loopback) Fulcro app, exercise mutations end-to-end,
-;; and assert observable outcomes on both the client DB and the server atom.
-;;
-;; They do NOT use affects-only? — Fulcro maintains many internal keys
-;; (:active-remotes, transaction queue, marker tables) that we don't want
-;; to assert about, so we focus on the specific observations that matter.
-;;
-;; Each spec resets the server first so they don't leak state into each other.
 ;; ============================================================================
 
 (specification "df/load! integration (via init)"
@@ -194,7 +148,10 @@
         (set (get-in db [:list/id 1 :list/todos]))
         => #{[:todo/id server-id-1] [:todo/id server-id-2]}
         "loaded entities have the expected text"
-        (get-in db [:todo/id server-id-1 :todo/text]) => "Read the Fulcro book"))))
+        (get-in db [:todo/id server-id-1 :todo/text]) => "Read the Fulcro book"
+        "loaded entities have :todo/status from the server"
+        (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/new))))
 
 (specification "add-todo mutation (with :remote true)"
   (component "client-side add reaches the server and the client"
@@ -209,47 +166,56 @@
         "the new entry on the server has the typed text"
         (some #(= "Pet the cat" (:todo/text %))
           (vals (:todo/id @server/SERVER-DB))) => true
+        "the new entry on the server starts at :status/new"
+        (some #(and (= "Pet the cat" (:todo/text %))
+                 (= :status/new (:todo/status %)))
+          (vals (:todo/id @server/SERVER-DB))) => true
         "the client also has a todo with that text"
         (some #(= "Pet the cat" (:todo/text %))
           (vals (:todo/id (app/current-state spa)))) => true))))
 
-(specification "delete-todo mutation (with :remote true)"
-  (component "client-side delete reaches the server"
-    (server/seed!)
-    (let [spa (sut/init)
-          _   (comp/transact! spa [(sut/delete-todo {:todo/id server-id-1})])
-          _   (h/render-frame! spa)]
-      (assertions
-        "the targeted todo is gone from the server"
-        (contains? (:todo/id @server/SERVER-DB) server-id-1) => false
-        "the other todo is still on the server"
-        (contains? (:todo/id @server/SERVER-DB) server-id-2) => true
-        "the client's :list/todos no longer references the deleted ident"
-        (some #(= [:todo/id server-id-1] %)
-          (get-in (app/current-state spa) [:list/id 1 :list/todos]))
-        => nil))))
-
-(specification "edit-todo mutation"
-  (component "updates :todo/text on the targeted entity"
+(specification "set-status mutation"
+  (component "transitions a todo to the given status"
     (server/seed!)
     (let [spa (sut/init)
           _   (comp/transact! spa
-                [(sut/edit-todo {:todo/id   server-id-1
-                                 :todo/text "Updated via mutation"})])
+                [(sut/set-status {:todo/id server-id-2 :todo/status :status/done})])
           db  (app/current-state spa)]
       (assertions
-        "the entity's :todo/text reflects the new value"
-        (get-in db [:todo/id server-id-1 :todo/text]) => "Updated via mutation"
-        "the entity's :todo/done? remains unchanged"
-        (get-in db [:todo/id server-id-1 :todo/done?]) => false
-        "other entities are unaffected"
-        (get-in db [:todo/id server-id-2 :todo/text]) => "Try out remotes"))))
+        "the targeted todo now has the new status"
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/done
+        "the other todo is unchanged"
+        (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
+        "no :todo/was was set (not a cancel transition)"
+        (contains? (get-in db [:todo/id server-id-2]) :todo/was) => false))))
+
+(specification "cancel-todo mutation"
+  (component "cancels a :status/ready todo, capturing :todo/was"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/cancel-todo {:todo/id server-id-1})])
+          db  (app/current-state spa)]
+      (assertions
+        ":todo/status becomes :status/cancelled"
+        (get-in db [:todo/id server-id-1 :todo/status]) => :status/cancelled
+        ":todo/was captures the previous :status/ready"
+        (get-in db [:todo/id server-id-1 :todo/was]) => :status/ready)))
+
+  (component "cancels a :status/new todo, capturing :todo/was"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/cancel-todo {:todo/id server-id-2})])
+          db  (app/current-state spa)]
+      (assertions
+        ":todo/status becomes :status/cancelled"
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/cancelled
+        ":todo/was captures the previous :status/new"
+        (get-in db [:todo/id server-id-2 :todo/was]) => :status/new))))
 
 (specification "delete-all mutation"
   (component "removes every todo referenced by the list"
-    ;; delete-all uses (action [{:keys [state ref]}]) — it pulls the list
-    ;; from `ref`. When transacting from outside a component, we pass
-    ;; `{:ref ...}` as transact options so the mutation knows which list.
     (server/seed!)
     (let [spa (sut/init)
           _   (comp/transact! spa [(sut/delete-all)] {:ref [:list/id 1]})
@@ -260,30 +226,3 @@
         "no loaded entities remain in the :todo/id table"
         (contains? (:todo/id db) server-id-1) => false
         (contains? (:todo/id db) server-id-2) => false))))
-
-(specification "mark-all-complete mutation"
-  (component "with :list/done? true — marks every todo as done"
-    (server/seed!)
-    (let [spa (sut/init)
-          _   (comp/transact! spa
-                [(sut/mark-all-complete {:list/done? true})]
-                {:ref [:list/id 1]})
-          db  (app/current-state spa)]
-      (assertions
-        "the previously-undone todo is now done"
-        (get-in db [:todo/id server-id-1 :todo/done?]) => true
-        "the previously-done todo remains done"
-        (get-in db [:todo/id server-id-2 :todo/done?]) => true)))
-
-  (component "with :list/done? false — unmarks every todo"
-    (server/seed!)
-    (let [spa (sut/init)
-          _   (comp/transact! spa
-                [(sut/mark-all-complete {:list/done? false})]
-                {:ref [:list/id 1]})
-          db  (app/current-state spa)]
-      (assertions
-        "the previously-done todo is now undone"
-        (get-in db [:todo/id server-id-2 :todo/done?]) => false
-        "the previously-undone todo remains undone"
-        (get-in db [:todo/id server-id-1 :todo/done?]) => false))))
