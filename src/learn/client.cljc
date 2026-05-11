@@ -129,6 +129,69 @@
   (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
     (reduce nsh/remove-entity state-map todo-idents)))
 
+;; ============================================================================
+;; cancel-todo* / complete-benchmark-item* / clone-todo*
+;;
+;; Each helper follows the same pipeline:
+;;   1. Project normalized state → denormalized items vector.
+;;   2. Call the corresponding learn.model.list function.
+;;   3. On :ok? true, project the result :items back via sync-items.
+;;   4. On :ok? false (model-layer refusal), return state-map unchanged.
+;;
+;; Error surfacing through UI is deferred — for now refusals are silent
+;; no-ops at the state-helper level. A later phase can capture the
+;; :error/type and route it to a UI notification.
+;; ============================================================================
+
+(defn- sync-items
+  "Updates state-map so the :todo/id table and [list-ident :list/todos]
+   reflect `items` (a vector of full todo maps). Entity-level merge replaces
+   existing entries; new ids are inserted; :list/todos is rebuilt from
+   `items` order. Used by cancel-todo*, complete-benchmark-item*, and
+   clone-todo* to project a model.list result back into normalized state."
+  [state-map list-ident items]
+  (let [idents         (mapv (fn [t] [:todo/id (:todo/id t)]) items)
+        entity-updates (into {} (map (juxt :todo/id identity)) items)]
+    (-> state-map
+      (update :todo/id merge entity-updates)
+      (assoc-in (conj list-ident :list/todos) idents))))
+
+(defn cancel-todo*
+  "Cancel the todo with `todo-id` in the list at `list-ident`. Delegates
+   to learn.model.list/cancel-todo for the domain semantics (refusal on
+   :done/:cancelled, refusal on missing id, :todo/was capture, auto-mark
+   composition). On refusal, returns state-map unchanged."
+  [state-map list-ident todo-id]
+  (let [items  (denormalize-list-items state-map list-ident)
+        result (model.list/cancel-todo items todo-id)]
+    (if (:ok? result)
+      (sync-items state-map list-ident (:items result))
+      state-map)))
+
+(defn complete-benchmark-item*
+  "Complete the benchmark item (last :status/ready) in the list at
+   `list-ident`. Delegates to learn.model.list/complete-benchmark-item
+   for the domain semantics (refusal on no actionable items, auto-mark
+   composition). On refusal, returns state-map unchanged."
+  [state-map list-ident]
+  (let [items  (denormalize-list-items state-map list-ident)
+        result (model.list/complete-benchmark-item items)]
+    (if (:ok? result)
+      (sync-items state-map list-ident (:items result))
+      state-map)))
+
+(defn clone-todo*
+  "Clone the todo with `todo-id` in the list at `list-ident`. Delegates
+   to learn.model.list/clone-todo (refuses missing id, generates a fresh
+   UUID for the clone, applies add-todo's status rule). On refusal,
+   returns state-map unchanged."
+  [state-map list-ident todo-id]
+  (let [items  (denormalize-list-items state-map list-ident)
+        result (model.list/clone-todo items todo-id)]
+    (if (:ok? result)
+      (sync-items state-map list-ident (:items result))
+      state-map)))
+
 ;; TODO: add status change enforcement mechanics - perhaps this
 ;; could/should be a state chart?
 (defn set-status*
@@ -179,8 +242,23 @@
 
 (defmutation cancel-todo [{:todo/keys [id]}]
   (action [{:keys [state]}]
-    (swap! state set-status* id :status/cancelled))
-  #_(remote [_] true) ;; TODO: implement server handler for cancel-todo
+    (swap! state cancel-todo* [:list/id 1] id))
+  #_(remote [_] true) ;; 5J.5
+  )
+
+;; List-ident is hardcoded `[:list/id 1]` for the current singleton-list
+;; design. When the app grows to multiple lists, these mutations should
+;; receive the list ident as a parameter.
+(defmutation complete-benchmark-item [_]
+  (action [{:keys [state]}]
+    (swap! state complete-benchmark-item* [:list/id 1]))
+  #_(remote [_] true) ;; 5J.5
+  )
+
+(defmutation clone-todo [{:todo/keys [id]}]
+  (action [{:keys [state]}]
+    (swap! state clone-todo* [:list/id 1] id))
+  #_(remote [_] true) ;; 5J.5
   )
 
 ;; ============================================================================

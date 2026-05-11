@@ -274,7 +274,31 @@ Pure function over items: looks up a source todo by id, then appends a new todo 
 
 **Final totals:** 20 specs / 180 assertions, all green. Warm run ~1.8s.
 
-### ⬜ 5J.4 — Wire Fulcro client mutations to model
+### ✅ 5J.4 — Wire Fulcro client mutations to model
+
+Added three new state-helpers in `client.cljc` mirroring the `add-todo*` pattern from 5I.5: `cancel-todo*`, `complete-benchmark-item*`, `clone-todo*`. Each follows the same pipeline — denormalize state via `denormalize-list-items`, call the corresponding `learn.model.list` function, on `:ok?` project the result back via a new private `sync-items` helper, on refusal return state-map unchanged.
+
+**Behavior upgrade for `cancel-todo` mutation:** rewired from the old `set-status* id :status/cancelled` shortcut to delegate to `cancel-todo*`. The mutation now (a) refuses cancellation of `:done`/`:cancelled` items (silent no-op at the helper level for now — surfacing pending in a later UI-feedback phase), (b) refuses missing ids, (c) **fires auto-mark when the cancellation leaves the list with no `:ready`**. The pre-existing mutation tests continue to pass; a new component asserts the auto-mark behavior is observable.
+
+**New mutations:** `complete-benchmark-item` (no params) and `clone-todo` ({`:todo/id` ...}). Both wrap their helpers via `swap!`. No `:remote true` — server-side Pathom mutations are 5J.5.
+
+**Design decisions locked in:**
+1. **List-ident hardcoded to `[:list/id 1]`** in the three mutations. The current app is a singleton-list design, and threading the list-ident through every mutation param (or requiring callers to provide `ref` from a TodoList context) added boilerplate with no current benefit. Inline comment in `client.cljc` flags this for when multi-list support is added.
+2. **`sync-items` uses entity-level merge** (`(update :todo/id merge entity-updates)`) rather than `merge-component`. The flat Todo schema has no nested refs, so the simpler merge is equivalent. If RAD attributes or nested entities arrive (Phase 10+), reconsider.
+3. **Refusals are silent no-ops at the helper level.** The `:error/type` is dropped on the floor. A later phase can route `:error/type` to a UI notification region; for now, the UI prevents most refusal cases by not exposing affordances on `:done`/`:cancelled` items.
+4. **`set-status*` retained** alongside the new helpers. It is no longer used by `cancel-todo`, but is still the impl of the `set-status` mutation — a more direct/admin API for testing and REPL exploration that bypasses AutoFocus domain rules. No reason to remove until a real conflict arises.
+
+**Acceptance met:** 25 specs / 215 assertions, all green.
+
+New specs (added to `client_test.clj`):
+- `cancel-todo*` — 4 components covering missing-id refusal, :done refusal, :new cancellation (no auto-mark), sole-:ready cancellation with auto-mark integration.
+- `complete-benchmark-item*` — 2 components covering no-actionable refusal and sole-:ready completion with auto-mark.
+- `clone-todo*` — 3 components covering missing-id refusal, :ready source clone (source unchanged, clone inserted, status rule), :cancelled source clone with :todo/was preservation.
+- Existing `cancel-todo mutation` — added a 3rd component locking in the auto-mark behavior upgrade.
+- New `complete-benchmark-item mutation` — 2 components (happy path + no-actionable refusal via setup-then-transact).
+- New `clone-todo mutation` — 1 component covering end-to-end clone via mutation.
+
+Cold-run time stable at ~3s (Guardrails compile warmup); warm ~1.4s.
 ### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
 
 ---
