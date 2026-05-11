@@ -415,3 +415,107 @@
         (:todo/status (nth (:items result) 0)) => :status/cancelled
         ":done item is unchanged"
         (nth (:items result) 1) => (todo id-2 "B" :status/done)))))
+
+(specification "complete-benchmark-item"
+  (component "refuses when no actionable items exist"
+    (assertions
+      "empty list — :error/no-actionable-items"
+      (sut/complete-benchmark-item [])
+      => {:ok? false :error/type :error/no-actionable-items}
+
+      "only :status/new items — :error/no-actionable-items"
+      (sut/complete-benchmark-item [(todo id-1 "A" :status/new)
+                                    (todo id-2 "B" :status/new)])
+      => {:ok? false :error/type :error/no-actionable-items}
+
+      "only :status/done items — :error/no-actionable-items"
+      (sut/complete-benchmark-item [(todo id-1 "A" :status/done)])
+      => {:ok? false :error/type :error/no-actionable-items}
+
+      "only :status/cancelled items — :error/no-actionable-items"
+      (sut/complete-benchmark-item
+        [(-> (todo id-1 "A" :status/cancelled)
+           (assoc :todo/was :status/new))])
+      => {:ok? false :error/type :error/no-actionable-items}
+
+      "mix of new/done/cancelled (no :ready) — :error/no-actionable-items"
+      (sut/complete-benchmark-item
+        [(todo id-1 "A" :status/new)
+         (todo id-2 "B" :status/done)
+         (-> (todo id-3 "C" :status/cancelled)
+           (assoc :todo/was :status/ready))])
+      => {:ok? false :error/type :error/no-actionable-items}))
+
+  (component "completes the sole :status/ready item"
+    (let [items  [(todo id-1 "A" :status/ready)]
+          result (sut/complete-benchmark-item items)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "the benchmark becomes :status/done"
+        (:todo/status (first (:items result))) => :status/done
+        ":todo/text and :todo/id are preserved"
+        (select-keys (first (:items result)) [:todo/id :todo/text])
+        => {:todo/id id-1 :todo/text "A"}
+        "no :todo/was is added on completion (only cancellation captures :was)"
+        (contains? (first (:items result)) :todo/was) => false)))
+
+  (component "completes the benchmark (last :ready) when multiple :ready items exist — no auto-mark"
+    (let [items  [(todo id-1 "A" :status/ready)
+                  (todo id-2 "B" :status/ready)
+                  (todo id-3 "C" :status/new)]
+          result (sut/complete-benchmark-item items)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "the LAST :ready becomes :done"
+        (:todo/status (nth (:items result) 1)) => :status/done
+        "the earlier :ready stays :ready (it is now the new benchmark)"
+        (:todo/status (nth (:items result) 0)) => :status/ready
+        ":new item stays :new (no auto-mark — another :ready remains)"
+        (:todo/status (nth (:items result) 2)) => :status/new)))
+
+  (component "completes the benchmark when last :ready is not last in list order"
+    (let [items  [(todo id-1 "A" :status/ready)
+                  (todo id-2 "B" :status/new)
+                  (todo id-3 "C" :status/ready)
+                  (todo id-4 "D" :status/done)]
+          result (sut/complete-benchmark-item items)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "the last :ready by list order (id-3) becomes :done"
+        (:todo/status (nth (:items result) 2)) => :status/done
+        "the earlier :ready (id-1) stays :ready"
+        (:todo/status (nth (:items result) 0)) => :status/ready
+        ":new stays :new (auto-mark suppressed by the remaining :ready)"
+        (:todo/status (nth (:items result) 1)) => :status/new
+        ":done item is unchanged"
+        (nth (:items result) 3) => (todo id-4 "D" :status/done))))
+
+  (component "auto-mark fires after completing the sole :ready with :new items remaining"
+    (let [items  [(todo id-1 "A" :status/ready)
+                  (todo id-2 "B" :status/new)
+                  (todo id-3 "C" :status/new)]
+          result (sut/complete-benchmark-item items)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "completed item is :status/done"
+        (:todo/status (nth (:items result) 0)) => :status/done
+        "first :new is promoted to :status/ready (auto-mark fired)"
+        (:todo/status (nth (:items result) 1)) => :status/ready
+        "second :new stays :status/new"
+        (:todo/status (nth (:items result) 2)) => :status/new)))
+
+  (component "no auto-mark when no :new items to promote"
+    (let [items  [(todo id-1 "A" :status/ready)
+                  (todo id-2 "B" :status/done)]
+          result (sut/complete-benchmark-item items)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "completed item is :status/done"
+        (:todo/status (nth (:items result) 0)) => :status/done
+        ":done item is unchanged"
+        (nth (:items result) 1) => (todo id-2 "B" :status/done)))))

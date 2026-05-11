@@ -6,7 +6,9 @@
          com.fulcrologic/guardrails  {:mvn/version "1.2.16"}}
  :aliases
  {:nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.7.0"}}
-          :main-opts  ["-m" "nrepl.cmdline" "--port" "7888"]}
+          :main-opts  ["-m" "nrepl.cmdline"
+                       "--port" "7888"
+                       "--port-file" ".nrepl-port"]}
   :test  {:extra-paths ["test"]
           :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}
           :jvm-opts    ["-Dguardrails.enabled=true"]}}}

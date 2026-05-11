@@ -171,3 +171,40 @@
                                  :todo/was    prev-status))
             updated     (assoc items idx cancelled)]
         {:ok? true :items (auto-mark updated)}))))
+
+;; ============================================================================
+;; complete-benchmark-item
+;;
+;; Completes the benchmark item (last :status/ready by list order), marking it
+;; :status/done. Auto-mark may fire as a consequence (SCHEMA.md §6) — when the
+;; completed item was the sole :status/ready and :status/new items remain, the
+;; first :new is promoted to :status/ready.
+;;
+;; Refuses (returns Result-shaped error) when:
+;;   - no :status/ready item exists in items → :error/no-actionable-items
+;;
+;; Unlike cancel-todo, complete does NOT capture :todo/was. The :was field is
+;; the cancellation-specific affordance for "what was this before I cancelled
+;; it"; completion has no analogous need (there is no un-complete operation).
+;; ============================================================================
+
+(>defn complete-benchmark-item
+  "Completes the benchmark item (last :status/ready by list order), marking
+   it :status/done. Auto-mark may fire as a consequence — if the completed
+   item was the sole :status/ready and :status/new items remain, the first
+   :new is promoted to :status/ready.
+
+   Refuses (:error/no-actionable-items) when no :status/ready item exists."
+  [items]
+  [:learn.model.schema/items => :learn.model.schema/result]
+  (let [last-ready-idx (->> items
+                         (map-indexed vector)
+                         (filter (fn [[_ t]] (ready? t)))
+                         last
+                         first)]
+    (if (nil? last-ready-idx)
+      {:ok? false :error/type :error/no-actionable-items}
+      (let [completed (assoc (nth items last-ready-idx)
+                        :todo/status :status/done)
+            updated   (assoc items last-ready-idx completed)]
+        {:ok? true :items (auto-mark updated)}))))

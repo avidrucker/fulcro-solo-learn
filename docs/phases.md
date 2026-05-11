@@ -244,7 +244,17 @@ Refuses `:done`/`:cancelled` targets with `:error/cannot-cancel`. Refuses missin
 
 **Acceptance met:** 8 components / ~25 assertions covering validation (not-found, cannot-cancel × 2), basic cancellation (:new, :ready), and auto-mark integration (fires on sole-ready cancel, no-fires when other ready remains, no-fires when no new to promote).
 
-### ⬜ 5J.2 — `model.list/complete-benchmark-item`
+### ✅ 5J.2 — `model.list/complete-benchmark-item`
+
+Pure function over items: completes the benchmark (last `:status/ready` by list order) by setting its status to `:status/done`, then composes `auto-mark` over the result. Refuses with `:error/no-actionable-items` when no ready item exists.
+
+**Design notes:**
+- No `:todo/was` capture on completion. `:was` is the cancellation-specific affordance ("what was this before I cancelled it"); completion has no analogous un-complete operation, so no need to record the prior status. An explicit assertion locks this in: a completed todo does *not* gain a `:todo/was` key.
+- "Benchmark" is *last :ready in list order*, not *last item in list*. Spec covers the case where a `:done` item follows the last `:ready` to prove the function isn't accidentally indexing from the tail of `items`.
+- Auto-mark suppression when other readies remain is exercised in two distinct list shapes (consecutive readies, and readies separated by other statuses), to prove the `auto-markable?` check sees the post-completion state correctly.
+
+**Acceptance met:** 6 components / 25 assertions covering refusal (5 sub-cases of "no actionable items"), basic completion (sole-ready, multi-ready-last-wins, last-ready-not-last-in-list), and auto-mark integration (fires on sole-ready completion with news remaining; no-fires when other ready remains; no-fires when no news to promote).
+
 ### ⬜ 5J.3 — `model.list/clone-todo`
 ### ⬜ 5J.4 — Wire Fulcro client mutations to model
 ### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
