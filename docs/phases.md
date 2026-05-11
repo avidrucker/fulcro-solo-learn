@@ -238,67 +238,38 @@ true)` lights up.
 
 ### ✅ 5J.1 — `model.list/cancel-todo`
 
-Refuses `:done`/`:cancelled` targets with `:error/cannot-cancel`. Refuses missing ids with `:error/item-not-found`. Captures `:todo/was` on success. Composes `auto-mark` over the post-cancellation list.
+Cancels a todo by id, capturing the prior status as `:todo/was`, then composes `auto-mark` over the result. Refuses `:error/item-not-found` (missing id) or `:error/cannot-cancel` (target is `:done`/`:cancelled`).
 
-**Decisions locked in:** JS-port discrepancy #2 resolved (double-cancel is an explicit error, not silent idempotence). SCHEMA.md §14 question "cancelling done items?" closed (also an error). Both decisions documented in SCHEMA.md §13.
+**Decision:** double-cancel and cancel-on-done both rejected — diverges from the JS source's silent overwrites. Closed SCHEMA.md §14. See `docs/js_source_reference.md` for the JS comparison.
 
-**Acceptance met:** 8 components / ~25 assertions covering validation (not-found, cannot-cancel × 2), basic cancellation (:new, :ready), and auto-mark integration (fires on sole-ready cancel, no-fires when other ready remains, no-fires when no new to promote).
+**Acceptance:** 8 components / ~25 assertions.
 
 ### ✅ 5J.2 — `model.list/complete-benchmark-item`
 
-Pure function over items: completes the benchmark (last `:status/ready` by list order) by setting its status to `:status/done`, then composes `auto-mark` over the result. Refuses with `:error/no-actionable-items` when no ready item exists.
+Completes the benchmark (last `:status/ready` by list order) by marking it `:status/done`, then composes `auto-mark`. Refuses `:error/no-actionable-items`.
 
-**Design notes:**
-- No `:todo/was` capture on completion. `:was` is the cancellation-specific affordance ("what was this before I cancelled it"); completion has no analogous un-complete operation, so no need to record the prior status. An explicit assertion locks this in: a completed todo does *not* gain a `:todo/was` key.
-- "Benchmark" is *last :ready in list order*, not *last item in list*. Spec covers the case where a `:done` item follows the last `:ready` to prove the function isn't accidentally indexing from the tail of `items`.
-- Auto-mark suppression when other readies remain is exercised in two distinct list shapes (consecutive readies, and readies separated by other statuses), to prove the `auto-markable?` check sees the post-completion state correctly.
+**Decision:** no `:todo/was` capture — there is no un-complete operation, so unlike cancel there is nothing to record.
 
-**Acceptance met:** 6 components / 25 assertions covering refusal (5 sub-cases of "no actionable items"), basic completion (sole-ready, multi-ready-last-wins, last-ready-not-last-in-list), and auto-mark integration (fires on sole-ready completion with news remaining; no-fires when other ready remains; no-fires when no news to promote).
+**Acceptance:** 6 components / 25 assertions.
 
 ### ✅ 5J.3 — `model.list/clone-todo`
 
-Pure function over items: looks up a source todo by id, then appends a new todo carrying the source's `:todo/text`. The clone's status is governed by `add-todo`'s rule (`:ready` if no `:ready` exists in the list, else `:new`) — NOT by the source's status. The source todo is unchanged. Implementation is one-line delegation to `add-todo` once the source is located.
+Appends a new todo with the source's text; clone status follows `add-todo`'s rule (`:ready` when no ready exists, else `:new`), not the source's. Source is unchanged. Refuses `:error/item-not-found` on missing id.
 
-**Decision locked in (matches JS source, no divergence on status policy):** clone accepts a source of *any* status — `:new`, `:ready`, `:done`, or `:cancelled`. The JS source's `cloneItem` has no status check (`docs/js_source_reference.md`); SCHEMA.md §3 / §12 describe the typical use case (resurrecting done/cancelled items) but the model layer doesn't enforce that. The UI layer can hide the clone affordance on actionable items as a UX policy.
+**Decision (matches JS):** any source status is clone-eligible. Schema docs describe the typical use case (done/cancelled resurrection); model layer doesn't enforce. UI can hide the affordance on actionable items.
 
-**Divergence from JS (consistent with project-wide pattern):** missing id refused with `:error/item-not-found` rather than the JS source's silent `TypeError`. No new error type added to the `::error-type` enum — `:cannot-clone` is not introduced.
+**Reference doc added:** `docs/js_source_reference.md` — signatures + divergences for every JS domain function.
 
-**Edge cases locked in by spec:**
-- Cloning a `:cancelled` source preserves the source's `:todo/was`; the clone does NOT carry `:todo/was` (it's a fresh todo, never cancelled).
-- Cloning a `:new` source in a no-ready list produces a `:ready` clone (per add-todo's rule); the source stays `:new`. Clone does NOT trigger auto-mark — the source is not promoted.
-- Cloning never produces an auto-markable result (append always introduces a clone whose status, by add-todo's rule, breaks auto-markability whenever the original list was auto-markable).
-
-**Reference artifact added:** `docs/js_source_reference.md` — signatures, behaviors, and known quirks for every domain function in the original JS source. Future phases (5J.4–5J.5 wiring, 5K review) reference this instead of re-fetching the source.
-
-**Acceptance met:** 7 components / 28 assertions covering id-missing refusal (2 sub-cases), cloning each source status (`:new` / `:ready` / `:done` / `:cancelled` — each verifying source-unchanged + clone text + clone status + clone-id), the explicit add-todo-rule scenario (clone-is-`:new` when a `:ready` exists elsewhere), and the 2-arity UUID-generation behavior (4 sub-assertions).
-
-**Final totals:** 20 specs / 180 assertions, all green. Warm run ~1.8s.
+**Acceptance:** 7 components / 28 assertions.
 
 ### ✅ 5J.4 — Wire Fulcro client mutations to model
 
-Added three new state-helpers in `client.cljc` mirroring the `add-todo*` pattern from 5I.5: `cancel-todo*`, `complete-benchmark-item*`, `clone-todo*`. Each follows the same pipeline — denormalize state via `denormalize-list-items`, call the corresponding `learn.model.list` function, on `:ok?` project the result back via a new private `sync-items` helper, on refusal return state-map unchanged.
+New state-helpers in `client.cljc` (`cancel-todo*`, `complete-benchmark-item*`, `clone-todo*`) follow the `add-todo*` pattern: denormalize → call `model.list` → reproject via `sync-items` (also new, private). Refusals return state-map unchanged.
 
-**Behavior upgrade for `cancel-todo` mutation:** rewired from the old `set-status* id :status/cancelled` shortcut to delegate to `cancel-todo*`. The mutation now (a) refuses cancellation of `:done`/`:cancelled` items (silent no-op at the helper level for now — surfacing pending in a later UI-feedback phase), (b) refuses missing ids, (c) **fires auto-mark when the cancellation leaves the list with no `:ready`**. The pre-existing mutation tests continue to pass; a new component asserts the auto-mark behavior is observable.
+The `cancel-todo` mutation was rewired from `set-status*` to `cancel-todo*`, so it now fires auto-mark, refuses on `:done`/`:cancelled`, and refuses missing ids. Two new mutations added: `complete-benchmark-item` and `clone-todo`. List-ident hardcoded `[:list/id 1]` (singleton design — flagged inline for multi-list generalization).
 
-**New mutations:** `complete-benchmark-item` (no params) and `clone-todo` ({`:todo/id` ...}). Both wrap their helpers via `swap!`. No `:remote true` — server-side Pathom mutations are 5J.5.
+**Acceptance:** 25 specs / 217 assertions, all green. Cold ~3s / warm ~1.4s.
 
-**Design decisions locked in:**
-1. **List-ident hardcoded to `[:list/id 1]`** in the three mutations. The current app is a singleton-list design, and threading the list-ident through every mutation param (or requiring callers to provide `ref` from a TodoList context) added boilerplate with no current benefit. Inline comment in `client.cljc` flags this for when multi-list support is added.
-2. **`sync-items` uses entity-level merge** (`(update :todo/id merge entity-updates)`) rather than `merge-component`. The flat Todo schema has no nested refs, so the simpler merge is equivalent. If RAD attributes or nested entities arrive (Phase 10+), reconsider.
-3. **Refusals are silent no-ops at the helper level.** The `:error/type` is dropped on the floor. A later phase can route `:error/type` to a UI notification region; for now, the UI prevents most refusal cases by not exposing affordances on `:done`/`:cancelled` items.
-4. **`set-status*` retained** alongside the new helpers. It is no longer used by `cancel-todo`, but is still the impl of the `set-status` mutation — a more direct/admin API for testing and REPL exploration that bypasses AutoFocus domain rules. No reason to remove until a real conflict arises.
-
-**Acceptance met:** 25 specs / 215 assertions, all green.
-
-New specs (added to `client_test.clj`):
-- `cancel-todo*` — 4 components covering missing-id refusal, :done refusal, :new cancellation (no auto-mark), sole-:ready cancellation with auto-mark integration.
-- `complete-benchmark-item*` — 2 components covering no-actionable refusal and sole-:ready completion with auto-mark.
-- `clone-todo*` — 3 components covering missing-id refusal, :ready source clone (source unchanged, clone inserted, status rule), :cancelled source clone with :todo/was preservation.
-- Existing `cancel-todo mutation` — added a 3rd component locking in the auto-mark behavior upgrade.
-- New `complete-benchmark-item mutation` — 2 components (happy path + no-actionable refusal via setup-then-transact).
-- New `clone-todo mutation` — 1 component covering end-to-end clone via mutation.
-
-Cold-run time stable at ~3s (Guardrails compile warmup); warm ~1.4s.
 ### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
 
 ---

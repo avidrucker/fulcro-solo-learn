@@ -258,6 +258,10 @@
           new-id     (first (clojure.set/difference todo-ids
                               #{fixture-id-1 fixture-id-2}))]
       (assertions
+        "a new entity was added to :todo/id (anchor — fails under a no-op)"
+        (some? new-id) => true
+        "clone has the source's text"
+        (get-in after [:todo/id new-id :todo/text]) => "First"
         "source :cancelled status preserved"
         (get-in after [:todo/id fixture-id-1 :todo/status]) => :status/cancelled
         "source :todo/was preserved"
@@ -349,9 +353,6 @@
         (get-in db [:todo/id server-id-2 :todo/was]) => :status/new)))
 
   (component "auto-mark fires after cancelling the sole :ready"
-    ;; Behavior upgrade in 5J.4: cancel-todo mutation now delegates to
-    ;; model.list/cancel-todo (via cancel-todo*), which composes auto-mark.
-    ;; The old set-status*-based implementation did not auto-mark.
     (server/seed!)
     (let [spa (sut/init)
           _   (comp/transact! spa
