@@ -255,7 +255,25 @@ Pure function over items: completes the benchmark (last `:status/ready` by list 
 
 **Acceptance met:** 6 components / 25 assertions covering refusal (5 sub-cases of "no actionable items"), basic completion (sole-ready, multi-ready-last-wins, last-ready-not-last-in-list), and auto-mark integration (fires on sole-ready completion with news remaining; no-fires when other ready remains; no-fires when no news to promote).
 
-### ⬜ 5J.3 — `model.list/clone-todo`
+### ✅ 5J.3 — `model.list/clone-todo`
+
+Pure function over items: looks up a source todo by id, then appends a new todo carrying the source's `:todo/text`. The clone's status is governed by `add-todo`'s rule (`:ready` if no `:ready` exists in the list, else `:new`) — NOT by the source's status. The source todo is unchanged. Implementation is one-line delegation to `add-todo` once the source is located.
+
+**Decision locked in (matches JS source, no divergence on status policy):** clone accepts a source of *any* status — `:new`, `:ready`, `:done`, or `:cancelled`. The JS source's `cloneItem` has no status check (`docs/js_source_reference.md`); SCHEMA.md §3 / §12 describe the typical use case (resurrecting done/cancelled items) but the model layer doesn't enforce that. The UI layer can hide the clone affordance on actionable items as a UX policy.
+
+**Divergence from JS (consistent with project-wide pattern):** missing id refused with `:error/item-not-found` rather than the JS source's silent `TypeError`. No new error type added to the `::error-type` enum — `:cannot-clone` is not introduced.
+
+**Edge cases locked in by spec:**
+- Cloning a `:cancelled` source preserves the source's `:todo/was`; the clone does NOT carry `:todo/was` (it's a fresh todo, never cancelled).
+- Cloning a `:new` source in a no-ready list produces a `:ready` clone (per add-todo's rule); the source stays `:new`. Clone does NOT trigger auto-mark — the source is not promoted.
+- Cloning never produces an auto-markable result (append always introduces a clone whose status, by add-todo's rule, breaks auto-markability whenever the original list was auto-markable).
+
+**Reference artifact added:** `docs/js_source_reference.md` — signatures, behaviors, and known quirks for every domain function in the original JS source. Future phases (5J.4–5J.5 wiring, 5K review) reference this instead of re-fetching the source.
+
+**Acceptance met:** 7 components / 28 assertions covering id-missing refusal (2 sub-cases), cloning each source status (`:new` / `:ready` / `:done` / `:cancelled` — each verifying source-unchanged + clone text + clone status + clone-id), the explicit add-todo-rule scenario (clone-is-`:new` when a `:ready` exists elsewhere), and the 2-arity UUID-generation behavior (4 sub-assertions).
+
+**Final totals:** 20 specs / 180 assertions, all green. Warm run ~1.8s.
+
 ### ⬜ 5J.4 — Wire Fulcro client mutations to model
 ### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
 

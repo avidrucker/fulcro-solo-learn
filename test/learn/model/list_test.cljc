@@ -519,3 +519,120 @@
         (:todo/status (nth (:items result) 0)) => :status/done
         ":done item is unchanged"
         (nth (:items result) 1) => (todo id-2 "B" :status/done)))))
+
+(specification "clone-todo"
+  (component "refuses on missing id"
+    (assertions
+      "empty list with any id — :error/item-not-found"
+      (sut/clone-todo [] id-1 id-2)
+      => {:ok? false :error/type :error/item-not-found}
+
+      "id not present in items — :error/item-not-found"
+      (sut/clone-todo [(todo id-1 "A" :status/ready)] id-2 id-3)
+      => {:ok? false :error/type :error/item-not-found}))
+
+  (component "clones a :status/ready source — source unchanged, clone appended as :new"
+    ;; Source is :ready, so the list has a ready item; add-todo's rule gives
+    ;; the clone :status/new (per SCHEMA.md §7).
+    (let [items  [(todo id-1 "Task A" :status/ready)]
+          result (sut/clone-todo items id-1 id-2)
+          clone  (-> result :items second)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "items count grows by 1"
+        (count (:items result)) => 2
+        "source todo is unchanged"
+        (first (:items result)) => (todo id-1 "Task A" :status/ready)
+        "clone has the source's text"
+        (:todo/text clone) => "Task A"
+        "clone has the provided clone-id (3-arity form)"
+        (:todo/id clone) => id-2
+        "clone has :status/new (since the list already had a :ready)"
+        (:todo/status clone) => :status/new)))
+
+  (component "clones a :status/done source — source unchanged, clone appended as :ready"
+    ;; Source is :done; list has no :ready, so the clone gets :status/ready.
+    (let [items  [(todo id-1 "Done task" :status/done)]
+          result (sut/clone-todo items id-1 id-2)
+          clone  (-> result :items second)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "source todo is unchanged (still :done)"
+        (first (:items result)) => (todo id-1 "Done task" :status/done)
+        "clone has the source's text"
+        (:todo/text clone) => "Done task"
+        "clone has :status/ready (no :ready existed in the list)"
+        (:todo/status clone) => :status/ready)))
+
+  (component "clones a :status/cancelled source — preserves :todo/was on source, clone has no :was"
+    ;; Cloning a cancelled item is the canonical use case (SCHEMA.md §12).
+    ;; The source keeps its :todo/was; the clone is a brand-new todo and
+    ;; should NOT carry :todo/was (it was never cancelled).
+    (let [source (-> (todo id-1 "Cancelled task" :status/cancelled)
+                   (assoc :todo/was :status/ready))
+          items  [source]
+          result (sut/clone-todo items id-1 id-2)
+          clone  (-> result :items second)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "source todo is unchanged, :todo/was preserved"
+        (first (:items result)) => source
+        "clone has the source's text"
+        (:todo/text clone) => "Cancelled task"
+        "clone has :status/ready (no :ready existed in the list)"
+        (:todo/status clone) => :status/ready
+        "clone does not have :todo/was (it's a fresh todo, never cancelled)"
+        (contains? clone :todo/was) => false)))
+
+  (component "clones a :status/new source — clone is :ready when no :ready exists in list"
+    ;; Edge case worth locking in: cloning a :new item in a no-ready list
+    ;; produces a clone with :ready (per add-todo's rule), while the source
+    ;; stays :new. The source is NOT promoted — that would be auto-mark
+    ;; behavior, and clone doesn't trigger auto-mark.
+    (let [items  [(todo id-1 "New task" :status/new)]
+          result (sut/clone-todo items id-1 id-2)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "source stays :status/new (NOT promoted by the clone operation)"
+        (:todo/status (first (:items result))) => :status/new
+        "clone has :status/ready"
+        (:todo/status (second (:items result))) => :status/ready)))
+
+  (component "clone status follows add-todo rule — :new when a :ready exists elsewhere in list"
+    ;; Even when the source is :done/:cancelled, the clone's status depends
+    ;; on the LIST state (does any :ready exist?), not the source's status.
+    (let [items  [(todo id-1 "Benchmark" :status/ready)
+                  (todo id-2 "Done item" :status/done)]
+          result (sut/clone-todo items id-2 id-3)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "the existing :ready stays :ready"
+        (:todo/status (nth (:items result) 0)) => :status/ready
+        "the :done source stays :done"
+        (:todo/status (nth (:items result) 1)) => :status/done
+        "the clone gets :status/new (a :ready exists in the list)"
+        (:todo/status (nth (:items result) 2)) => :status/new)))
+
+  (component "2-arity form auto-generates a fresh UUID"
+    (let [items [(todo id-1 "Source" :status/done)]]
+      (assertions
+        "non-missing source returns :ok? true"
+        (:ok? (sut/clone-todo items id-1)) => true
+
+        "clone's :todo/id is a UUID"
+        (-> (sut/clone-todo items id-1) :items second :todo/id uuid?)
+        => true
+
+        "each call generates a different UUID"
+        (= (-> (sut/clone-todo items id-1) :items second :todo/id)
+           (-> (sut/clone-todo items id-1) :items second :todo/id))
+        => false
+
+        "clone's id differs from the source's id"
+        (= id-1 (-> (sut/clone-todo items id-1) :items second :todo/id))
+        => false))))

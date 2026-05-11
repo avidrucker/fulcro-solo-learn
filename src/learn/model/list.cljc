@@ -208,3 +208,43 @@
                         :todo/status :status/done)
             updated   (assoc items last-ready-idx completed)]
         {:ok? true :items (auto-mark updated)}))))
+
+;; ============================================================================
+;; clone-todo
+;;
+;; Appends a new todo with the source's text. The clone's status is governed
+;; by add-todo's rule (:ready when the list has no :ready, else :new) — NOT
+;; by the source's status. The source todo is unchanged.
+;;
+;; The JS source allows cloning any status without checks (see
+;; docs/js_source_reference.md). This port matches that permissive behavior:
+;; you can clone :new, :ready, :done, or :cancelled. SCHEMA.md §3 / §12
+;; describe the typical use case (resurrecting done/cancelled items), but
+;; the model layer doesn't enforce that — the UI can hide the affordance
+;; on actionable items if desired.
+;;
+;; Refuses (returns Result-shaped error) when:
+;;   - the id is not in items → :error/item-not-found
+;;
+;; Cloning never triggers auto-mark: append produces a clone with the rule's
+;; status, which always leaves the list with at least one :ready (so the
+;; list is never auto-markable after a clone).
+;; ============================================================================
+
+(>defn clone-todo
+  "Appends a new todo with the source's text. The clone's status follows
+   add-todo's rule (:ready when no :ready exists in the list, else :new),
+   NOT the source's status. The source todo is unchanged.
+
+   Refuses (:error/item-not-found) if `id` is not in items.
+
+   2-arity generates a fresh UUID for the clone; 3-arity takes an explicit
+   clone-id for deterministic specs."
+  ([items id]
+   [:learn.model.schema/items :uuid => :learn.model.schema/result]
+   (clone-todo items id (random-uuid)))
+  ([items id clone-id]
+   [:learn.model.schema/items :uuid :uuid => :learn.model.schema/result]
+   (if-let [source (some #(when (= id (:todo/id %)) %) items)]
+     (add-todo items (:todo/text source) clone-id)
+     {:ok? false :error/type :error/item-not-found})))
