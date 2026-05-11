@@ -396,6 +396,8 @@ These are settled items, and are generally not up for being changed.
 - **Should `:status/done` items be cloneable?** Answer: Yes.
 - **Should the benchmark be visually emphasized in lists?** Answer: Yes. Per UI rules, the benchmark item will be rendered bold. For REPL and CLI testing, the benchmark item could be (OPTIONALLY) indicated with a left facing arrow to the right of it to indicate it is the current benchmark item.
 - **How many review cursors at once?** Answer: One per app instance at a time.
+- **Cancelling done items?** Answer: No. The model layer refuses (`cancel-todo` returns `{:ok? false :error/type :error/cannot-cancel}`). The UI also prevents reaching this state via control affordances.
+- **Cancelling already-cancelled items (double-cancel)?** Answer: No. Same refusal as cancelling `:done`. The model layer treats double-cancel as an explicit error, departing from the JS source's silent idempotence.
 
 ---
 
@@ -403,9 +405,7 @@ These are settled items, and are generally not up for being changed.
 
 These are deliberately *not* settled in this document. They get resolved as the project evolves.
 
-- **Server validation of mutations?** Resolvers don't currently re-validate
-  the schema on incoming mutation params. Note: Eventually, list state validation may be beneficial to implement. For now, YAGNI.
-- **Cancelling done items?** Currently the model doesn't explicitly block "cancelling" of done items, but, cancelling done items will not be possible via the UI, so, perhaps this will be something that the model will enforce later?
+- **Server validation of mutations?** Resolvers don't currently re-validate the schema on incoming mutation params. Note: Eventually, list state validation may be beneficial to implement. For now, YAGNI.
 - Determine the business model (hashmap return presumably) of what the results shape should be for review decisions (each review question should result in a single transaction, which either increments the cursor to the next reviewable item ("no" answer/option), marks the item at the cursor :ready and then increments the cursor ("yes" answer/option), or, ends the review session ("quit" answer/option)), where the cursor is part of every transaction, or, only part of list (review) management transactions
 
 ---
@@ -413,4 +413,3 @@ These are deliberately *not* settled in this document. They get resolved as the 
 ## 15. Revisions / Updates
 
 - [ ] Clarify (1 here, 2 in the malli schema, 3 via tests) that prioritizable lists are lists that have at least one ready, at least one new, and the last new item comes *after* the last ready item in the list
-- [ ] Prevent cancelling of cancelled items and/or treat the operation of attempting to cancel an item that is already cancelled as an error, i.e. "double-cancelling"

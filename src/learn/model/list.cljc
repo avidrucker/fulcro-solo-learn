@@ -123,3 +123,51 @@
                      :todo/text   text
                      :todo/status status}]
        {:ok? true :items (conj items new-todo)}))))
+
+;; ============================================================================
+;; cancel-todo
+;;
+;; Marks a todo :status/cancelled, capturing the previous status under
+;; :todo/was. Auto-mark may fire as a consequence (SCHEMA.md §7 table) —
+;; if the cancellation leaves the list with only :status/new items, the
+;; first new is promoted to :status/ready.
+;;
+;; Refuses (returns Result-shaped error) when:
+;;   - the id is not in items                        → :error/item-not-found
+;;   - the target is :status/done or :status/cancelled → :error/cannot-cancel
+;;
+;; The double-cancel refusal closes JS-port discrepancy #2 (the JS source
+;; silently allowed it and overwrote :todo/was). The :done refusal closes
+;; the SCHEMA.md §14 open question about cancelling done items.
+;; ============================================================================
+
+(>defn cancel-todo
+  "Cancels the todo with the given `id`, marking it :status/cancelled and
+   capturing the previous status under :todo/was. Auto-mark may fire as a
+   consequence — if the cancellation leaves the list with only :status/new
+   items, the first one is promoted to :status/ready.
+
+   Refuses (:error/item-not-found) if `id` is not in items.
+   Refuses (:error/cannot-cancel) if the target is :status/done or
+   :status/cancelled. Double-cancel is an explicit error per the AutoFocus
+   domain rules (SCHEMA.md §15 / Phase 5J decisions)."
+  [items id]
+  [:learn.model.schema/items :uuid => :learn.model.schema/result]
+  (let [idx (->> items
+              (map-indexed vector)
+              (some (fn [[i t]] (when (= id (:todo/id t)) i))))]
+    (cond
+      (nil? idx)
+      {:ok? false :error/type :error/item-not-found}
+
+      (contains? #{:status/done :status/cancelled}
+        (:todo/status (nth items idx)))
+      {:ok? false :error/type :error/cannot-cancel}
+
+      :else
+      (let [prev-status (:todo/status (nth items idx))
+            cancelled   (-> (nth items idx)
+                          (assoc :todo/status :status/cancelled
+                                 :todo/was    prev-status))
+            updated     (assoc items idx cancelled)]
+        {:ok? true :items (auto-mark updated)}))))

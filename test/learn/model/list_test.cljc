@@ -315,3 +315,103 @@
       (= (-> (sut/add-todo [] "Hello") :items first :todo/id)
         (-> (sut/add-todo [] "Hello") :items first :todo/id))
       => false)))
+
+(specification "cancel-todo"
+  (component "refuses on missing id"
+    (assertions
+      "empty list with any id — :error/item-not-found"
+      (sut/cancel-todo [] id-1)
+      => {:ok? false :error/type :error/item-not-found}
+
+      "id not present in items — :error/item-not-found"
+      (sut/cancel-todo [(todo id-1 "A" :status/ready)] id-2)
+      => {:ok? false :error/type :error/item-not-found}))
+
+  (component "refuses to cancel a :status/done todo"
+    (assertions
+      "single :done item — :error/cannot-cancel"
+      (sut/cancel-todo [(todo id-1 "A" :status/done)] id-1)
+      => {:ok? false :error/type :error/cannot-cancel}
+
+      ":done in a mixed list — :error/cannot-cancel"
+      (sut/cancel-todo [(todo id-1 "A" :status/ready)
+                        (todo id-2 "B" :status/done)] id-2)
+      => {:ok? false :error/type :error/cannot-cancel}))
+
+  (component "refuses to cancel an already :status/cancelled todo (double-cancel)"
+    ;; Departs from the JS source's silent idempotence. The model layer
+    ;; treats double-cancel as an explicit error per SCHEMA.md §15.
+    (let [cancelled-todo (-> (todo id-1 "A" :status/cancelled)
+                           (assoc :todo/was :status/new))]
+      (assertions
+        "single :cancelled item — :error/cannot-cancel"
+        (sut/cancel-todo [cancelled-todo] id-1)
+        => {:ok? false :error/type :error/cannot-cancel})))
+
+  (component "cancels a :status/new todo, captures :todo/was"
+    (let [items   [(todo id-1 "A" :status/ready)
+                   (todo id-2 "B" :status/new)]
+          result  (sut/cancel-todo items id-2)
+          updated (-> result :items second)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "target :todo/status becomes :status/cancelled"
+        (:todo/status updated) => :status/cancelled
+        ":todo/was captures the previous :status/new"
+        (:todo/was updated) => :status/new
+        "the :status/ready item is unchanged"
+        (-> result :items first) => (todo id-1 "A" :status/ready))))
+
+  (component "cancels a :status/ready todo, captures :todo/was"
+    (let [items   [(todo id-1 "A" :status/ready)
+                   (todo id-2 "B" :status/ready)]
+          result  (sut/cancel-todo items id-1)
+          updated (-> result :items first)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "target :todo/status becomes :status/cancelled"
+        (:todo/status updated) => :status/cancelled
+        ":todo/was captures the previous :status/ready"
+        (:todo/was updated) => :status/ready)))
+
+  (component "auto-mark fires after cancelling the sole :ready item"
+    (let [items   [(todo id-1 "A" :status/ready)
+                   (todo id-2 "B" :status/new)
+                   (todo id-3 "C" :status/new)]
+          result  (sut/cancel-todo items id-1)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "cancelled item is :status/cancelled"
+        (:todo/status (nth (:items result) 0)) => :status/cancelled
+        "first :new is promoted to :status/ready (auto-mark fired)"
+        (:todo/status (nth (:items result) 1)) => :status/ready
+        "second :new stays :status/new"
+        (:todo/status (nth (:items result) 2)) => :status/new)))
+
+  (component "no auto-mark when other :ready items remain"
+    (let [items   [(todo id-1 "A" :status/ready)
+                   (todo id-2 "B" :status/ready)
+                   (todo id-3 "C" :status/new)]
+          result  (sut/cancel-todo items id-1)]
+      (assertions
+        "cancelled item :status/cancelled"
+        (:todo/status (nth (:items result) 0)) => :status/cancelled
+        "other :ready item stays :status/ready"
+        (:todo/status (nth (:items result) 1)) => :status/ready
+        ":status/new item stays :status/new (no auto-mark fired)"
+        (:todo/status (nth (:items result) 2)) => :status/new)))
+
+  (component "no auto-mark when no :new items to promote"
+    (let [items   [(todo id-1 "A" :status/ready)
+                   (todo id-2 "B" :status/done)]
+          result  (sut/cancel-todo items id-1)]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "cancelled item :status/cancelled"
+        (:todo/status (nth (:items result) 0)) => :status/cancelled
+        ":done item is unchanged"
+        (nth (:items result) 1) => (todo id-2 "B" :status/done)))))

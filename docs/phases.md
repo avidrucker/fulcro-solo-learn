@@ -224,7 +224,7 @@ one-time Guardrails schema-compile warmup); warm run ~1.3s total
 
 ---
 
-## ⬜ Phase 5J — Cancel, complete-benchmark, clone
+## 🟡 Phase 5J — Cancel, complete-benchmark, clone
 
 Build the rest of the AutoFocus mutation set:
 - `cancel-todo` — refuses on `:done`/`:cancelled`, captures `:todo/was`,
@@ -236,12 +236,18 @@ Each is a `>defn` in `model.list`, with a Fulcro mutation that
 delegates to it. Server-side Pathom mutations added so `(remote [_]
 true)` lights up.
 
-**Decisions required at this phase:**
-- JS-port discrepancy #2 (double-cancel): preserve original `:todo/was`,
-  *do not* overwrite it. Already noted in SCHEMA.md §15 as a revision item.
-- JS-port discrepancy #3 (cancel on done/cancelled): restrict to
-  `:new`/`:ready`; return `{:ok? false :error/type :error/cannot-cancel}`.
-  Already noted in SCHEMA.md §15.
+### ✅ 5J.1 — `model.list/cancel-todo`
+
+Refuses `:done`/`:cancelled` targets with `:error/cannot-cancel`. Refuses missing ids with `:error/item-not-found`. Captures `:todo/was` on success. Composes `auto-mark` over the post-cancellation list.
+
+**Decisions locked in:** JS-port discrepancy #2 resolved (double-cancel is an explicit error, not silent idempotence). SCHEMA.md §14 question "cancelling done items?" closed (also an error). Both decisions documented in SCHEMA.md §13.
+
+**Acceptance met:** 8 components / ~25 assertions covering validation (not-found, cannot-cancel × 2), basic cancellation (:new, :ready), and auto-mark integration (fires on sole-ready cancel, no-fires when other ready remains, no-fires when no new to promote).
+
+### ⬜ 5J.2 — `model.list/complete-benchmark-item`
+### ⬜ 5J.3 — `model.list/clone-todo`
+### ⬜ 5J.4 — Wire Fulcro client mutations to model
+### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
 
 ---
 
