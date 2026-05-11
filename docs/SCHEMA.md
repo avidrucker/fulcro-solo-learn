@@ -265,7 +265,7 @@ Structured errors keyed by `:error/type`:
 :error/item-not-found        ; cancel/clone target id doesn't exist
 :error/no-actionable-items   ; complete-benchmark with no ready items
 :error/invalid-review-decision ; review decision wasn't :yes/:no/:quit
-:error/list-not-prioritizable ; start-review when list isn't prioritizable
+:error/not-prioritizable-list ; start-review when list isn't prioritizable
 ```
 
 (Additional types for IO/URL state belong in `learn.model.io` and

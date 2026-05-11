@@ -1,17 +1,12 @@
 {:paths ["src"]
- :deps {com.fulcrologic/fulcro {:mvn/version "3.9.5"}
-        com.wsscode/pathom     {:mvn/version "2.4.0"}
-        com.taoensso/timbre    {:mvn/version "6.8.0"}
-        metosin/malli                                 {:mvn/version "0.16.4"}
-        #_#_com.fulcrologic/guardrails                    {:mvn/version "1.2.9"}
-        }
+ :deps  {com.fulcrologic/fulcro      {:mvn/version "3.9.5"}
+         com.wsscode/pathom          {:mvn/version "2.4.0"}
+         com.taoensso/timbre         {:mvn/version "6.8.0"}
+         metosin/malli               {:mvn/version "0.16.4"}
+         com.fulcrologic/guardrails  {:mvn/version "1.2.16"}}
  :aliases
- {:nrepl
-  {:extra-deps
-   {nrepl/nrepl {:mvn/version "1.7.0"}}
-   :main-opts
-   ["-m" "nrepl.cmdline" "--port" "7888"]}
-  :test {:extra-paths ["test"]
-         :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}}
-  }
- }
+ {:nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.7.0"}}
+          :main-opts  ["-m" "nrepl.cmdline" "--port" "7888"]}
+  :test  {:extra-paths ["test"]
+          :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}
+          :jvm-opts    ["-Dguardrails.enabled=true"]}}}

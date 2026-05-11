@@ -1,154 +1,165 @@
 (ns learn.model.schema
-  "Malli schemas for the AutoFocus domain.
+  "Malli schemas for the AutoFocus domain, registered via Guardrails `>def`.
 
-   See docs/SCHEMA.md for the conceptual model and the rationale behind
-   the choices below. This namespace is the executable counterpart.
+   See docs/SCHEMA.md for the conceptual model.
 
    Pure data — no Fulcro, no Pathom, no IO. Loadable from both client
-   and server (`.cljc`). Function contracts elsewhere (in item.cljc,
-   list.cljc, etc.) reference these schemas via Guardrails' `>defn`."
+   and server (`.cljc`). Function contracts elsewhere reference these
+   schemas by their qualified keyword names (e.g. ::status, ::todo).
+
+   All schemas registered with `>def` go into the Guardrails Malli
+   registry, where Guardrails' `>defn` looks them up. This means a
+   schema change here propagates automatically to every function that
+   declares a parameter or return type by keyword.
+
+   NOTE: `>def` is a two-arg macro: (>def ::keyword schema). It does
+   NOT accept a docstring slot like `defn`. Documentation for each
+   schema lives in the `;;` comment immediately above it."
   (:require
     [clojure.string :as str]
+    [com.fulcrologic.guardrails.malli.core :refer [>def]]
+    [malli.registry :as mr]
+    [com.fulcrologic.guardrails.malli.registry :as gr.reg]
     #?(:clj  [malli.core :as m]
        :cljs [malli.core :as m])))
+
+(mr/set-default-registry!
+  (mr/composite-registry
+    (m/default-schemas)
+    (mr/mutable-registry gr.reg/schema-atom)))
+
+;; ============================================================================
+;; Predicates — shared shape checks usable inside schemas.
+;; ============================================================================
+
+(defn non-blank-string?
+  "True for non-nil, non-blank strings. Used by ::todo's :todo/text constraint."
+  [s]
+  (and (string? s) (not (str/blank? s))))
 
 ;; ============================================================================
 ;; Status enum
 ;; ============================================================================
 
 (def status-values
-  "The four valid todo statuses. Exposed as a set so client code can iterate
-   for UI rendering (e.g., a status legend) without re-extracting from the
-   schema."
+  "The four valid todo statuses as a set. Exposed for client code that
+   iterates (e.g., a status legend) without re-extracting from the schema."
   #{:status/new :status/ready :status/done :status/cancelled})
 
-(def Status
-  "Schema for a single status value."
-  (into [:enum] status-values))
+;; Schema for a single status value.
+(>def ::status (into [:enum] status-values))
 
 ;; ============================================================================
-;; Predicates — shared shape checks usable inside schemas and elsewhere.
+;; Todo entity
 ;; ============================================================================
 
-(defn non-blank-string?
-  "True for non-nil, non-blank strings. Used by Todo's :todo/text constraint."
-  [s]
-  (and (string? s) (not (str/blank? s))))
-
-;; ============================================================================
-;; Todo
-;; ============================================================================
-
-(def Todo
-  "Schema for a single todo. `:todo/was` is optional but should be present
-   exactly when `:todo/status = :status/cancelled`. The stricter mutual
-   constraint is enforced by the set-status* helper in client.cljc, not
-   at the schema level — keeping the schema permissive prevents spurious
-   validation errors during state transitions."
+;; Schema for a single todo entity. `:todo/was` is optional but should
+;; only be present when `:todo/status = :status/cancelled`. The stricter
+;; mutual constraint is enforced by `set-status*` in client.cljc rather
+;; than at the schema level — schema stays permissive so transient states
+;; during transitions don't raise spurious validation errors.
+(>def ::todo
   [:map
    [:todo/id     :uuid]
    [:todo/text   [:fn non-blank-string?]]
-   [:todo/status Status]
-   [:todo/was    {:optional true} Status]])
+   [:todo/status ::status]
+   [:todo/was    {:optional true} ::status]])
 
 ;; ============================================================================
-;; List (normalized entity)
+;; Item collection (denormalized; what pure domain functions operate on)
 ;; ============================================================================
 
-(def TodoIdent
-  "Fulcro ident referring to an entry in the :todo/id table."
-  [:tuple [:= :todo/id] :uuid])
+;; The denormalized vector of todos that pure domain functions take as
+;; input. Order is meaningful — it determines the benchmark (last
+;; ready) and auto-mark target (first new). Fulcro mutations are
+;; responsible for projecting from normalized state into this shape
+;; and back.
+(>def ::items [:vector ::todo])
 
-(def TodoList
-  "Schema for a normalized list entity. Order in :list/todos is meaningful;
-   it determines the benchmark item (last ready) and auto-mark target
-   (first new)."
+;; ============================================================================
+;; Fulcro normalized-state shapes
+;; ============================================================================
+
+;; Fulcro ident referring to an entry in the :todo/id table.
+(>def ::todo-ident [:tuple [:= :todo/id] :uuid])
+
+;; Schema for a normalized list entity. Order in :list/todos defines
+;; the benchmark item and auto-mark target.
+(>def ::todo-list
   [:map
    [:list/id          :int]
-   [:list/todos       [:vector TodoIdent]]
+   [:list/todos       [:vector ::todo-ident]]
    [:ui/new-todo-text {:optional true} :string]])
 
 ;; ============================================================================
 ;; Review state
 ;; ============================================================================
 
-(def ReviewCursor
-  "An index into :list/todos, or -1 when no review is active.
-   Stored as a single value rather than two separate fields to keep
-   the invariant 'cursor is -1 iff review is inactive' implicit but
-   recoverable from data."
+;; An index into :list/todos, or -1 when no review is active. Stored as
+;; a single value so the invariant 'cursor is -1 iff review is inactive'
+;; is recoverable from the data without a separate flag.
+(>def ::review-cursor
   [:or [:= -1]
    [:and :int [:>= 0]]])
 
-(def ReviewState
-  "Schema for the prioritization review session. There is at most one
-   active review per app instance."
+;; Schema for the prioritization review session. There is at most one
+;; active review per app instance.
+(>def ::review-state
   [:map
    [:review/active? :boolean]
-   [:review/cursor  ReviewCursor]])
+   [:review/cursor  ::review-cursor]])
 
 ;; ============================================================================
-;; Result shapes — how pure domain functions report success/failure.
-;; Mutations branch on :ok? to decide how to update Fulcro state.
+;; Error types and Result shapes
 ;; ============================================================================
 
-(def ErrorType
-  "Structured error keywords. UI maps these to human-readable strings.
-   Extend this set when new failure modes are introduced — keeping all
-   error types in one schema makes the UI's mapping table easy to find."
+;; Structured error keywords. UI maps these to human-readable strings.
+;; Extend when new failure modes are introduced — keeping all error
+;; types here makes the UI's mapping table easy to find.
+(>def ::error-type
   [:enum
    :error/blank-item
    :error/item-not-found
+   :error/cannot-cancel
    :error/no-actionable-items
-   :error/invalid-review-decision
-   :error/no-prioritizable-items])
+   :error/not-prioritizable-list
+   :error/invalid-review-decision])
 
-(def Items
-  "The denormalized vector of todos that pure domain functions operate on.
-   Mutations are responsible for projecting from normalized Fulcro state
-   into this shape and back. Keeping the domain layer on plain vectors
-   makes the rules easier to read, test, and port to non-Fulcro contexts."
-  [:vector Todo])
-
-(def SuccessResult
-  "Shape returned by a domain function on success."
+;; Shape returned by a domain function on success.
+(>def ::success-result
   [:map
    [:ok?   [:= true]]
-   [:items Items]])
+   [:items ::items]])
 
-(def ErrorResult
-  "Shape returned by a domain function on failure."
+;; Shape returned by a domain function on failure.
+(>def ::error-result
   [:map
-   [:ok?         [:= false]]
-   [:error/type  ErrorType]])
+   [:ok?        [:= false]]
+   [:error/type ::error-type]])
 
-(def Result
-  "Union of success and error result shapes. The :ok? key tags the variant."
-  [:or SuccessResult ErrorResult])
+;; Union of success and error result shapes. The :ok? key tags the variant.
+(>def ::result [:or ::success-result ::error-result])
 
 ;; ============================================================================
 ;; Validation helpers (development convenience)
+;;
+;; Use these from REPL or in tests. Production code typically uses
+;; Guardrails' `>defn` validation rather than calling these inline.
 ;; ============================================================================
 
-(defn valid-todo?
-  "Returns true if `x` conforms to the Todo schema. Useful in REPL and tests;
-   production code typically uses Guardrails' `>defn` instead of inline calls."
-  [x]
-  (m/validate Todo x))
+(defn valid?
+  "Returns true if `x` conforms to the named schema (e.g. ::todo, ::items)."
+  [schema-name x]
+  (m/validate schema-name x))
 
-(defn valid-items?
-  "Returns true if `x` is a vector of valid todos."
-  [x]
-  (m/validate Items x))
-
-(defn explain-todo
-  "Returns a human-readable explanation of why `x` fails to be a Todo,
-   or `nil` if it conforms. Pair with REPL exploration."
-  [x]
-  (m/explain Todo x))
+(defn explain
+  "Returns a human-readable explanation of why `x` fails to conform to
+   `schema-name`, or `nil` if it conforms."
+  [schema-name x]
+  (m/explain schema-name x))
 
 ;; ============================================================================
-;; Sample data — useful for REPL, doctests, and as living documentation.
+;; Sample data — useful for REPL, tests, and living documentation.
 ;; ============================================================================
 
 (def example-todo
@@ -165,9 +176,11 @@
    :todo/was    :status/new})
 
 (comment
-  ;; Sanity-check from REPL:
-  (valid-todo? example-todo)            ; => true
-  (valid-todo? example-cancelled-todo)  ; => true
-  (valid-todo? {:todo/text "broken"})   ; => false
-  (explain-todo {:todo/text ""})        ; => map describing the violations
+  ;; Sanity-check from REPL after the master test runner has loaded
+  ;; this namespace (the Guardrails registry needs to be populated):
+  (valid? ::todo example-todo)              ; => true
+  (valid? ::todo example-cancelled-todo)    ; => true
+  (valid? ::todo {:todo/text "broken"})     ; => false
+  (explain ::todo {:todo/text ""})          ; => map describing violations
+  (valid? ::items [example-todo])           ; => true
   )
