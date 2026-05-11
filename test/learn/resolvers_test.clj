@@ -2,7 +2,6 @@
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
     [com.wsscode.pathom.connect :as pc]
-    [com.fulcrologic.guardrails.malli.fulcro-spec-helpers :refer [when-mocking! provided!]]
     [learn.resolvers :as sut]
     [learn.parser :as parser]
     [learn.server :as server]))
