@@ -265,7 +265,7 @@ Structured errors keyed by `:error/type`:
 :error/item-not-found        ; cancel/clone target id doesn't exist
 :error/no-actionable-items   ; complete-benchmark with no ready items
 :error/invalid-review-decision ; review decision wasn't :yes/:no/:quit
-:error/no-prioritizable-items ; start-review with no new items
+:error/list-not-prioritizable ; start-review when list isn't prioritizable
 ```
 
 (Additional types for IO/URL state belong in `learn.model.io` and
@@ -393,19 +393,20 @@ now is "free" relative to the RAD future — same types, different packaging.
 
 ## 12. Quick reference — vocabulary
 
-| Term | Definition |
-|------|-----------|
-| Todo / item | A unit in the AutoFocus list |
-| List | An ordered collection of todos |
-| Status | One of `:status/{new,ready,done,cancelled}` |
-| Benchmark item | The last ready item; the "next actionable" |
-| Actionable list | A list with at least one ready item |
-| Auto-markable list | A list with new items but no ready items |
-| Auto-mark | Promote first new → ready when list is auto-markable |
-| Prioritize / review | Walk through new items asking yes/no/quit |
-| Cursor | Position within an active review session |
-| Clone | Create a new todo from a cancelled/done one's text |
-| `:todo/was` | Status held before cancellation, for UI display |
+| Term                | Definition                                                                                                          |
+|---------------------|---------------------------------------------------------------------------------------------------------------------|
+| Todo / item         | A unit in the AutoFocus list                                                                                        |
+| List                | An ordered collection of todos                                                                                      |
+| Status              | One of `:status/{new,ready,done,cancelled}`                                                                         |
+| Benchmark item      | The last ready item; the "next actionable"                                                                          |
+| Actionable list     | A list with at least one ready item                                                                                 |
+| Auto-markable list  | A list with new items but no ready items                                                                            |
+| Auto-mark           | Promote first new → ready when list is auto-markable                                                                |
+| Prioritize / review | Walk through new items asking yes/no/quit                                                                           |
+| Priorizable List       | A list that has at least one ready item, and at least one new item, and the last new item is *after* the last ready |
+| Cursor              | Position within an active review session                                                                            |
+| Clone               | Create a new todo from a cancelled/done one's text                                                                  |
+| `:todo/was`         | Status held before cancellation, for UI display                                                                     |
 
 ---
 
@@ -421,8 +422,16 @@ These are settled items, and are generally not up for being changed.
 
 ## 14. Open questions
 
-These are deliberately *not* settled in this document. They get resolved as
-the project evolves.
+These are deliberately *not* settled in this document. They get resolved as the project evolves.
 
 - **Server validation of mutations?** Resolvers don't currently re-validate
   the schema on incoming mutation params. Note: Eventually, list state validation may be beneficial to implement. For now, YAGNI.
+- **Cancelling done items?** Currently the model doesn't explicitly block "cancelling" of done items, but, cancelling done items will not be possible via the UI, so, perhaps this will be something that the model will enforce later?
+- Determine the business model (hashmap return presumably) of what the results shape should be for review decisions (each review question should result in a single transaction, which either increments the cursor to the next reviewable item ("no" answer/option), marks the item at the cursor :ready and then increments the cursor ("yes" answer/option), or, ends the review session ("quit" answer/option)), where the cursor is part of every transaction, or, only part of list (review) management transactions
+
+---
+
+## 15. Revisions / Updates
+
+- [ ] Clarify (1 here, 2 in the malli schema, 3 via tests) that prioritizable lists are lists that have at least one ready, at least one new, and the last new item comes *after* the last ready item in the list
+- [ ] Prevent cancelling of cancelled items and/or treat the operation of attempting to cancel an item that is already cancelled as an error, i.e. "double-cancelling"
