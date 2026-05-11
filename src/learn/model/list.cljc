@@ -36,3 +36,49 @@
   (->> items
     (filter #(= :status/ready (:todo/status %)))
     last))
+
+;; ============================================================================
+;; auto-markable? and auto-mark
+;;
+;; The auto-mark rule (SCHEMA.md §6): when a list has new items but no ready
+;; items, the first new item (in list order) is automatically promoted to
+;; ready. This fires as a *consequence* of complete-benchmark and cancel-todo
+;; — it doesn't fire on add-todo or set-status.
+;; ============================================================================
+
+(defn- new?
+  "True for todos with :status/new."
+  [todo]
+  (= :status/new (:todo/status todo)))
+
+(defn- ready?
+  "True for todos with :status/ready."
+  [todo]
+  (= :status/ready (:todo/status todo)))
+
+(>defn auto-markable?
+  "True when `items` is eligible for auto-marking: at least one
+   :status/new item is present, and zero :status/ready items exist.
+
+   Returns false on an empty list — no new items means nothing to promote."
+  [items]
+  [:learn.model.schema/items => :boolean]
+  (boolean
+    (and (some new? items)
+      (not-any? ready? items))))
+
+(>defn auto-mark
+  "If `items` is auto-markable, returns a copy with the first :status/new
+   item promoted to :status/ready. Otherwise returns `items` unchanged.
+
+   Idempotent: applying twice yields the same result as applying once,
+   because after the first call there is a ready item and the list is
+   no longer auto-markable."
+  [items]
+  [:learn.model.schema/items => :learn.model.schema/items]
+  (if-not (auto-markable? items)
+    items
+    (let [first-new-idx (->> items
+                          (map-indexed vector)
+                          (some (fn [[i t]] (when (new? t) i))))]
+      (assoc-in items [first-new-idx :todo/status] :status/ready))))
