@@ -23,6 +23,7 @@
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [learn.parser :as parser]
+    [learn.model.list :as model.list]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -91,23 +92,35 @@
 ;; micromanaging. Cancel + clone serve those needs from a different angle.
 ;; ============================================================================
 
+(defn- denormalize-list-items
+  "Resolves the todo idents at [list-ident :list/todos] into a vector of
+   full todo maps, preserving order. Used by add-todo* to project
+   normalized state into the shape model.list functions expect."
+  [state-map list-ident]
+  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
+    (mapv #(get-in state-map %) todo-idents)))
+
 (defn add-todo*
   "Append a fresh todo to the given list and clear :ui/new-todo-text.
-  New todos start :status/new.
 
-  The next phase will add the AutoFocus auto-mark rle (if no :ready items
-  exist, the new todo should start :status/ready instead). For now, adds
-  always create :status/new - keeping this helper deliberately simple while
-  getting the schema migration green."
+   Status determination delegates to learn.model.list/add-todo, which
+   applies the AutoFocus add rule (SCHEMA.md §7):
+     - If the list has zero :status/ready items → new todo gets :status/ready.
+     - Otherwise (at least one ready exists)    → new todo gets :status/new.
+
+   Blank text returns state unchanged. The model returns
+   {:ok? false :error/type :error/blank-item}; we no-op here for now.
+   A future phase can surface the error via UI feedback."
   [state-map list-ident text]
-  (let [new-id   (random-uuid) ;; TODO: IDEA: implement optional custom id passing for testing purposes
-        new-todo {:todo/id new-id
-                  :todo/text text
-                  :todo/status :status/new}]
-    (-> state-map
-      (merge/merge-component TodoItem new-todo
-        :append (conj list-ident :list/todos))
-      (assoc-in (conj list-ident :ui/new-todo-text) ""))))
+  (let [items  (denormalize-list-items state-map list-ident)
+        result (model.list/add-todo items text)]
+    (if (:ok? result)
+      (let [new-todo (last (:items result))]
+        (-> state-map
+          (merge/merge-component TodoItem new-todo
+            :append (conj list-ident :list/todos))
+          (assoc-in (conj list-ident :ui/new-todo-text) "")))
+      state-map)))
 
 (defn delete-all*
   "Removes every todo referenced by the given list-ident's :list/todos.

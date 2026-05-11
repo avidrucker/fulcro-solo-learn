@@ -1,12 +1,8 @@
 # AutoFocus Schema Reference
 
-This is the canonical reference for the AutoFocus domain model as implemented
-in this Fulcro project. It defines vocabulary, entity shapes, status semantics,
-domain invariants, operation contracts, and error types — and explains where
-each piece lives in the codebase.
+This is the canonical reference for the AutoFocus domain model as implemented in this Fulcro project. It defines vocabulary, entity shapes, status semantics, domain invariants, operation contracts, and error types — and explains where each piece lives in the codebase.
 
-This document doubles as a context anchor when bringing collaborators (or AI
-assistants) up to speed on the project.
+This document doubles as a context anchor when bringing collaborators (or AI assistants) up to speed on the project.
 
 ---
 
@@ -19,10 +15,7 @@ assistants) up to speed on the project.
 | Validation site | Inline at function boundaries | Catches violations where they're cheapest to debug |
 | Client/server share | `.cljc` for schemas | Same definitions enforced on both sides |
 
-`clojure.spec` is not used in this project. It remains in alpha after many
-years, and the community has converged on Malli. Fulcro RAD uses Malli
-natively for its attribute system, so adopting Malli now eliminates a future
-migration pass.
+`clojure.spec` is not used in this project. It remains in alpha after many years, and the community has converged on Malli. Fulcro RAD uses Malli natively for its attribute system, so adopting Malli now eliminates a future migration pass.
 
 ---
 
@@ -30,24 +23,17 @@ migration pass.
 
 ### Entity namespace: `:todo`
 
-Despite the AutoFocus spec recommending `:item`, this project uses `:todo`
-throughout for continuity with the existing codebase. The two are
-interchangeable in meaning. A rename pass is cheap (mechanical
-search-and-replace) and is deferred until the domain stabilizes.
+Despite the AutoFocus spec recommending `:item`, this project uses `:todo` throughout for continuity with the existing codebase. The two are interchangeable in meaning. A rename pass is cheap (mechanical search-and-replace) and is deferred until the domain stabilizes.
 
 ### Status namespace: `:status`
 
 Status values use the `:status/` keyword namespace rather than
-`:todo.status/`. Short namespaces read better at call sites and the enum is
-unlikely to collide with another status type. If it ever does, disambiguation
-is a one-pass rename.
+`:todo.status/`. Short namespaces read better at call sites and the enum is unlikely to collide with another status type. If it ever does, disambiguation is a one-pass rename.
 
 ### ID type: UUID
 
-Todos use UUIDs (`#uuid "..."`) rather than the AutoFocus spec's integer IDs.
-UUIDs play well with Fulcro's normalization (idents are `[:todo/id <uuid>]`)
-and avoid the integer-allocation question. Order is captured by `:list/todos`
-(a vector of idents), not by ID magnitude.
+Todos use UUIDs (`#uuid "..."`) rather than the AutoFocus spec's integer IDs. UUIDs play well with Fulcro's normalization (idents are `[:todo/id <uuid>]`)
+and avoid the integer-allocation question. Order is captured by `:list/todos` (a vector of idents), not by ID magnitude.
 
 ### Keyword namespacing for derived/transient state
 
@@ -84,8 +70,7 @@ Four values, all in the `:status/` namespace:
 :status/cancelled  ── clone ──▶  new todo (text only)
 ```
 
-There is no `:done → :new`, no `:cancelled → :ready` "uncancel" transition.
-Cloning is the AutoFocus way of bringing a cancelled or done item back.
+There is no `:done → :new`, no `:cancelled → :ready` "uncancel" transition. Cloning is the AutoFocus way of bringing a cancelled or done item back.
 
 ---
 
@@ -102,9 +87,7 @@ Cloning is the AutoFocus way of bringing a cancelled or done item back.
    [:todo/was    {:optional true} Status]])
 ```
 
-`:todo/was` is required when (and only when) `:todo/status = :status/cancelled`.
-A stricter schema variant could enforce this via `[:multi]`; for now we rely on
-function-level invariants enforced in `set-status*`.
+`:todo/was` is required when (and only when) `:todo/status = :status/cancelled`. A stricter schema variant could enforce this via `[:multi]`; for now we rely on function-level invariants enforced in `set-status*`.
 
 ### List
 
@@ -118,9 +101,7 @@ A list is a normalized entity holding a vector of todo idents:
    [:ui/new-todo-text :string]])
 ```
 
-The vector's order is meaningful — it defines the benchmark item (last ready)
-and the auto-mark target (first new). Idents within `:list/todos` always
-reference entries in the normalized `:todo/id` table.
+The vector's order is meaningful — it defines the benchmark item (last ready) and the auto-mark target (first new). Idents within `:list/todos` always reference entries in the normalized `:todo/id` table.
 
 ### Review state
 
@@ -133,8 +114,7 @@ reference entries in the normalized `:todo/id` table.
                      [:and :int [:>= 0]]]]])
 ```
 
-The cursor is an index into the *order* of `:list/todos`, not a todo id.
-When inactive, it's `-1` by convention.
+The cursor is an index into the *order* of `:list/todos`, not a todo id. When inactive, it's `-1` by convention.
 
 ---
 
@@ -155,8 +135,7 @@ When inactive, it's `-1` by convention.
 4. Complete and cancel do **not** remove items (only `delete-all` removes).
 5. Clone appends a new todo with the source's text.
 6. The benchmark item is always `(last (filter ready? items))`, or `nil`.
-7. After any operation that leaves the list with new items but no ready
-   items, the auto-mark rule fires (see §6).
+7. After any operation that leaves the list with new items but no ready items, the auto-mark rule fires (see §6).
 
 ---
 

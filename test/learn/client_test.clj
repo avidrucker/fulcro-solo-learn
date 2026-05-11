@@ -12,14 +12,19 @@
 ;; Test fixtures
 ;; ============================================================================
 
+;; UUIDs for unit-test fixtures. Distinct from server-id-* (integration
+;; tests) to keep the two layers visually separable in failure output.
+(def fixture-id-1 #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
+(def fixture-id-2 #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2")
+
 (defn fixture-state
-  "Two seeded todos: id 1 (new), id 2 (ready)."
+  "Two seeded todos: fixture-id-1 (ready), fixture-id-2 (new)."
   []
   {:list/id {1 {:list/id          1
-                :list/todos       [[:todo/id 1] [:todo/id 2]]
+                :list/todos       [[:todo/id fixture-id-1] [:todo/id fixture-id-2]]
                 :ui/new-todo-text "draft text"}}
-   :todo/id {1 {:todo/id 1 :todo/text "First"  :todo/status :status/new}
-             2 {:todo/id 2 :todo/text "Second" :todo/status :status/ready}}})
+   :todo/id {fixture-id-1 {:todo/id fixture-id-1 :todo/text "First"  :todo/status :status/ready}
+             fixture-id-2 {:todo/id fixture-id-2 :todo/text "Second" :todo/status :status/new}}})
 
 (defn empty-fixture-state
   "Empty list, no todos."
@@ -70,6 +75,8 @@
       (assertions
         "creates the first todo with the new text"
         (get-in after [:todo/id new-id :todo/text]) => "First!"
+        "new todo gets :status/ready (empty list — no existing ready items)"
+        (get-in after [:todo/id new-id :todo/status]) => :status/ready
         "places the new ident as the only entry in :list/todos"
         (get-in after [:list/id 1 :list/todos]) => [new-ident]
         "affects only the new entity and the list's :list/todos"
@@ -81,41 +88,41 @@
 (specification "set-status*"
   (component "setting a non-cancelled status"
     (let [before (fixture-state)
-          after  (sut/set-status* before 1 :status/done)]
+          after  (sut/set-status* before fixture-id-1 :status/done)]
       (assertions
         "updates :todo/status on the targeted entity"
-        (get-in after [:todo/id 1 :todo/status]) => :status/done
+        (get-in after [:todo/id fixture-id-1 :todo/status]) => :status/done
         "does not set :todo/was for non-cancelled transitions"
-        (contains? (get-in after [:todo/id 1]) :todo/was) => false
+        (contains? (get-in after [:todo/id fixture-id-1]) :todo/was) => false
         "affects only :todo/status of the targeted entity"
         (affects-only? before after
-          [[:todo/id 1 :todo/status]])
+          [[:todo/id fixture-id-1 :todo/status]])
         => true)))
 
   (component "cancelling a :status/new todo"
     (let [before (fixture-state)
-          after  (sut/set-status* before 1 :status/cancelled)]
+          after  (sut/set-status* before fixture-id-2 :status/cancelled)]
       (assertions
         ":todo/status becomes :status/cancelled"
-        (get-in after [:todo/id 1 :todo/status]) => :status/cancelled
+        (get-in after [:todo/id fixture-id-2 :todo/status]) => :status/cancelled
         ":todo/was captures the previous :status/new"
-        (get-in after [:todo/id 1 :todo/was]) => :status/new)))
+        (get-in after [:todo/id fixture-id-2 :todo/was]) => :status/new)))
 
   (component "cancelling a :status/ready todo"
     (let [before (fixture-state)
-          after  (sut/set-status* before 2 :status/cancelled)]
+          after  (sut/set-status* before fixture-id-1 :status/cancelled)]
       (assertions
         ":todo/status becomes :status/cancelled"
-        (get-in after [:todo/id 2 :todo/status]) => :status/cancelled
+        (get-in after [:todo/id fixture-id-1 :todo/status]) => :status/cancelled
         ":todo/was captures the previous :status/ready"
-        (get-in after [:todo/id 2 :todo/was]) => :status/ready)))
+        (get-in after [:todo/id fixture-id-1 :todo/was]) => :status/ready)))
 
   (component "double-cancel is idempotent — :todo/was is preserved"
-    (let [once  (sut/set-status* (fixture-state) 2 :status/cancelled)
-          twice (sut/set-status* once 2 :status/cancelled)]
+    (let [once  (sut/set-status* (fixture-state) fixture-id-1 :status/cancelled)
+          twice (sut/set-status* once fixture-id-1 :status/cancelled)]
       (assertions
         ":todo/was retains the original prior status, not :cancelled"
-        (get-in twice [:todo/id 2 :todo/was]) => :status/ready))))
+        (get-in twice [:todo/id fixture-id-1 :todo/was]) => :status/ready))))
 
 (specification "delete-all*"
   (let [before (fixture-state)
