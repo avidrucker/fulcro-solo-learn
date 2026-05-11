@@ -11,6 +11,7 @@
    namespace implements them one at a time, each with a Guardrails `>defn`
    referencing schemas from `learn.model.schema`."
   (:require
+    [clojure.string :as str]
     [com.fulcrologic.guardrails.malli.core :refer [>defn => ?]]
     [learn.model.schema]))                            ; loads registry; no alias needed
 
@@ -82,3 +83,43 @@
                           (map-indexed vector)
                           (some (fn [[i t]] (when (new? t) i))))]
       (assoc-in items [first-new-idx :todo/status] :status/ready))))
+
+;; ============================================================================
+;; add-todo
+;;
+;; Appends a fresh todo to the list, with status determined by the AutoFocus
+;; add rule (SCHEMA.md §7):
+;;   - If items has zero :status/ready items → new todo is :status/ready
+;;   - Otherwise (at least one ready exists)  → new todo is :status/new
+;;
+;; Blank text returns an :error/blank-item result without modifying items.
+;;
+;; The 2-arity form generates a fresh UUID; the 3-arity form takes an explicit
+;; UUID for deterministic testing. Production callers (Fulcro mutations) use
+;; the 2-arity; specs use the 3-arity.
+;; ============================================================================
+
+(>defn add-todo
+  "Appends a fresh todo to `items`. Returns a Result map.
+
+   Status rule (SCHEMA.md §7):
+     - If `items` has zero :status/ready items → new todo gets :status/ready.
+     - Otherwise (at least one ready exists)   → new todo gets :status/new.
+
+   Blank text (empty, whitespace-only, or nil-by-trim) returns
+   {:ok? false :error/type :error/blank-item} with `items` unmodified.
+
+   The 2-arity form generates a fresh random UUID. The 3-arity form takes an
+   explicit UUID — used by specs for deterministic assertions."
+  ([items text]
+   [:learn.model.schema/items :string => :learn.model.schema/result]
+   (add-todo items text (random-uuid)))
+  ([items text id]
+   [:learn.model.schema/items :string :uuid => :learn.model.schema/result]
+   (if (str/blank? text)
+     {:ok? false :error/type :error/blank-item}
+     (let [status   (if (some ready? items) :status/new :status/ready)
+           new-todo {:todo/id     id
+                     :todo/text   text
+                     :todo/status status}]
+       {:ok? true :items (conj items new-todo)}))))

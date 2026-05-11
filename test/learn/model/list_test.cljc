@@ -215,3 +215,103 @@
         twice)
       => [(todo id-1 "A" :status/ready)
           (todo id-2 "B" :status/new)])))
+
+(specification "add-todo"
+  (component "blank text returns error result"
+    (assertions
+      "empty string — error"
+      (sut/add-todo [] "" id-1)
+      => {:ok? false :error/type :error/blank-item}
+
+      "whitespace-only — error"
+      (sut/add-todo [] "   " id-1)
+      => {:ok? false :error/type :error/blank-item}
+
+      "tabs and newlines — error"
+      (sut/add-todo [] "\t\n" id-1)
+      => {:ok? false :error/type :error/blank-item}
+
+      "blank on a populated list — still error, items unchanged"
+      (sut/add-todo [(todo id-1 "A" :status/ready)] "" id-2)
+      => {:ok? false :error/type :error/blank-item}))
+
+  (component "empty list — new todo gets :status/ready"
+    (assertions
+      "single addition into empty list"
+      (sut/add-todo [] "First task" id-1)
+      => {:ok? true
+          :items [(todo id-1 "First task" :status/ready)]}))
+
+  (component "list with no ready items — new todo gets :status/ready"
+    (assertions
+      "only new items"
+      (sut/add-todo [(todo id-1 "A" :status/new)] "Second" id-2)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/new)
+                  (todo id-2 "Second" :status/ready)]}
+
+      "only done items"
+      (sut/add-todo [(todo id-1 "A" :status/done)] "Second" id-2)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/done)
+                  (todo id-2 "Second" :status/ready)]}
+
+      "only cancelled items"
+      (sut/add-todo [(todo id-1 "A" :status/cancelled)] "Second" id-2)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/cancelled)
+                  (todo id-2 "Second" :status/ready)]}
+
+      "mix of new/done/cancelled (no ready)"
+      (sut/add-todo [(todo id-1 "A" :status/new)
+                     (todo id-2 "B" :status/done)
+                     (todo id-3 "C" :status/cancelled)]
+        "Fourth" id-4)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/new)
+                  (todo id-2 "B" :status/done)
+                  (todo id-3 "C" :status/cancelled)
+                  (todo id-4 "Fourth" :status/ready)]}))
+
+  (component "list with at least one ready item — new todo gets :status/new"
+    (assertions
+      "single ready item"
+      (sut/add-todo [(todo id-1 "A" :status/ready)] "Second" id-2)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/ready)
+                  (todo id-2 "Second" :status/new)]}
+
+      "multiple ready items"
+      (sut/add-todo [(todo id-1 "A" :status/ready)
+                     (todo id-2 "B" :status/ready)]
+        "Third" id-3)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/ready)
+                  (todo id-2 "B" :status/ready)
+                  (todo id-3 "Third" :status/new)]}
+
+      "mix with at least one ready"
+      (sut/add-todo [(todo id-1 "A" :status/new)
+                     (todo id-2 "B" :status/ready)
+                     (todo id-3 "C" :status/done)]
+        "Fourth" id-4)
+      => {:ok? true
+          :items [(todo id-1 "A" :status/new)
+                  (todo id-2 "B" :status/ready)
+                  (todo id-3 "C" :status/done)
+                  (todo id-4 "Fourth" :status/new)]}))
+
+  (component "2-arity form auto-generates a UUID"
+    (assertions
+      "non-blank text returns ok? true"
+      (:ok? (sut/add-todo [] "Hello"))
+      => true
+
+      "the new todo's :todo/id is a UUID"
+      (-> (sut/add-todo [] "Hello") :items first :todo/id uuid?)
+      => true
+
+      "each call generates a different UUID"
+      (= (-> (sut/add-todo [] "Hello") :items first :todo/id)
+        (-> (sut/add-todo [] "Hello") :items first :todo/id))
+      => false)))

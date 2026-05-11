@@ -138,27 +138,52 @@ the rest.
 sub-cases), multiple-ready / last-wins (3 sub-cases).
 `(>defn benchmark-item [items] [::schema/items => (? ::schema/todo)] ...)`.
 
-### ⬜ 5I.3 — `model.list/auto-mark*` and `auto-markable?`
+### ✅ 5I.3 — `model.list/auto-markable?` and `auto-mark`
 
 `auto-markable?` is a predicate over items. `auto-mark*` promotes the
 first new item to ready if the list is auto-markable; otherwise returns
 items unchanged.
 
-**Decision required at this phase:** JS-port discrepancy #5 — the
+**Decision made:** JS-port discrepancy #5 — the
 original `automark` reads the function reference instead of calling
 it (`if (!isAutoMarkableList)` not `if (!isAutoMarkableList(tasks))`).
-We fix this in the Clojure port (caller calls the predicate).
+Fixed in the Clojure port: `auto-mark` calls `(auto-markable? items)` properly.
 
-**Acceptance:** Specs cover empty list, all-ready, mixed-state cases.
+**Naming change:** Dropped the `*` suffix from `auto-mark` (was
+`auto-mark*` in earlier roadmap). The `*` suffix is reserved for
+state-map → state-map helpers (see `client.cljc`'s `add-todo*`,
+`set-status*`); model-layer functions take items vectors in and out,
+so the suffix doesn't apply. When Phase 5J wraps this in a Fulcro
+mutation, that mutation's body might call `auto-mark*` if a state-map
+helper is needed.
 
-### ⬜ 5I.4 — `model.list/add-todo`
+**`model.item` deferred.** SCHEMA.md §10 anticipates a `model.item.cljc`
+for status predicates. We kept `new?` and `ready?` as `defn-` in
+`model.list` because two predicates with two callers don't yet justify
+the extra file. Promote to `model.item` when a third caller appears
+(likely 5J's `cancel-todo` needing `done?`/`cancelled?` for the refusal
+check).
+
+**Acceptance met:** 18 specs / ~88 assertions green. Specs cover empty
+list, all-ready, mixed-state, idempotence, and "no ready items in mix"
+cases.
+
+### ✅ 5I.4 — `model.list/add-todo`
 
 Appends a new todo with the AutoFocus add rule: `:status/ready` if no
 ready items exist, else `:status/new`. Validates non-blank text via
 the schema; returns Result-shaped map.
 
-**Acceptance:** Specs cover empty-list-becomes-ready,
-list-with-ready-becomes-new, blank text returns error result.
+**Design:** Multi-arity `>defn` overload. 2-arg form `(add-todo items
+text)` generates a fresh UUID and delegates to 3-arg form `(add-todo
+items text id)`. The 3-arg form is the pure, testable core; specs
+exercise it for deterministic assertions. A small set of specs verifies
+the 2-arg form's UUID-generation behavior.
+
+**Acceptance met:** 20 specs / ~103 assertions green. Specs cover blank
+text (4 cases), empty-list-becomes-ready, no-ready-list-becomes-ready
+(4 cases), with-ready-list-becomes-new (3 cases), and UUID generation
+(3 cases).
 
 ### ⬜ 5I.5 — Wire Fulcro client to domain functions
 
