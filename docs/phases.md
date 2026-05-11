@@ -110,26 +110,33 @@ Created `src/learn/model/schema.cljc` with Malli schemas using plain
 `def`. Added Malli to deps. Guardrails added then immediately rolled
 back due to a version conflict between `1.2.9` and `fulcro-spec 3.2.8`.
 
-### 🟡 5I.1 — Add Guardrails 1.2.16 + refactor schema to `>def` registry
+### ✅ 5I.1 — Add Guardrails 1.2.16 + refactor schema to `>def` registry
 
-Upgrade Guardrails to the version mandated by the fulcro-spec-tdd
-skill. Refactor `schema.cljc` to use `>def` with namespaced keywords
-so schemas register in the Malli registry and can be referenced by
-keyword from `>defn` specs elsewhere.
+Upgraded Guardrails to the version mandated by the fulcro-spec-tdd
+skill. Refactored `schema.cljc` to use `>def` with namespaced keywords
+so schemas register in the Guardrails-extended Malli registry and can
+be referenced by keyword from `>defn` specs elsewhere.
+
+Enablement: added `-Dguardrails.enabled=true` to the `:test` alias
+`:jvm-opts`. Bridge from Guardrails registry to Malli's default via
+`(mr/set-default-registry! (mr/composite-registry (m/default-schemas)
+(mr/mutable-registry gr.reg/schema-atom)))` so `m/validate` resolves
+`>def`'d schemas.
 
 **Files:** `deps.edn`, `src/learn/model/schema.cljc`
-**Acceptance:** Existing 16 specs pass; `(valid? ::todo example-todo)`
-returns `true` from REPL.
+**Acceptance met:** Existing 16 specs pass; `(s/valid? ::s/todo
+s/example-todo)` returns `true` from REPL.
 
-### ⬜ 5I.2 — `model.list/benchmark-item`
+### 🟡 5I.2 — `model.list/benchmark-item`
 
 Pure read function: returns the last `:status/ready` todo from a vector,
 or `nil`. The simplest domain function — establishes the pattern for
 the rest.
 
-**Acceptance:** Spec covers no-ready, one-ready, multiple-ready,
-ignoring done/cancelled. `(>defn benchmark-item [items] [::schema/items
-=> (? ::schema/todo)] ...)`.
+**Files:** `src/learn/model/list.cljc`, `test/learn/model/list_test.cljc`
+**Acceptance:** Spec covers no-ready (4 sub-cases), one-ready (3
+sub-cases), multiple-ready / last-wins (3 sub-cases).
+`(>defn benchmark-item [items] [::schema/items => (? ::schema/todo)] ...)`.
 
 ### ⬜ 5I.3 — `model.list/auto-mark*` and `auto-markable?`
 
@@ -137,8 +144,12 @@ ignoring done/cancelled. `(>defn benchmark-item [items] [::schema/items
 first new item to ready if the list is auto-markable; otherwise returns
 items unchanged.
 
-**Acceptance:** Specs cover the JS-bug fix (call the predicate, don't
-read the function ref), empty list, all-ready, mixed-state cases.
+**Decision required at this phase:** JS-port discrepancy #5 — the
+original `automark` reads the function reference instead of calling
+it (`if (!isAutoMarkableList)` not `if (!isAutoMarkableList(tasks))`).
+We fix this in the Clojure port (caller calls the predicate).
+
+**Acceptance:** Specs cover empty list, all-ready, mixed-state cases.
 
 ### ⬜ 5I.4 — `model.list/add-todo`
 
@@ -177,6 +188,13 @@ Each is a `>defn` in `model.list`, with a Fulcro mutation that
 delegates to it. Server-side Pathom mutations added so `(remote [_]
 true)` lights up.
 
+**Decisions required at this phase:**
+- JS-port discrepancy #2 (double-cancel): preserve original `:todo/was`,
+  *do not* overwrite it. Already noted in SCHEMA.md §15 as a revision item.
+- JS-port discrepancy #3 (cancel on done/cancelled): restrict to
+  `:new`/`:ready`; return `{:ok? false :error/type :error/cannot-cancel}`.
+  Already noted in SCHEMA.md §15.
+
 ---
 
 ## ⬜ Phase 5K — Prioritize/review flow
@@ -187,6 +205,16 @@ Build `learn.model.review` for the binary review process:
 - `next-cursor`
 - `current-question`
 - `handle-review-decision`
+
+**Decisions required at this phase:**
+- JS-port discrepancy #1 (prioritizable list): use the JS rule
+  exactly — "at least one ready, at least one new, *and last new is
+  after last ready in list order*." Already in SCHEMA.md §15 as a
+  revision item.
+- JS-port discrepancy #4 (review-decision return shape): return Result-shaped
+  `{:ok? true :items ... :review/cursor ... :review/active? ...}`
+  rather than the JS `{tasks, cursor, endReview}`. Open question §14
+  in SCHEMA.md asks the same; resolving it here.
 
 This phase likely introduces Tony Kay's **statecharts** library — the
 review flow's `:active?`/`:cursor` state and three-decision response
@@ -268,11 +296,40 @@ cleanly.
 
 These aren't phases per se — they evolve continuously across phases.
 
-- **Test runner**: Master runner (terse + verbose), per-ns runners,
-  Guardrails `:covers` proof system (deferred; will land mid-project).
+- **Test runner**: Master runner (terse + verbose), per-ns runners.
 - **REPL workflow**: Cursive custom commands, project-only reload to
   keep iteration under a second.
 - **Specs**: Started as plain `def` in 5I.0.5, upgraded to `>def`
-  registry in 5I.1, will pair with `>defn` from 5I.2 onward.
+  registry in 5I.1, paired with `>defn` from 5I.2 onward.
 - **Doc layer**: `docs/SCHEMA.md` is the canonical reference;
-  `docs/PHASES.md` (this file) tracks progress.
+  `docs/phases.md` (this file) tracks progress;
+  `docs/learned_while_making_this.md` is the running retrospective.
+
+### Deferred infrastructure items (to be picked up in a later phase)
+
+These are mandated by the `fulcro-spec-tdd` skill or otherwise
+recommended, but deferred because they don't yet pay their own cost
+at the current project size. Each has a planned landing phase.
+
+- **Guardrails `:all` mode + `:covers` proof-system sealing.** The
+  fulcro-spec-tdd skill mandates `:covers` metadata on every
+  specification for transitive coverage and staleness detection.
+  This requires Guardrails mode `:all` (currently `:runtime`), which
+  populates an externs registry at compile time. Defer to **Phase
+  5I.6** or **after**: seal all existing specs in a batch once we
+  have ~20+ specs and the proof-system payoff (catching stale tests
+  after refactors) starts to matter. Specs written in the meantime
+  are structurally seal-ready (single-function focus, multi-triple
+  `assertions` blocks, no `behavior` macro).
+
+- **Per-test guardrails-test.edn config with `:throw? true`.** The
+  fulcro-spec-tdd skill recommends a separate config file so test
+  runs throw on contract violations instead of merely logging them.
+  Defer until we have a `>defn` whose contract is meaningful enough
+  that a silent log would mask a bug — likely Phase 5I.4 onward.
+
+- **Pre-warm `dev/user.clj` for fast first-run REPL.** Identified in
+  Phase 5H as a performance optimization (30s cold start →
+  sub-second first run). Defer until we're restarting the REPL often
+  enough that the cold-start cost matters; with a stable deps.edn,
+  most days we restart 0 times.
