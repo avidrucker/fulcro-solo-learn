@@ -1,7 +1,9 @@
 {:paths ["src"]
  :deps {com.fulcrologic/fulcro {:mvn/version "3.9.5"}
         com.wsscode/pathom     {:mvn/version "2.4.0"}
-        com.taoensso/timbre    {:mvn/version "6.8.0"}}
+        com.taoensso/timbre    {:mvn/version "6.8.0"}
+        metosin/malli                                 {:mvn/version "0.16.4"}
+        com.fulcrologic/guardrails                    {:mvn/version "1.2.9"}}
  :aliases
  {:nrepl
   {:extra-deps
