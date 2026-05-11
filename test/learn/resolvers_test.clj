@@ -124,22 +124,38 @@
 ;; Mutation specifications
 ;; ============================================================================
 
-(specification "add-todo-mutation"
-  (component "creates a new todo on the server and returns it"
+(specification "list-recording mutations (add/cancel/complete/clone)"
+  ;; All four mutations share the same `record-list-items` body and differ
+  ;; only by ::pc/sym. One representative is exercised end-to-end; the rest
+  ;; are checked via registration coverage.
+  (component "writes :list/items verbatim to SERVER-DB, returns the list ident"
     (server/seed!)
-    (let [before-count (count (:todo/id @server/SERVER-DB))
-          result       (run-mutation sut/add-todo-mutation
-                         {:todo/text "From a test"})]
+    (let [new-id    (random-uuid)
+          new-todo  {:todo/id new-id :todo/text "Brand new" :todo/status :status/new}
+          new-items (conj (server/all-todos @server/SERVER-DB) new-todo)
+          result    (run-mutation sut/add-todo-mutation {:list/items new-items})]
       (assertions
-        "the server gained one entry"
-        (count (:todo/id @server/SERVER-DB)) => (inc before-count)
-        "the returned map has the expected text"
-        (:todo/text result) => "From a test"
-        "the returned map starts at :status/new"
-        (:todo/status result) => :status/new
-        "the returned id matches an entry in the server"
-        (contains? (:todo/id @server/SERVER-DB) (:todo/id result)) => true
-        ))))
+        "returns the list ident"
+        result => {:list/id server/list-id}
+        ":todo/id table grew by one entry"
+        (count (:todo/id @server/SERVER-DB)) => 3
+        "new entity has the expected text"
+        (get-in @server/SERVER-DB [:todo/id new-id :todo/text]) => "Brand new"
+        "new id appended to :list/todos"
+        (last (get-in @server/SERVER-DB [:list/id server/list-id :list/todos]))
+        => new-id)))
+
+  (component "all four list-recording mutations are registered"
+    (let [symbols (set (map ::pc/sym sut/all-resolvers))]
+      (assertions
+        "add-todo wired"
+        (contains? symbols 'learn.client/add-todo) => true
+        "cancel-todo wired"
+        (contains? symbols 'learn.client/cancel-todo) => true
+        "complete-benchmark-item wired"
+        (contains? symbols 'learn.client/complete-benchmark-item) => true
+        "clone-todo wired"
+        (contains? symbols 'learn.client/clone-todo) => true))))
 
 ;; ============================================================================
 ;; Error handling specifications

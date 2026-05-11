@@ -1,90 +1,91 @@
 (ns learn.resolvers
   "Pathom 2 resolvers and mutations for the TODO app.
 
-   This namespace is the production-shaped replacement for the hand-rolled
-   `cond`-based parser. Each resolver/mutation is a small, declarative piece:
-     - Resolvers declare their inputs and outputs; Pathom composes them.
-     - Mutations declare a wire symbol (::pc/sym) that the client sends.
+   The mutations are intentionally dumb: each receives `:list/items` (the
+   post-mutation denormalized vector computed client-side) and writes it
+   straight into SERVER-DB via `server/write-items`. The AutoFocus domain
+   logic (auto-mark, status rules, refusals) lives entirely on the client;
+   the server records the result.
 
-   Pathom 2's pc/defmutation does NOT accept docstrings between the
-   name and the arglist (unlike pc/defresolver). For consistency, all
-   forms in this file use `;;` comments above the definition instead."
+   Pathom 2's pc/defmutation does NOT accept docstrings between the name
+   and the arglist (unlike pc/defresolver), so this file uses `;;` comments
+   above each form instead."
   (:require
     [com.wsscode.pathom.connect :as pc]
     [learn.server :as server]))
 
 ;; ----------------------------------------------------------------------
-;; Resolvers — read-only operations that produce data.
+;; Resolvers — read-only
 ;; ----------------------------------------------------------------------
 
-;; Global resolver: entry point for loading every todo.
-;; Returns a vector of *idents* — Pathom will call the entity resolver
-;; below to fill in :todo/text and :todo/status for each one.
+;; Entry point for loading every todo. Returns a vector of *idents*,
+;; preserving `:list/todos` order; Pathom chains to `todo-resolver` for
+;; the remaining fields.
 ;;
-;; Supports an optional :status query parameter:
-;;   nil           - returns all todos
-;;   :status/new   - returns only new todos
-;;   :status/ready - returns only ready todos
-;;   etc.
+;; Supports an optional `:status` query parameter that filters by status.
 (pc/defresolver all-todos-resolver [env _input]
   {::pc/output [{:all-todos [:todo/id]}]}
-  (let [params       (-> env :ast :params)
+  (let [params         (-> env :ast :params)
         status-filter? (contains? params :status)
-        target-status (:status params)
-        all-todos    (vals (:todo/id @server/SERVER-DB))
-        filtered     (cond->> all-todos
-                       status-filter? (filter #(= target-status (:todo/status %))))]
+        target-status  (:status params)
+        all-todos      (server/all-todos @server/SERVER-DB)
+        filtered       (cond->> all-todos
+                         status-filter? (filter #(= target-status (:todo/status %))))]
     {:all-todos (mapv (fn [t] {:todo/id (:todo/id t)}) filtered)}))
 
-;; Entity resolver: given a :todo/id, produces the rest of a todo's fields.
-;; This is the resolver Pathom chains to from the all-todos result.
+;; Given a `:todo/id`, produces the rest of the todo's fields.
 (pc/defresolver todo-resolver [_env {:todo/keys [id]}]
   {::pc/input  #{:todo/id}
-   ::pc/output [:todo/text :todo/status]}
+   ::pc/output [:todo/text :todo/status :todo/was]}
   (let [todo (get-in @server/SERVER-DB [:todo/id id])]
-    (select-keys todo [:todo/text :todo/status])))
+    (select-keys todo [:todo/text :todo/status :todo/was])))
 
 ;; ----------------------------------------------------------------------
-;; Mutations — writes that change the server's state.
+;; Mutations — write `:list/items` to the server.
 ;;
-;; The `::pc/sym` key tells Pathom what symbol the client sends.
-;; This decouples the mutation's local function name from the wire
-;; protocol, addressing the namespace-coupling concern from Phase 4.
+;; Each mutation is the same one-line write because the client has already
+;; done the domain work. They're registered under distinct `::pc/sym`s so
+;; the client's `(remote [_] true)` lights up the right symbol per call.
 ;; ----------------------------------------------------------------------
 
-;; Server-side handler for the client's add-todo mutation.
-;; Adds a todo to SERVER-DB and returns it so the client can merge.
-(pc/defmutation add-todo-mutation [_env {:todo/keys [text]}]
+(defn- record-list-items
+  "Writes `items` as the new state of the list, returning the list ident."
+  [items]
+  (swap! server/SERVER-DB server/write-items server/list-id items)
+  {:list/id server/list-id})
+
+(pc/defmutation add-todo-mutation [_env {:list/keys [items]}]
   {::pc/sym    'learn.client/add-todo
-   ::pc/output [:todo/id :todo/text :todo/status]}
-  (let [[new-state new-todo] (server/add-todo @server/SERVER-DB
-                               {:todo/text text})]
-    (reset! server/SERVER-DB new-state)
-    new-todo))
+   ::pc/output [:list/id]}
+  (record-list-items items))
 
-;; Server-side handler for the client's delete-todo mutation.
-(pc/defmutation delete-todo-mutation [_env {:todo/keys [id]}]
-  {::pc/sym    'learn.client/delete-todo
-   ::pc/output [:todo/id]}
-  (swap! server/SERVER-DB server/delete-todo {:todo/id id})
-  {:todo/id id})
+(pc/defmutation cancel-todo-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/cancel-todo
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
+(pc/defmutation complete-benchmark-item-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/complete-benchmark-item
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
+(pc/defmutation clone-todo-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/clone-todo
+   ::pc/output [:list/id]}
+  (record-list-items items))
 
 ;; ----------------------------------------------------------------------
-;; Registry — every resolver/mutation in this namespace, listed once.
-;; The parser uses this to know which functions exist.
-;;
-;; In production code, this is often automated via a custom defresolver
-;; macro that registers into a global atom. For learning, an explicit
-;; vector is clearer.
+;; Registry
 ;; ----------------------------------------------------------------------
 
 (def all-resolvers
   [all-todos-resolver
    todo-resolver
    add-todo-mutation
-   delete-todo-mutation])
+   cancel-todo-mutation
+   complete-benchmark-item-mutation
+   clone-todo-mutation])
 
-;; Note: To see Pathom in action, enable debug from the REPL:
-;; (require 'learn.parser :reload)
-;; (in-ns 'learn.parser)
-;; (alter-var-root #'*debug?* (constantly true))
+;; REPL: to trace EQL traffic, enable parser debug:
+;;   (require 'learn.parser :reload)
+;;   (alter-var-root #'learn.parser/*debug?* (constantly true))

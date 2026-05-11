@@ -196,47 +196,52 @@
 
 ;; ============================================================================
 ;; Mutations — thin wrappers that route helpers through swap!.
-;;
-;; Mutations with a (remote [_] true) section are sent to the server as
-;; well as applied locally (optimistic updates). The server's response
-;; can be merged back; we currently rely on initial-load to keep things
-;; eventually consistent.
+;; Mutations that hit the server send the post-action items vector via
+;; `remote-list-items`; the server records it verbatim (no domain logic
+;; on the backend).
 ;; ============================================================================
+
+(defn- remote-list-items
+  "Builds a remote AST whose params carry the current denormalized list
+   at [:list/id 1] as `:list/items`. Server mutations write this vector
+   straight to SERVER-DB."
+  [env]
+  (let [items (denormalize-list-items @(:state env) [:list/id 1])]
+    (m/with-params env {:list/items items})))
 
 (defmutation add-todo [{:todo/keys [text]}]
   (action [{:keys [state ref]}]
     (swap! state add-todo* ref text))
-  (remote [_] true))
+  (remote [env] (remote-list-items env)))
 
 (defmutation delete-all [_]
   (action [{:keys [state ref]}]
     (swap! state delete-all* ref))
-  #_(remote [_] true) ;; TODO: implement server handler for delete-all
+  #_(remote [_] true)               ; no server handler
   )
 
 (defmutation set-status [{:todo/keys [id status]}]
   (action [{:keys [state]}]
     (swap! state set-status* id status))
-  #_(remote [_] true) ;; TODO: implement server handler for set-status
+  #_(remote [_] true)               ; no server handler (admin/REPL-only)
   )
 
+;; List-ident is hardcoded `[:list/id 1]` for the current singleton-list
+;; design; revisit when multi-list support arrives.
 (defmutation cancel-todo [{:todo/keys [id]}]
   (action [{:keys [state]}]
     (swap! state cancel-todo* [:list/id 1] id))
-  #_(remote [_] true))
+  (remote [env] (remote-list-items env)))
 
-;; List-ident is hardcoded `[:list/id 1]` for the current singleton-list
-;; design. When the app grows to multiple lists, these mutations should
-;; receive the list ident as a parameter.
 (defmutation complete-benchmark-item [_]
   (action [{:keys [state]}]
     (swap! state complete-benchmark-item* [:list/id 1]))
-  #_(remote [_] true))
+  (remote [env] (remote-list-items env)))
 
 (defmutation clone-todo [{:todo/keys [id]}]
   (action [{:keys [state]}]
     (swap! state clone-todo* [:list/id 1] id))
-  #_(remote [_] true))
+  (remote [env] (remote-list-items env)))
 
 ;; ============================================================================
 ;; App construction

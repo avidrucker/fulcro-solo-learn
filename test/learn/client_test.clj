@@ -362,7 +362,23 @@
         "server-id-1 (the sole :ready) becomes :cancelled"
         (get-in db [:todo/id server-id-1 :todo/status]) => :status/cancelled
         "server-id-2 (was :new) is auto-marked to :ready"
-        (get-in db [:todo/id server-id-2 :todo/status]) => :status/ready))))
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/ready)))
+
+  (component "the mutation persists through to SERVER-DB"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/cancel-todo {:todo/id server-id-1})])]
+      (assertions
+        "server reflects the cancelled status"
+        (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status])
+        => :status/cancelled
+        "server captures :todo/was"
+        (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/was])
+        => :status/ready
+        "server reflects the auto-mark on the other item"
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status])
+        => :status/ready))))
 
 (specification "complete-benchmark-item mutation"
   (component "completes the sole :ready and auto-marks the :new"
@@ -389,7 +405,19 @@
           after   (app/current-state spa)]
       (assertions
         "state is unchanged on refusal"
-        after => before))))
+        after => before)))
+
+  (component "the mutation persists through to SERVER-DB"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa [(sut/complete-benchmark-item {})])]
+      (assertions
+        "server reflects the completion"
+        (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status])
+        => :status/done
+        "server reflects the auto-mark"
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status])
+        => :status/ready))))
 
 (specification "clone-todo mutation"
   (component "clones a todo, appending a new entity to :todo/id and :list/todos"
@@ -413,7 +441,28 @@
         "source is unchanged"
         (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
         "clone has :status/new (a :ready exists in the list)"
-        (get-in db [:todo/id new-id :todo/status]) => :status/new))))
+        (get-in db [:todo/id new-id :todo/status]) => :status/new)))
+
+  (component "the mutation persists through to SERVER-DB (same UUID on both sides)"
+    (server/seed!)
+    (let [spa             (sut/init)
+          before-server   (set (keys (:todo/id @server/SERVER-DB)))
+          _               (comp/transact! spa
+                            [(sut/clone-todo {:todo/id server-id-1})])
+          client-ids      (set (keys (:todo/id (app/current-state spa))))
+          server-ids      (set (keys (:todo/id @server/SERVER-DB)))
+          server-clone-id (first (clojure.set/difference server-ids before-server))]
+      (assertions
+        "server's :todo/id table grew by exactly one entry"
+        (count server-ids) => 3
+        "the clone UUID is the same on client and server"
+        client-ids => server-ids
+        "server has the clone's text"
+        (get-in @server/SERVER-DB [:todo/id server-clone-id :todo/text])
+        => "Read the Fulcro book"
+        "server's :list/todos has the clone id at the end"
+        (last (get-in @server/SERVER-DB [:list/id 1 :list/todos]))
+        => server-clone-id))))
 
 (specification "delete-all mutation"
   (component "removes every todo referenced by the list"

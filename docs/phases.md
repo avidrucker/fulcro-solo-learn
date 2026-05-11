@@ -224,7 +224,7 @@ one-time Guardrails schema-compile warmup); warm run ~1.3s total
 
 ---
 
-## 🟡 Phase 5J — Cancel, complete-benchmark, clone
+## ✅ Phase 5J — Cancel, complete-benchmark, clone
 
 Build the rest of the AutoFocus mutation set:
 - `cancel-todo` — refuses on `:done`/`:cancelled`, captures `:todo/was`,
@@ -270,7 +270,15 @@ The `cancel-todo` mutation was rewired from `set-status*` to `cancel-todo*`, so 
 
 **Acceptance:** 25 specs / 217 assertions, all green. Cold ~3s / warm ~1.4s.
 
-### ⬜ 5J.5 — Server-side Pathom mutations for remote sync
+### ✅ 5J.5 — Server-side Pathom mutations for remote sync
+
+Server mirrors the client's normalized shape (`:list/id` + `:todo/id`), with `server/items` / `server/write-items` as the projection helpers. Each server-side Pathom mutation (`add-todo`, `cancel-todo`, `complete-benchmark-item`, `clone-todo`) is the same one-line `record-list-items` call — the server is dumb storage. All AutoFocus domain logic stays on the client.
+
+Client mutations now flip `(remote [env] (remote-list-items env))`, which sends the post-action denormalized items vector to the server as `:list/items`. UUIDs propagate naturally (no tempid mechanism needed yet).
+
+**Decision:** rejected an alternative where the server runs `model.list` too. Single source of domain truth (client) is simpler, makes the server replaceable (Datomic, Postgres, etc.) without porting logic, and matches the user's "frontend handles list/item processing" stance. A future phase can add a server-side validator that rejects ill-shaped lists; for now, trust.
+
+**Acceptance:** 25 specs / 230 assertions, all green. Warm ~1.7 s.
 
 ---
 
