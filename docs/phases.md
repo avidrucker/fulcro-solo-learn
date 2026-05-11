@@ -282,30 +282,27 @@ Client mutations now flip `(remote [env] (remote-list-items env))`, which sends 
 
 ---
 
-## ⬜ Phase 5K — Prioritize/review flow
+## 🟡 Phase 5K — Prioritize/review flow
 
-Build `learn.model.review` for the binary review process:
-- `prioritizable?` (with the JS rule: last new must be after last ready)
-- `initial-cursor`
-- `next-cursor`
-- `current-question`
-- `handle-review-decision`
+Build `learn.model.review` plus a Fulcrologic statechart that orchestrates the binary review process. JS-port `handle-review-decision` is replaced by the chart itself (transitions express Yes/No/Quit decisions).
 
-**Decisions required at this phase:**
-- JS-port discrepancy #1 (prioritizable list): use the JS rule
-  exactly — "at least one ready, at least one new, *and last new is
-  after last ready in list order*." Already in SCHEMA.md §15 as a
-  revision item.
-- JS-port discrepancy #4 (review-decision return shape): return Result-shaped
-  `{:ok? true :items ... :review/cursor ... :review/active? ...}`
-  rather than the JS `{tasks, cursor, endReview}`. Open question §14
-  in SCHEMA.md asks the same; resolving it here.
+**Decisions locked in:**
+- JS discrepancy #1 (prioritizable list): list-position rule — last `:new` must come after last `:ready` in list order. Diverges from the JS `lastNew.id > lastReady.id` (which assumed monotonic int ids; UUIDs in the port can't use ordering).
+- JS discrepancy #4 (review-decision return shape): when a `handle-review-decision`-equivalent is needed, return Result-shaped — but in practice this work is absorbed by the statechart's transitions.
+- Statecharts introduced in 5K.4 (skill imported from Desktop). Pure functions in 5K.1–5K.3 stay testable in isolation.
 
-This phase likely introduces Tony Kay's **statecharts** library — the
-review flow's `:active?`/`:cursor` state and three-decision response
-is a textbook statechart.
+### ✅ 5K.1 — `model.review/prioritizable?`
 
-**New skill:** `statechart` (already in available skills).
+Pure predicate. True iff the list has ≥1 `:status/ready`, ≥1 `:status/new`, AND the last `:new` index > the last `:ready` index. Created `src/learn/model/review.cljc` + `test/learn/model/review_test.cljc`.
+
+**Acceptance:** 3 components / 14 assertions covering missing-ready/missing-new/empty, last-new-at-or-before-last-ready (false cases), and last-new-after-last-ready (true cases, including interleaved `:done`/`:cancelled`).
+
+**Totals:** 26 specs / 244 assertions, all green.
+
+### ⬜ 5K.2 — `model.review/initial-cursor` + `next-cursor`
+### ⬜ 5K.3 — `model.review/current-question`
+### ⬜ 5K.4 — Review statechart (`learn.review.chart`)
+### ⬜ 5K.5 — Client wiring (mutations + chart session lifecycle)
 
 ---
 
