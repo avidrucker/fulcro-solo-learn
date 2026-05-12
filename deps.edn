@@ -12,4 +12,9 @@
                        "--port-file" ".nrepl-port"]}
   :test  {:extra-paths ["test"]
           :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}
-          :jvm-opts    ["-Dguardrails.enabled=true"]}}}
+          :jvm-opts    ["-Dguardrails.enabled=true"]}
+  ;; Browser/CLJS build (Phase 6). shadow-cljs reads this alias from
+  ;; shadow-cljs.edn (`:deps {:aliases [:cljs]}`) so JS-side classpath
+  ;; matches the JVM-side. ClojureScript itself is pulled transitively
+  ;; via Fulcro; pin it here only if a specific version is needed.
+  :cljs  {:extra-deps {thheller/shadow-cljs {:mvn/version "2.28.16"}}}}}

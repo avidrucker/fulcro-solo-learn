@@ -1,0 +1,18 @@
+;; Phase 6.1 — minimal browser build. shadow-cljs reads JVM/CLJS
+;; dependencies and source paths from deps.edn (via `:deps`), so this
+;; file stays focused on shadow-specific build options.
+;;
+;; The active alias `:cljs` brings shadow-cljs itself onto the
+;; classpath. Source paths come from deps.edn's `:paths ["src"]` —
+;; shadow-cljs explicitly ignores a `:source-paths` entry here when
+;; `:deps` is set.
+{:deps   {:aliases [:cljs]}
+
+ :builds
+ {:app
+  {:target     :browser
+   :output-dir "resources/public/js/main"
+   :asset-path "/js/main"
+   :modules    {:main {:init-fn learn.main/init}}
+   :devtools   {:http-root "resources/public"
+                :http-port 8000}}}}

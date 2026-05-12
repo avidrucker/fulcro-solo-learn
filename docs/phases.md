@@ -390,40 +390,76 @@ A `review chart syncs Yes decisions to the server` specification in `client_test
 
 ---
 
-## ⬜ Phase 6 — Datomic backend
+## ⬜ Phase 6 — shadow-cljs + browser app (no real backend)
 
-Replace `SERVER-DB` (the atom) with a real Datomic database. Update
-resolvers to query Datomic. The transition is the point at which
-"the server" becomes capable of multi-process / multi-client
-operation.
+First time the project actually runs in a browser. The "server" is the
+same `learn.server` atom + Pathom 2 parser we already built — just
+compiled to JS and running alongside the client. The Fulcro book calls
+this pattern `(mock-remote non-conflicting-resolvers)`; our existing
+`lr/sync-remote parser/handler` is the same thing, so the loopback
+stays. No HTTP, no jetty, no real backend.
 
-**New skill:** `datomic`.
+This is a re-scope of the original "Phase 7 (real backend)" plan. A
+true server-process backend isn't part of the AutoFocus learning arc —
+the front-end-only design is the target. If a real backend is ever
+wanted, it slots in as a much later, optional phase.
+
+**Sub-steps (planned):**
+- **6.1** — Add `shadow-cljs.edn`, declare a browser target, get a
+  trivial "Hello" JS bundle building.
+- **6.2** — Convert `server.clj` / `resolvers.clj` / `parser.clj` to
+  `.cljc` so the Pathom 2 parser is reachable from CLJS. The atom
+  store, projection helpers, and resolver bodies are all
+  environment-agnostic; the file extensions are the change.
+- **6.3** — Create a browser entrypoint (`learn.main.cljs` or similar)
+  that mounts `Root` to a DOM node and calls `init`. Replace the
+  headless-DOM rendering with real `react-dom`. Reuse `lr/sync-remote`
+  as-is.
+- **6.4** — Verify the master CLJ test runner stays green AND the
+  browser app loads, renders, and round-trips a Yes click through the
+  in-process "server".
+
+**Out of scope here:** persistence. Page reload still resets the seed.
 
 ---
 
-## ⬜ Phase 7 — shadow-cljs + real http-kit/jetty + browser
+## ⬜ Phase 7 — localStorage persistence
 
-First time the project actually runs in a browser. Switch from
-loopback remote to `http-remote`. Add Fulcro Inspect (browser
-devtool).
+Add a watch on `SERVER-DB` that serializes to `js/localStorage` on
+every change; hydrate from localStorage in `init` before mount, falling
+back to the seed when no storage entry exists or the entry is
+corrupted (failed `read-string`).
+
+Choice: localStorage over IndexedDB. Sync API matches the project's
+sync-everything design, the AutoFocus list will never approach the ~5
+MB limit, and `pr-str` / `clojure.edn/read-string` round-trip is fewer
+moving parts than IndexedDB's request-callback dance.
+
+**Acceptance shape:**
+- Reload-survival spec: dehydrate `SERVER-DB`, mount a fresh app,
+  verify list state matches.
+- Corruption fallback spec: write garbage to the storage key, mount,
+  verify init falls back to seed (logs a warning).
+
+CLJ-only side stays atom-only — no localStorage shim. CLJC split for
+the storage adapter: `:cljs` writes to `js/localStorage`, `:clj` is a
+no-op (or, if useful for tests, an in-memory atom). Either way the
+master CLJ runner stays untouched.
 
 ---
 
-## ⬜ Phase 8 — Tempids
-
-Real client-server ID exchange: client mints a tempid, server returns
-the canonical id, Fulcro auto-rewrites references everywhere.
-
----
-
-## ⬜ Phase 9 — Production Pathom patterns
+## ⬜ Phase 8 — Production Pathom patterns
 
 Per-request env, batch resolvers (N+1 prevention), `defmutation`
 return values for optimistic UI.
 
+Still useful in the front-end-only world — batching means fewer
+parser calls per render, and a per-request env teaches the pattern
+even when the "request" never leaves the JS runtime.
+
 ---
 
-## ⬜ Phase 10 — Fulcro RAD basics
+## ⬜ Phase 9 — Fulcro RAD basics
 
 Migrate from hand-written `defsc` to RAD attributes. The schema we've
 built in `learn.model.schema` gets re-expressed as RAD attribute
@@ -433,7 +469,7 @@ definitions.
 
 ---
 
-## ⬜ Phase 11 — RAD reports and forms
+## ⬜ Phase 10 — RAD reports and forms
 
 Use RAD's report and form components for the AutoFocus list UI.
 
@@ -441,20 +477,33 @@ Use RAD's report and form components for the AutoFocus list UI.
 
 ---
 
-## ⬜ Phase 12 — Statecharts in depth
+## ⬜ Phase 11 — Statecharts in depth
 
 If we used statecharts lightly in 5K, this phase doubles down: more
 complex flows (e.g., import/export, conflict resolution).
 
 ---
 
-## ⬜ Phase 13 — i18n
+## ⬜ Phase 12 — i18n
 
 Internationalize via `fulcro-i18n`. The structured error keywords from
 Phase 5 already separate domain from display strings — i18n drops in
 cleanly.
 
 **New skill:** `fulcro-i18n`.
+
+---
+
+## Optional / out of arc
+
+- **DataScript swap.** Replace the atom-as-database with DataScript.
+  Adds datalog queries and history. Pure learning detour — the
+  AutoFocus model doesn't need it. Could slot in any time after Phase
+  7 if the user wants exposure.
+- **Real backend (Datomic / Postgres / etc.) + tempids.** Would
+  re-introduce HTTP, async coordination, and tempid rewrites.
+  Excluded from the current learning arc by the front-end-only
+  decision; lives here as a possible future direction.
 
 ---
 
