@@ -34,6 +34,7 @@
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
+    [learn.ui.strings :as s]
     [learn.util.normalized :as norm]
     [learn.util.remote :as remote]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
@@ -77,7 +78,8 @@
   ;; expectation explicit.
   (dom/li
     (dom/span (str (status-symbol status) " " text))
-    (dom/button {:onClick #(comp/transact! this [(cancel-todo {:todo/id id})])}
+    (dom/button {:title   s/title-cancel-task
+                 :onClick #(comp/transact! this [(cancel-todo {:todo/id id})])}
       "Cancel")))
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
@@ -130,21 +132,27 @@
         question (when (and active? cursor)
                    (review/current-question todos cursor))]
     (dom/div
-      (dom/h1 "AutoFocus WIP in Fulcro")
+      (dom/h1 s/app-name)
       (dom/ul (mapv ui-todo-item todos))
       (if active?
         (dom/div
           (when question (dom/p question))
-          (dom/button {:onClick #(send-and-pump! this chart/event-yes)} "Yes")
-          (dom/button {:onClick #(send-and-pump! this chart/event-no)} "No")
-          (dom/button {:onClick #(send-and-pump! this chart/event-quit)} "Quit"))
-        (dom/button {:onClick #(send-and-pump! this chart/event-start)} "Start Review"))
+          (dom/button {:title   s/tooltip-review-yes
+                       :onClick #(send-and-pump! this chart/event-yes)} s/btn-yes)
+          (dom/button {:title   s/tooltip-review-no
+                       :onClick #(send-and-pump! this chart/event-no)}  s/btn-no)
+          (dom/button {:title   s/tooltip-quit-review
+                       :onClick #(send-and-pump! this chart/event-quit)} s/btn-quit))
+        (dom/button {:title   s/tooltip-prioritize
+                     :onClick #(send-and-pump! this chart/event-start)} s/btn-prioritize))
       (dom/label {:htmlFor "new-todo"} "New TODO:")
-      (dom/input {:id       "new-todo"
-                  :value    (or new-todo-text "")
-                  :onChange #(m/set-string! this :ui/new-todo-text :event %)})
-      (dom/button {:onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
-        "Add"))))
+      (dom/input {:id          "new-todo"
+                  :placeholder s/input-placeholder
+                  :value       (or new-todo-text "")
+                  :onChange    #(m/set-string! this :ui/new-todo-text :event %)})
+      (dom/button {:title   s/tooltip-add-item
+                   :onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
+        s/btn-add-item))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 

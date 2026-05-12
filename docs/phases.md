@@ -461,11 +461,16 @@ Reference: `docs/js_ui_reference.md` — captured 2026-05-12 from the
 upstream JS app (`pwa-autofocus-app`). Three concerns, addressed in
 sub-steps:
 
-- **6.5.1** — Pull the 24 named string constants + inline labels into
-  `learn.ui.strings` (CLJC). Use them in the existing UI; leave the
-  ones we don't have features for (`badJSONimportErrMsg1`, etc.) for
-  later phases to wire up. Strings become the i18n attachment point
-  later (Phase 12).
+- ✅ **6.5.1** — `learn.ui.strings.cljc` holds the 24 named constants
+  verbatim from App.js plus the inline labels (button text,
+  placeholders), tooltips, and templated lines (`list-count-line`,
+  `next-actionable-line`, `version-line`). `learn.client.cljc` now
+  references it for `app-name`, button labels, the cancel-task title,
+  the input placeholder, and review-button tooltips. Renamed visible
+  labels to match the JS source: `Add` → `Add Item`, `Start Review` →
+  `Prioritize`. Tests updated accordingly. `learn.model.review/current-question`
+  keeps its prompt template inline (function's reason for existing);
+  flagged in the strings doc for the Phase 12 i18n pass.
 - **6.5.2** — Add Tachyons CSS. Likely via CDN `<link>` in
   `index.html` to start (no build config changes); npm install if we
   later need PurgeCSS-style trimming.

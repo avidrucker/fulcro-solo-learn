@@ -298,7 +298,7 @@
     (server/seed!)
     (let [spa (sut/init)
           _   (h/type-into-labeled! spa "New TODO" "Pet the cat")
-          _   (h/click-on-text! spa "Add")
+          _   (h/click-on-text! spa "Add Item")
           _   (h/render-frame! spa)]
       (assertions
         "the server's :todo/id table grew by one entry"
@@ -564,7 +564,7 @@
     (let [spa (sut/init)]
       (assertions
         "the 'Start Review' button is visible"
-        (h/text-exists? spa "Start Review") => true
+        (h/text-exists? spa "Prioritize") => true
         "no review-question prompt is rendered"
         (h/text-exists? spa "are you more ready to") => false
         "no Yes button while :inactive"
@@ -575,7 +575,7 @@
   (component "clicking 'Start Review' enters :active and renders the question + Yes/No/Quit"
     (server/seed!)
     (let [spa (sut/init)
-          _   (h/click-on-text! spa "Start Review")
+          _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)]
       (assertions
         "chart is in :active"
@@ -590,12 +590,12 @@
         "Quit button is visible"
         (h/text-exists? spa "Quit") => true
         "'Start Review' is no longer visible"
-        (h/text-exists? spa "Start Review") => false)))
+        (h/text-exists? spa "Prioritize") => false)))
 
   (component "clicking 'Yes' promotes the cursor todo to :ready in the state-map"
     (server/seed!)
     (let [spa (sut/init)
-          _   (h/click-on-text! spa "Start Review")
+          _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)
           _   (h/click-on-text! spa "Yes")
           _   (h/render-frame! spa)
@@ -607,12 +607,12 @@
         (contains? (scf/current-configuration spa sut/review-session-id) chart/inactive)
         => true
         "'Start Review' is visible again after the chart returns to :inactive"
-        (h/text-exists? spa "Start Review") => true)))
+        (h/text-exists? spa "Prioritize") => true)))
 
   (component "clicking 'Quit' returns to :inactive without mutating todos"
     (server/seed!)
     (let [spa (sut/init)
-          _   (h/click-on-text! spa "Start Review")
+          _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)
           _   (h/click-on-text! spa "Quit")
           _   (h/render-frame! spa)
@@ -626,7 +626,7 @@
         "server-id-2 is unchanged (:new)"
         (get-in db [:todo/id server-id-2 :todo/status]) => :status/new
         "'Start Review' button is visible again"
-        (h/text-exists? spa "Start Review") => true))))
+        (h/text-exists? spa "Prioritize") => true))))
 
 ;; ============================================================================
 ;; 5K.6 — Review chart state-map mutations are synced to SERVER-DB.
