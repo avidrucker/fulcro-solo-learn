@@ -4,14 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AutoFocus</title>
-  <!--
-    Tachyons CSS via CDN (Phase 6.5.2). Pinned to 4.12.0 to keep the
-    class set stable. Unpkg is fine for a learning project; for a real
-    deployment we'd either vendor the stylesheet or npm-install it so
-    the build is offline-reproducible.
-  -->
+
+  <!-- Montserrat from Google Fonts (Phase 6.5.5). The 400/600/800 set
+       matches what the JS port uses for body, semi-bold, and the heading
+       weight. Preconnects shave first-byte latency since the page also
+       depends on fonts.gstatic.com (the actual woff2 host). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" />
+
+  <!-- Tachyons CSS via CDN (Phase 6.5.2). Pinned to 4.12.0 to keep the
+       class set stable. Unpkg is fine for a learning project; for a real
+       deployment we'd either vendor the stylesheet or npm-install it so
+       the build is offline-reproducible. -->
   <link rel="stylesheet"
         href="https://unpkg.com/tachyons@4.12.0/css/tachyons.min.css" />
+
+  <!-- App-specific custom rules (Phase 6.5.5). Ported verbatim from the
+       JS port's App.css — the parts that AREN'T already covered by
+       Tachyons (.montserrat, .h-15, .lh-135, .hover-button, etc.).
+       Linked AFTER tachyons.min.css so equal-specificity rules win on
+       cascade order. -->
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
   <div id="app">Loading…</div>

@@ -508,9 +508,25 @@ sub-steps:
   spec). Inlined rather than extracted to its own ns until a second
   modal needs it. Also extended `scripts/snapshot.mjs` with a
   `--click <text>` flag so the modal state can be captured.
-- **6.5.5 (deferred)** — Status icons via `react-icons` or
-  `font-awesome` (so `[o]`/`[x]`/`[~]`/`[ ]` text symbols become the
-  filled/dot/empty circle and X glyphs the JS uses).
+- ✅ **6.5.5** — Inline SVG icons + custom CSS + Montserrat font.
+  Original plan called for `react-icons`/font-awesome; revised after
+  noting the JS port ships **inline SVGs** at `src/core/icons.js`. New
+  ns `learn.ui.icons` holds the 5 icons `TodoItem` consumes
+  (`dot-circle`/`empty-circle`/`filled-circle` for status,
+  `cancel-x`/`repeat-arrow` for action buttons), each a `def`'d
+  `dom/svg` element with `fill="currentColor"` so surrounding color
+  utilities work. `status-icon` returns `nil` for `:status/cancelled`
+  so the existing `was`-fallback path keeps working. Custom CSS
+  (20-ish rules: `.h-15`, `.lh-135`, `.tracked-custom`,
+  `.hover-button` + `@media (hover: hover)`, `.line-clamp-3`,
+  `.mb1-butlast`, `.break-word`, plus light/dark hover transition
+  helpers) ported verbatim to `resources/public/css/app.css` and
+  linked from `index.html` AFTER tachyons.min.css so cascade ties go
+  to the local file. Montserrat 400/600/800 loaded via Google Fonts
+  preconnect + stylesheet links. The remaining 6 icons from the JS
+  source (info circle, question circle, save disk, lightbulb
+  solid/regular, wrench) stay un-ported — their consuming UI
+  (theme toggle, save modal, etc.) doesn't exist yet.
 
 **Out of scope here:** features we lack the data layer for — delete-list
 mutation, import/export, theme toggle, conflict resolution, debug

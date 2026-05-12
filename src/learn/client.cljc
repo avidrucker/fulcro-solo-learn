@@ -34,6 +34,7 @@
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
+    [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
     [learn.util.normalized :as norm]
     [learn.util.remote :as remote]
@@ -60,26 +61,17 @@
 ;; UI components
 ;; ============================================================================
 
-(defn status-symbol
-  "Renders a four-status enum to a small text symbol."
-  [status]
-  (case status
-    :status/new       "[ ]"
-    :status/done      "[x]"
-    :status/ready     "[o]"
-    :status/cancelled "[~]"
-    "[?]"))             ; default — covers any unexpected value
-
 ;; ----------------------------------------------------------------------
 ;; Tachyons class strings (Phase 6.5.3) — light theme only. Sourced
 ;; verbatim from `docs/js_ui_reference.md` §B. Centralizing the strings
 ;; here keeps the JSX of `defsc` bodies readable and makes a future
-;; theme-toggle change a one-place edit. `tc/` is the namespace; bind
-;; `:as tc` if extracting later.
+;; theme-toggle change a one-place edit.
 ;; ----------------------------------------------------------------------
 
 (def ^:private btn-icon-class
-  "Cancel / clone icon buttons on each todo row."
+  "Cancel / clone icon buttons on each todo row. `hover-button` (custom
+   class in `app.css`) hides the button until the row is hovered on
+   pointer-capable devices and stays visible on touch."
   "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn moon-gray")
 
 (defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark?]}]
@@ -103,18 +95,20 @@
     (dom/li {:className li-class}
       (dom/span {:className "mr1 dib h-15"
                  :title     (name status)}
-        (status-symbol effective-status))
+        (icons/status-icon effective-status))
       (dom/span {:className text-class} text)
       (dom/div {:className "relative ml1 h-15 w3"}
         (if actionable?
           (dom/button {:className btn-icon-class
                        :title     s/title-cancel-task
+                       :aria-label s/title-cancel-task
                        :onClick   #(comp/transact! this [(cancel-todo {:todo/id id})])}
-            "Cancel")
+            icons/cancel-x)
           (dom/button {:className btn-icon-class
                        :title     s/title-clone-task
+                       :aria-label s/title-clone-task
                        :onClick   #(comp/transact! this [(clone-todo {:todo/id id})])}
-            "Clone"))))))
+            icons/repeat-arrow))))))
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
 

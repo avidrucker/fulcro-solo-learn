@@ -1,0 +1,132 @@
+/* App-specific custom CSS rules — Phase 6.5.5.
+ *
+ * Ported verbatim from the JS source `pwa-autofocus-app/src/App.css`,
+ * minus rules that Tachyons already provides. These are the small set
+ * of utilities and font hooks the JS port adds on top of Tachyons.
+ *
+ * Loaded by `resources/public/index.html` AFTER tachyons.min.css so that
+ * any same-specificity collisions resolve in favor of these rules.
+ */
+
+/* Montserrat hook — the Google Fonts `<link>` in index.html loads the
+ * weights; this class opts an element into the family. Applied at the
+ * <main> level so it cascades down. */
+.montserrat {
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Fixed 1.5rem height — status-icon span and per-row action buttons. */
+.h-15 {
+  height: 1.5rem;
+}
+
+/* Tight per-li line-height for the task list. */
+.lh-135 {
+  line-height: 1.35rem;
+}
+
+/* Subtle letter-spacing for the AutoFocus heading. */
+.tracked-custom {
+  letter-spacing: .05em;
+}
+
+/* Modern text-wrap balance — heading microtypography. */
+.balance {
+  text-wrap: balance;
+}
+
+/* Light-theme button background + hover/focus/active fade. */
+.hover-bg-light-gray {
+  background-color: rgba(238, 238, 238, 1);
+  transition: all .2s ease-in;
+}
+
+.hover-bg-light-gray:hover,
+.hover-bg-light-gray:focus {
+  background-color: rgba(238, 238, 238, 0);
+  transition: all .2s ease-in;
+}
+
+.hover-bg-light-gray:active {
+  background-color: rgba(238, 238, 238, 0);
+  transition: all .2s ease-out;
+}
+
+.active-bg-white:active {
+  background-color: white;
+}
+
+.focus-bg-white:focus {
+  background-color: white;
+}
+
+/* Dark-theme mirror — kept here for the future theme-toggle phase. */
+.hover-bg-dark-gray {
+  background-color: rgba(51, 51, 51, 1);
+  transition: all .2s ease-in;
+}
+
+.hover-bg-dark-gray:hover,
+.hover-bg-dark-gray:focus {
+  background-color: rgba(51, 51, 51, 0);
+  transition: all .2s ease-in;
+}
+
+.hover-bg-dark-gray:active {
+  background-color: rgba(51, 51, 51, 0);
+  transition: all .2s ease-out;
+}
+
+.active-bg-black:active {
+  background-color: black;
+}
+
+.focus-bg-black:focus {
+  background-color: black;
+}
+
+/* On pointer-hover devices (desktop), per-row action buttons hide
+ * until the row is hovered. On touch devices the @media block does not
+ * match, so the buttons stay visible — that's the JS port's
+ * progressive-enhancement strategy. */
+@media (hover: hover) {
+  .hover-button {
+    display: none;
+  }
+
+  li:hover .hover-button {
+    display: inline-block;
+  }
+}
+
+/* Clamp a paragraph to 3 lines. Note: no `overflow: hidden` — matches
+ * the JS port; pair with Tachyons' `overflow-hidden` at the call site
+ * when you want truncation visible. */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* Convenience flex-grow shorthand. */
+.flex-1 {
+  flex: 1;
+}
+
+/* Add `mb1` (0.25rem) to every `<li>` except the last in the same parent. */
+.mb1-butlast:not(:last-child) {
+  margin-bottom: 0.25rem;
+}
+
+/* Long unbroken strings wrap inside their container instead of forcing
+ * horizontal scroll. Applied to the per-row task text span. */
+.break-word {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Zero-height utility — used to collapse a visually-hidden region
+ * while leaving it in the accessibility tree. */
+.h0 {
+  height: 0;
+}
