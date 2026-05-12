@@ -22,6 +22,10 @@
     ;; for the CLJC `sync-remote` shim used in the CLJS init branch.
     #?(:clj [com.fulcrologic.fulcro.headless :as h])
     #?(:clj [com.fulcrologic.fulcro.headless.loopback-remotes :as lr])
+    ;; Fulcro Inspect 1.x requires explicit registration via
+    ;; `add-fulcro-inspect!` at app-build time. CLJS-only because the
+    ;; Chrome extension is browser-side only.
+    #?(:cljs [fulcro.inspect.tool :as inspect-tool])
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
@@ -99,7 +103,22 @@
 (defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
-                   :ui/new-todo-text]
+                   :ui/new-todo-text
+                   ;; Subscribe to the review chart's state. Without these
+                   ;; ident-joins, the render reads from app state via
+                   ;; `scf/current-configuration` (a side-channel Fulcro
+                   ;; can't see), so the optimized renderer skips
+                   ;; re-rendering TodoList when chart state changes. The
+                   ;; headless test suite masks this by calling
+                   ;; `h/render-frame!` after every click; the browser
+                   ;; doesn't, so the joins are load-bearing for the UI.
+                   ;; The body still reads via `scf/current-configuration`
+                   ;; and `review-cursor` — the joins exist purely so
+                   ;; Fulcro knows TodoList depends on these paths.
+                   {[:com.fulcrologic.statecharts/session-id :review-session]
+                    [:com.fulcrologic.statecharts/configuration]}
+                   {[:com.fulcrologic.statecharts/local-data :review-session]
+                    [:cursor]}]
    :ident         :list/id
    :initial-state (fn [_]
                     {:list/id          1
@@ -352,6 +371,10 @@
      (let [spa (app/fulcro-app
                  {:remotes {:remote (remote/sync-remote parser/handler)}})]
        (reset! SPA spa)
+       ;; Register the app with Fulcro Inspect 1.x. Paired with the
+       ;; `com.fulcrologic.devtools.chrome-preload` in shadow-cljs.edn.
+       ;; Noop if Inspect is disabled by compiler flags (release builds).
+       (inspect-tool/add-fulcro-inspect! spa)
        (start-chart! spa)
        (app/mount! spa Root "app")
        (load-todos! spa)

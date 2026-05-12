@@ -15,4 +15,14 @@
    :asset-path "/js/main"
    :modules    {:main {:init-fn learn.client/init}}
    :devtools   {:http-root "resources/public"
-                :http-port 8000}}}}
+                :http-port 8000
+                ;; Dev-only preloads — stripped from `release` builds.
+                ;; The chrome preload wires the app up to the modern
+                ;; Fulcro Inspect Chrome extension (1.x). It expects the
+                ;; app to also call `(inspect-tool/add-fulcro-inspect!
+                ;; spa)` at startup; that happens in `learn.client/init`
+                ;; under the `:cljs` branch.
+                ;; The dom-picker-preload adds "click an element to see
+                ;; its props/state" — orthogonal to Inspect proper.
+                :preloads  [com.fulcrologic.devtools.chrome-preload
+                            com.fulcrologic.fulcro.inspect.dom-picker-preload]}}}}

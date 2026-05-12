@@ -4,7 +4,17 @@
          com.wsscode/pathom          {:mvn/version "2.4.0"}
          com.taoensso/timbre         {:mvn/version "6.8.0"}
          metosin/malli               {:mvn/version "0.16.4"}
-         com.fulcrologic/guardrails  {:mvn/version "1.2.16"}}
+         com.fulcrologic/guardrails  {:mvn/version "1.2.16"}
+         ;; Pin ClojureScript at the top level so we can exclude the
+         ;; *shaded* closure-compiler jar. That jar bundles internal
+         ;; `lib/{base,goog,reflect}.js` files which shadow-cljs mistakes
+         ;; for JS sources, producing a runtime
+         ;; `goog.reflect.cache is not a function` error (the bundled
+         ;; reflect.js is a stripped variant lacking `cache`). shadow-cljs
+         ;; brings in closure-compiler-unshaded for compilation, so the
+         ;; shaded jar is redundant here.
+         org.clojure/clojurescript   {:mvn/version "1.12.42"
+                                      :exclusions  [com.google.javascript/closure-compiler]}}
  :aliases
  {:nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.7.0"}}
           :main-opts  ["-m" "nrepl.cmdline"
