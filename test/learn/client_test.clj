@@ -589,8 +589,12 @@
         (h/text-exists? spa "No") => true
         "Quit button is visible"
         (h/text-exists? spa "Quit") => true
-        "'Start Review' is no longer visible"
-        (h/text-exists? spa "Prioritize") => false)))
+        ;; 6.5.3 behavior change: the Prioritize button stays in the
+        ;; layout while reviewing (dimmed/disabled, matching the JS
+        ;; port). Earlier code swapped it out; the new code mirrors the
+        ;; JS app's always-show-but-disable pattern.
+        "Prioritize button stays rendered (disabled, dimmed) during review"
+        (h/text-exists? spa "Prioritize") => true)))
 
   (component "clicking 'Yes' promotes the cursor todo to :ready in the state-map"
     (server/seed!)

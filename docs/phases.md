@@ -483,10 +483,20 @@ sub-steps:
   `shadow-cljs compile` (deferred). Baseline saved at `e60306d`
   showing the post-6.5.2 state (Tachyons loaded, no classes yet
   applied).
-- **6.5.3** — Restyle `TodoItem` and `TodoList` to match the original
-  Tachyons class strings from `js_ui_reference.md` §B. Header is
-  thinner than the JS source for now — no theme toggle, no
-  import/export icons (Phase 6.6+).
+- ✅ **6.5.3** — Tachyons class strings (light theme) applied per
+  `docs/js_ui_reference.md` §B. Restructured `Root` to render `<main>`
+  with a `<header>` (h1) and `<section>` shell, matching the JS App.js
+  hierarchy; `TodoList` now renders only the form + button row + list
+  + footer. `TodoItem` got conditional Cancel/Clone (Cancel on
+  `:new`/`:ready`, Clone on `:done`/`:cancelled` — same flip as the
+  JS port), a status-icon fallback to `:todo/was` for cancelled rows,
+  and the `fw6` benchmark-bold weighting via a `:benchmark?` computed
+  prop from the parent. The Prioritize button now stays in the
+  layout during a review session (dimmed + disabled) instead of being
+  swapped out — also matching the JS port; one test assertion flipped
+  from "no longer visible" to "stays rendered, disabled during review".
+  The hidden `New TODO` `<label>` keeps the `h/type-into-labeled!` test
+  affordance working (uses Tachyons' `clip` SR-only class).
 - **6.5.4** — Promote the inline review UI to a real modal overlay
   (`modal-shell` component, transparent close button etc.) so the
   prioritize flow looks like the JS version.

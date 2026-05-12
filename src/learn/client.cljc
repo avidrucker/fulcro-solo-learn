@@ -40,7 +40,7 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(declare cancel-todo add-todo)
+(declare cancel-todo add-todo clone-todo)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -70,17 +70,51 @@
     :status/cancelled "[~]"
     "[?]"))             ; default — covers any unexpected value
 
-(defsc TodoItem [this {:todo/keys [id text status]}]
+;; ----------------------------------------------------------------------
+;; Tachyons class strings (Phase 6.5.3) — light theme only. Sourced
+;; verbatim from `docs/js_ui_reference.md` §B. Centralizing the strings
+;; here keeps the JSX of `defsc` bodies readable and makes a future
+;; theme-toggle change a one-place edit. `tc/` is the namespace; bind
+;; `:as tc` if extracting later.
+;; ----------------------------------------------------------------------
+
+(def ^:private btn-icon-class
+  "Cancel / clone icon buttons on each todo row."
+  "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn moon-gray")
+
+(defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark?]}]
   {:query [:todo/id :todo/text :todo/status :todo/was]
    :ident :todo/id}
   ;; No :initial-state — TodoItems are populated by loads or by add-todo,
   ;; never seeded by their parent. Keeping initial-state off makes that
   ;; expectation explicit.
-  (dom/li
-    (dom/span (str (status-symbol status) " " text))
-    (dom/button {:title   s/title-cancel-task
-                 :onClick #(comp/transact! this [(cancel-todo {:todo/id id})])}
-      "Cancel")))
+  ;;
+  ;; The status icon for `:status/cancelled` rows falls back to `:todo/was`
+  ;; (the pre-cancel status) so the user retains a visual cue of what the
+  ;; row WAS. Matches the JS port's `statusToSymbol` null-fallback path.
+  (let [effective-status (if (and (= status :status/cancelled) was) was status)
+        dim?             (#{:status/done :status/cancelled} status)
+        actionable?      (#{:status/new :status/ready} status)
+        li-class         (str "flex lh-135 align-start mb1-butlast "
+                              (if benchmark? "fw6 " "fw4 ")
+                              (when dim? "o-50"))
+        text-class       (str "break-word"
+                              (when (= status :status/cancelled) " strike"))]
+    (dom/li {:className li-class}
+      (dom/span {:className "mr1 dib h-15"
+                 :title     (name status)}
+        (status-symbol effective-status))
+      (dom/span {:className text-class} text)
+      (dom/div {:className "relative ml1 h-15 w3"}
+        (if actionable?
+          (dom/button {:className btn-icon-class
+                       :title     s/title-cancel-task
+                       :onClick   #(comp/transact! this [(cancel-todo {:todo/id id})])}
+            "Cancel")
+          (dom/button {:className btn-icon-class
+                       :title     s/title-clone-task
+                       :onClick   #(comp/transact! this [(clone-todo {:todo/id id})])}
+            "Clone"))))))
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
 
@@ -101,6 +135,24 @@
   [app-ish]
   (get-in (app/current-state app-ish)
     [:com.fulcrologic.statecharts/local-data review-session-id :cursor]))
+
+;; ----------------------------------------------------------------------
+;; Tachyons class strings for the main list / form / button row. Sourced
+;; from `docs/js_ui_reference.md` §B. Light theme only — dark-theme
+;; suffixes are an explicit later-phase concern.
+;; ----------------------------------------------------------------------
+
+(def ^:private btn-primary-class
+  "br3 w4 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 ph1 pointer grow")
+
+(def ^:private btn-primary-dim-class
+  "br3 w4 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 ph1 o-50")
+
+(def ^:private input-class
+  "todo-input pa2 w-100 input-reset br3 ba bw1 b--gray black hover-bg-light-gray active-bg-white")
+
+(def ^:private review-btn-class
+  "br3 w3 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 pointer grow ma1 dib")
 
 (defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
   {:query         [:list/id
@@ -126,33 +178,83 @@
                     {:list/id          1
                      :list/todos       []
                      :ui/new-todo-text ""})}
-  (let [config   (scf/current-configuration this review-session-id)
-        active?  (contains? config chart/active)
-        cursor   (when active? (review-cursor this))
-        question (when (and active? cursor)
-                   (review/current-question todos cursor))]
-    (dom/div
-      (dom/h1 s/app-name)
-      (dom/ul (mapv ui-todo-item todos))
-      (if active?
-        (dom/div
-          (when question (dom/p question))
-          (dom/button {:title   s/tooltip-review-yes
-                       :onClick #(send-and-pump! this chart/event-yes)} s/btn-yes)
-          (dom/button {:title   s/tooltip-review-no
-                       :onClick #(send-and-pump! this chart/event-no)}  s/btn-no)
-          (dom/button {:title   s/tooltip-quit-review
-                       :onClick #(send-and-pump! this chart/event-quit)} s/btn-quit))
-        (dom/button {:title   s/tooltip-prioritize
-                     :onClick #(send-and-pump! this chart/event-start)} s/btn-prioritize))
-      (dom/label {:htmlFor "new-todo"} "New TODO:")
-      (dom/input {:id          "new-todo"
-                  :placeholder s/input-placeholder
-                  :value       (or new-todo-text "")
-                  :onChange    #(m/set-string! this :ui/new-todo-text :event %)})
-      (dom/button {:title   s/tooltip-add-item
-                   :onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
-        s/btn-add-item))))
+  (let [config         (scf/current-configuration this review-session-id)
+        active?        (contains? config chart/active)
+        cursor         (when active? (review-cursor this))
+        question       (when (and active? cursor)
+                         (review/current-question todos cursor))
+        benchmark      (model.list/benchmark-item todos)
+        benchmark-id   (some-> benchmark :todo/id)
+        prioritizable? (review/prioritizable? todos)
+        prioritize-cls (if (or active? (not prioritizable?))
+                         btn-primary-dim-class
+                         btn-primary-class)]
+    (comp/fragment
+      ;; Form: input + Add Item / Prioritize buttons. Wrapped in a real
+      ;; <form> so the implicit "Enter to submit" works once we want it.
+      (dom/form {:className "ph3"
+                 :onSubmit  #(.preventDefault %)}
+        (dom/div {:className "measure-narrow ml-auto mr-auto"}
+          ;; Hidden label preserves the headless-test affordance
+          ;; (`h/type-into-labeled! ... "New TODO"`) while staying out of
+          ;; the visible UI. Tachyons class `clip` is the screen-reader-only
+          ;; hide pattern.
+          (dom/label {:htmlFor "new-todo" :className "clip"} "New TODO:")
+          (dom/input {:id          "new-todo"
+                      :className   input-class
+                      :placeholder s/input-placeholder
+                      :value       (or new-todo-text "")
+                      :onChange    #(m/set-string! this :ui/new-todo-text :event %)})))
+      (dom/section {:className "pt2 pb2 flex justify-center flex-wrap measure-wide ml-auto mr-auto"}
+        (dom/div {:className "dib"}
+          (dom/div {:className "ma1 dib"}
+            (dom/button {:className btn-primary-class
+                         :title     s/tooltip-add-item
+                         :disabled  active?
+                         :onClick   #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
+              s/btn-add-item))
+          (dom/div {:className "ma1 dib"}
+            (dom/button {:className prioritize-cls
+                         :title     s/tooltip-prioritize
+                         :disabled  (or active? (not prioritizable?))
+                         :onClick   #(send-and-pump! this chart/event-start)}
+              s/btn-prioritize))))
+      ;; Task list
+      (when (seq todos)
+        (dom/section {:className "task-list"}
+          (dom/div {:className "ph3"}
+            (dom/ul {:className "ph0 todo-list list ma0 tl measure-narrow ml-auto mr-auto"}
+              (mapv (fn [item]
+                      (ui-todo-item
+                        (comp/computed item
+                          {:benchmark? (= (:todo/id item) benchmark-id)})))
+                todos)))))
+      ;; List footer — count + next-actionable preview
+      (dom/div {:className "ph3 pt2 pb3"}
+        (dom/p {:className "ma0 o-70 measure-narrow ml-auto mr-auto lh-135"}
+          (s/list-count-line (count todos)))
+        (when benchmark
+          (dom/p {:className "ma0 o-70 measure-narrow ml-auto mr-auto lh-135 line-clamp-3 overflow-hidden"}
+            (s/next-actionable-line (:todo/text benchmark)))))
+      ;; Review affordances — inline for now. Phase 6.5.4 wraps these in
+      ;; a modal-shell so they overlay the page like the JS version's
+      ;; prioritization modal.
+      (when active?
+        (dom/div {:className "ph3 pt3 tc"}
+          (when question
+            (dom/p {:className "ma0 pb2 lh-135 measure-narrow ml-auto mr-auto"} question))
+          (dom/button {:className review-btn-class
+                       :title     s/tooltip-quit-review
+                       :tabIndex  0
+                       :onClick   #(send-and-pump! this chart/event-quit)} s/btn-quit)
+          (dom/button {:className review-btn-class
+                       :title     s/tooltip-review-no
+                       :tabIndex  1
+                       :onClick   #(send-and-pump! this chart/event-no)}  s/btn-no)
+          (dom/button {:className review-btn-class
+                       :title     s/tooltip-review-yes
+                       :tabIndex  2
+                       :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes))))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 
@@ -160,8 +262,16 @@
   {:query         [{:list (comp/get-query TodoList)}]
    :initial-state (fn [_]
                     {:list (comp/get-initial-state TodoList {})})}
-  (dom/div
-    (when list (ui-todo-list list))))
+  ;; Root markup mirrors the JS App.js shell: `<main>` > `<header>` (with
+  ;; the AutoFocus h1) + `<section>` containing the form/list/footer.
+  ;; Light-theme classes only for now; dark-mode tokens are noted in
+  ;; `docs/js_ui_reference.md` for the future theme-toggle phase.
+  (dom/main {:className "app h-100 flex flex-column f5 montserrat black"}
+    (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
+      (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
+        s/app-name))
+    (dom/section {:className "app-container relative flex flex-column h-100"}
+      (when list (ui-todo-list list)))))
 
 ;; ============================================================================
 ;; Pure state helpers — independently testable; mutations wrap them.
