@@ -23,3 +23,28 @@
         last-ready  (last-idx-of :status/ready)
         last-new    (last-idx-of :status/new)]
     (boolean (and last-ready last-new (> last-new last-ready)))))
+
+(>defn next-cursor
+  "Returns the index of the first `:status/new` item at-or-after `from-index`,
+   or `-1` if none. Callers wanting to advance PAST an item should pass
+   `(inc current-cursor)`."
+  [items from-index]
+  [:learn.model.schema/items :int => :learn.model.schema/review-cursor]
+  (or (->> (map-indexed vector items)
+        (drop from-index)
+        (some (fn [[i t]]
+                (when (= :status/new (:todo/status t)) i))))
+      -1))
+
+(>defn initial-cursor
+  "Returns the index of the first `:status/new` item at-or-after the last
+   `:status/ready` item, or `-1` if the list has no `:ready` or no `:new`
+   following it (i.e. is not prioritizable)."
+  [items]
+  [:learn.model.schema/items => :learn.model.schema/review-cursor]
+  (if-let [last-ready (->> (map-indexed vector items)
+                        (keep (fn [[i t]]
+                                (when (= :status/ready (:todo/status t)) i)))
+                        last)]
+    (next-cursor items last-ready)
+    -1))

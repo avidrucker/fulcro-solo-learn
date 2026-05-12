@@ -106,3 +106,110 @@
                            (todo id-3 "C" :status/done)
                            (todo id-4 "D" :status/new)])
       => true)))
+
+(specification "next-cursor"
+  (component "returns -1 when no :new exists at-or-after from-index"
+    (assertions
+      "empty list — -1"
+      (sut/next-cursor [] 0) => -1
+
+      "no :new items at all — -1"
+      (sut/next-cursor [(todo id-1 "A" :status/ready)
+                        (todo id-2 "B" :status/done)]
+        0)
+      => -1
+
+      "from-index past the last :new — -1"
+      (sut/next-cursor [(todo id-1 "A" :status/new)
+                        (todo id-2 "B" :status/ready)]
+        1)
+      => -1
+
+      "from-index past end of list — -1"
+      (sut/next-cursor [(todo id-1 "A" :status/new)] 5)
+      => -1))
+
+  (component "returns first :new index at-or-after from-index"
+    (assertions
+      "from-index 0, :new at 0 — returns 0"
+      (sut/next-cursor [(todo id-1 "A" :status/new)] 0)
+      => 0
+
+      "from-index 0, first :new at 2 — returns 2"
+      (sut/next-cursor [(todo id-1 "A" :status/ready)
+                        (todo id-2 "B" :status/done)
+                        (todo id-3 "C" :status/new)]
+        0)
+      => 2
+
+      "from-index lands on a :new — returns that index (inclusive at-or-after)"
+      (sut/next-cursor [(todo id-1 "A" :status/ready)
+                        (todo id-2 "B" :status/new)
+                        (todo id-3 "C" :status/new)]
+        1)
+      => 1
+
+      "from-index skips a :new before it, picks next :new"
+      (sut/next-cursor [(todo id-1 "A" :status/new)
+                        (todo id-2 "B" :status/ready)
+                        (todo id-3 "C" :status/new)]
+        2)
+      => 2
+
+      "from-index after a :new, returns the next :new further down"
+      (sut/next-cursor [(todo id-1 "A" :status/new)
+                        (todo id-2 "B" :status/ready)
+                        (todo id-3 "C" :status/new)
+                        (todo id-4 "D" :status/new)]
+        2)
+      => 2)))
+
+(specification "initial-cursor"
+  (component "returns -1 when the list has no actionable starting point"
+    (assertions
+      "empty list — -1"
+      (sut/initial-cursor []) => -1
+
+      "no :ready items — -1 (no benchmark to start from)"
+      (sut/initial-cursor [(todo id-1 "A" :status/new)
+                           (todo id-2 "B" :status/new)])
+      => -1
+
+      ":ready exists but no :new at-or-after it — -1"
+      (sut/initial-cursor [(todo id-1 "A" :status/new)
+                           (todo id-2 "B" :status/ready)])
+      => -1))
+
+  (component "returns the first :new at-or-after the last :ready"
+    (assertions
+      "[:ready :new] — 1"
+      (sut/initial-cursor [(todo id-1 "A" :status/ready)
+                           (todo id-2 "B" :status/new)])
+      => 1
+
+      "[:ready :new :new] — first new is 1"
+      (sut/initial-cursor [(todo id-1 "A" :status/ready)
+                           (todo id-2 "B" :status/new)
+                           (todo id-3 "C" :status/new)])
+      => 1
+
+      "[:new :ready :new] — first :new after the last :ready is at 2"
+      (sut/initial-cursor [(todo id-1 "A" :status/new)
+                           (todo id-2 "B" :status/ready)
+                           (todo id-3 "C" :status/new)])
+      => 2
+
+      "multiple :ready, first :new after the LAST :ready"
+      (sut/initial-cursor [(todo id-1 "A" :status/ready)
+                           (todo id-2 "B" :status/new)
+                           (todo id-3 "C" :status/ready)
+                           (todo id-4 "D" :status/new)])
+      => 3
+
+      ":done/:cancelled between last :ready and the first :new are skipped"
+      (sut/initial-cursor [(todo id-1 "A" :status/ready)
+                           (todo id-2 "B" :status/done)
+                           (-> (todo id-3 "C" :status/cancelled)
+                             (assoc :todo/was :status/ready))
+                           (todo id-4 "D" :status/new)])
+      => 3)))
