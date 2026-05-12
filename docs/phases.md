@@ -92,7 +92,7 @@ runner.
 
 ---
 
-## 🟡 Phase 5I — AutoFocus domain operations
+## ✅ Phase 5I — AutoFocus domain operations
 
 Build out the pure AutoFocus domain model in `learn.model.list`, with
 Guardrails `>defn` contracts. Replace the inline `add-todo*` rule in
@@ -127,7 +127,7 @@ Enablement: added `-Dguardrails.enabled=true` to the `:test` alias
 **Acceptance met:** Existing 16 specs pass; `(s/valid? ::s/todo
 s/example-todo)` returns `true` from REPL.
 
-### 🟡 5I.2 — `model.list/benchmark-item`
+### ✅ 5I.2 — `model.list/benchmark-item`
 
 Pure read function: returns the last `:status/ready` todo from a vector,
 or `nil`. The simplest domain function — establishes the pattern for
@@ -282,7 +282,7 @@ Client mutations now flip `(remote [env] (remote-list-items env))`, which sends 
 
 ---
 
-## 🟡 Phase 5K — Prioritize/review flow
+## ✅ Phase 5K — Prioritize/review flow
 
 Build `learn.model.review` plus a Fulcrologic statechart that orchestrates the binary review process. JS-port `handle-review-decision` is replaced by the chart itself (transitions express Yes/No/Quit decisions).
 
@@ -372,9 +372,21 @@ Added a `review UI affordances` specification in `client_test.clj` with 4 compon
 
 **Acceptance:** 36 specs / 318 assertions, all green. Warm ~6.6 s.
 
-### ⬜ 5K.6 — Server sync of review decisions
+### ✅ 5K.6 — Server sync of review decisions
 
-Replace today's "mutations send the whole post-action items vector" pattern (5J.5) with a `sync-list` mutation that the chart can fire on each transition that mutates state-map. Likely via `fop/invoke-remote` from the chart, or a single mutation wrapper.
+The chart's `:yes` action now persists its state-map mutation to SERVER-DB. Three pieces:
+
+- **Server (`resolvers.clj`)** — added `sync-list-mutation` with `::pc/sym 'learn.client/sync-list`, same one-line `record-list-items` body as the other server mutations. Registered in `all-resolvers`.
+- **Client (`client.cljc`)** — added a thin `defmutation sync-list` with no `(action ...)` body (the chart has already mutated the state-map via `ops/assign`) and a `(remote [env] (remote-list-items env))` that ships the post-action items vector.
+- **Chart (`chart.cljc`)** — `yes-action` now returns a third op alongside the state-map assign and cursor advance: `(fop/invoke-remote `[(learn.client/sync-list ~{:list/items items'})] {})`. The Fulcro integration's data-model dispatches that op through `rc/transact!`, which goes through the loopback remote, which lands on `sync-list-mutation`.
+
+`:no` and `:quit` don't mutate the list, so they don't sync.
+
+A `review chart syncs Yes decisions to the server` specification in `client_test.clj` covers the happy path (post-`:yes` SERVER-DB reflects the promotion, list order preserved) and the negative cases (`:no` / `:quit` leave SERVER-DB untouched).
+
+**Gotcha worth keeping:** the chart-only testing env (CLJ-only `chart_test.clj`) uses the working-memory data-model, which has no `:fulcro/invoke-remote` handler — it logs a harmless WARN ("Operation not understood"). The chart's state-map and cursor assertions still hold; we bumped that test ns's timbre `:min-level` to `:error` to keep test output quiet rather than try to mock the op away.
+
+**Acceptance:** 37 specs / 324 assertions, all green. Warm ~2.0 s.
 
 ---
 

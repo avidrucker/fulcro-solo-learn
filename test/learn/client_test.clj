@@ -627,3 +627,55 @@
         (get-in db [:todo/id server-id-2 :todo/status]) => :status/new
         "'Start Review' button is visible again"
         (h/text-exists? spa "Start Review") => true))))
+
+;; ============================================================================
+;; 5K.6 — Review chart state-map mutations are synced to SERVER-DB.
+;;
+;; The chart's :yes action mutates Fulcro state-map via path-assign; on its
+;; own, that change wouldn't reach the server. Phase 5K.6 fires a remote
+;; `sync-list` mutation from the chart so the server records the post-:yes
+;; items vector. :no and :quit don't mutate the list, so they don't sync.
+;; ============================================================================
+
+(specification "review chart syncs Yes decisions to the server"
+  (component ":yes persists the cursor promotion to SERVER-DB"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (scf/send! spa sut/review-session-id chart/event-yes)
+      (pump! spa)
+      (assertions
+        "client shows server-id-2 promoted to :ready (already covered by 5K.5)"
+        (get-in (app/current-state spa) [:todo/id server-id-2 :todo/status])
+        => :status/ready
+        "SERVER-DB also shows server-id-2 as :ready (the 5K.6 sync)"
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status])
+        => :status/ready
+        "SERVER-DB's list order is preserved"
+        (get-in @server/SERVER-DB [:list/id 1 :list/todos])
+        => [server-id-1 server-id-2])))
+
+  (component ":no does not sync (no state-map mutation to persist)"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (scf/send! spa sut/review-session-id chart/event-no)
+      (pump! spa)
+      (assertions
+        "SERVER-DB is unchanged — server-id-2 stays :new"
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status])
+        => :status/new)))
+
+  (component ":quit does not sync"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (scf/send! spa sut/review-session-id chart/event-quit)
+      (pump! spa)
+      (assertions
+        "SERVER-DB is unchanged"
+        (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status]) => :status/ready
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status]) => :status/new))))

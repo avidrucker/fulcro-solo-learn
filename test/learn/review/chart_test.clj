@@ -7,7 +7,12 @@
     [learn.review.chart :as sut]))
 
 ;; Silence the statecharts library's verbose DEBUG logging during tests.
-(log/merge-config! {:min-level :warn})
+;; Using :error rather than :warn: the chart's `:yes` action emits a
+;; `fop/invoke-remote` op (5K.6) that the chart-only testing env's
+;; working-memory data-model can't process — it logs a harmless WARN
+;; ("Operation not understood :fulcro/invoke-remote"). State-map and
+;; cursor assertions still hold; we just want quiet test output.
+(log/merge-config! {:min-level :error})
 
 ;; ============================================================================
 ;; Test fixtures

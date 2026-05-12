@@ -259,6 +259,14 @@
     (swap! state clone-todo* [:list/id 1] id))
   (remote [env] (remote-list-items env)))
 
+;; Remote-only mutation fired from the review chart's :yes action. The
+;; chart has already mutated the client state-map via `ops/assign`; this
+;; defmutation has no `(action ...)` body because there's no client work
+;; left to do. Its `(remote ...)` ships the post-action items vector to
+;; the server's `sync-list` mutation.
+(defmutation sync-list [_]
+  (remote [env] (remote-list-items env)))
+
 ;; ============================================================================
 ;; App construction
 ;; ============================================================================

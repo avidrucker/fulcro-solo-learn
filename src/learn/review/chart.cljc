@@ -24,6 +24,7 @@
     [com.fulcrologic.statecharts.convenience :refer [handle]]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
     [com.fulcrologic.statecharts.elements :refer [state transition script]]
+    [com.fulcrologic.statecharts.integration.fulcro.operations :as fop]
     [learn.model.review :as review]
     [learn.util.normalized :as norm]))
 
@@ -66,7 +67,14 @@
   [(ops/assign :cursor (review/initial-cursor (items* data)))])
 
 (defn- yes-action
-  "Mark the cursor item :status/ready in state-map and advance the cursor."
+  "Mark the cursor item :status/ready in state-map, advance the cursor, and
+   sync the post-mutation items vector to the server.
+
+   The path-assign updates the client state-map; the cursor assign updates
+   the chart's session-local datum; the `fop/invoke-remote` fires a remote
+   `sync-list` mutation that persists the change to SERVER-DB (5K.6). We
+   pass the locally-computed `items'` so the server sees the post-:yes
+   state without re-reading the client app-state."
   [_env data & _]
   (let [{:keys [cursor]} data
         items   (items* data)
@@ -74,7 +82,10 @@
         items'  (assoc-in items [cursor :todo/status] :status/ready)
         cursor' (review/next-cursor items' (inc cursor))]
     [(ops/assign [:fulcro/state-map :todo/id id :todo/status] :status/ready)
-     (ops/assign :cursor cursor')]))
+     (ops/assign :cursor cursor')
+     (fop/invoke-remote
+       `[(learn.client/sync-list ~{:list/items items'})]
+       {})]))
 
 (defn- no-action
   "Advance the cursor without changing item status."

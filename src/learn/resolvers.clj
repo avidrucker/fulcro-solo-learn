@@ -74,6 +74,17 @@
    ::pc/output [:list/id]}
   (record-list-items items))
 
+;; Fired from the review chart when its :yes action promotes a todo. The
+;; chart already mutated the client state-map via `ops/assign`; this
+;; mutation's only job is to ship the post-action items vector to the
+;; server so the two stay in sync. Same shape as the other mutations
+;; (one-line `record-list-items`); a distinct wire symbol so we can grep
+;; for chart-originated writes if needed.
+(pc/defmutation sync-list-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/sync-list
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
 ;; ----------------------------------------------------------------------
 ;; Registry
 ;; ----------------------------------------------------------------------
@@ -84,7 +95,8 @@
    add-todo-mutation
    cancel-todo-mutation
    complete-benchmark-item-mutation
-   clone-todo-mutation])
+   clone-todo-mutation
+   sync-list-mutation])
 
 ;; REPL: to trace EQL traffic, enable parser debug:
 ;;   (require 'learn.parser :reload)
