@@ -3,10 +3,10 @@
 
    States:
      :review.state/inactive — no review in progress (initial)
-     :review.state/active   — review running; chart data holds :items + :cursor
+     :review.state/active   — review running; chart data holds :cursor
 
    Events:
-     :event.review/start  (data {:items …})  — guard `prioritizable?`
+     :event.review/start                     — guard `prioritizable?` reads state-map
      :event.review/yes                       — mark cursor :ready, advance
      :event.review/no                        — advance cursor only
      :event.review/quit                      — back to :inactive
@@ -15,15 +15,17 @@
    transition in :active fires when `:cursor` becomes -1 and pops the chart
    back to :inactive. SCXML idiomatic.
 
-   CLJ-only for now: chart owns its copy of items during a session. Phase
-   5K.5 will replace expression-fn bodies with Fulcro alias reads so the
-   chart drives the live app state instead."
+   The chart reads items from `(:fulcro/state-map data)` at `[:list/id 1]`
+   (the singleton list ident) via `learn.util.normalized/denormalize-list-items`.
+   `:yes` mutates the state-map directly via a path-based `ops/assign`. The
+   chart's only session-local datum is `:cursor`."
   (:require
     [com.fulcrologic.statecharts.chart :refer [statechart]]
     [com.fulcrologic.statecharts.convenience :refer [handle]]
     [com.fulcrologic.statecharts.data-model.operations :as ops]
     [com.fulcrologic.statecharts.elements :refer [state transition script]]
-    [learn.model.review :as review]))
+    [learn.model.review :as review]
+    [learn.util.normalized :as norm]))
 
 ;; State IDs
 (def inactive :review.state/inactive)
@@ -35,38 +37,44 @@
 (def event-no    :event.review/no)
 (def event-quit  :event.review/quit)
 
+;; The chart operates on the singleton list (Phase 5J/5K design).
+(def list-ident [:list/id 1])
+
+(defn- items*
+  "Denormalize the chart's working list from the seeded state-map."
+  [data]
+  (norm/denormalize-list-items (:fulcro/state-map data) list-ident))
+
 ;; ----------------------------------------------------------------------
 ;; Expression functions — all pure, all take [env data].
 ;; ----------------------------------------------------------------------
 
 (defn- start-guard
-  "True iff the :start event carries a prioritizable items vector."
+  "True iff the seeded state-map's list at [:list/id 1] is prioritizable."
   [_env data]
-  (review/prioritizable? (-> data :_event :data :items)))
+  (review/prioritizable? (items* data)))
 
 (defn- start-action
-  "Seed chart data from the :start event: copy items in and compute the
-   initial cursor via `model.review/initial-cursor`."
+  "Compute the initial cursor from the seeded list."
   [_env data]
-  (let [items  (-> data :_event :data :items)
-        cursor (review/initial-cursor items)]
-    [(ops/assign :items items)
-     (ops/assign :cursor cursor)]))
+  [(ops/assign :cursor (review/initial-cursor (items* data)))])
 
 (defn- yes-action
-  "Mark the cursor item :status/ready and advance the cursor."
+  "Mark the cursor item :status/ready in state-map and advance the cursor."
   [_env data]
-  (let [{:keys [items cursor]} data
+  (let [{:keys [cursor]} data
+        items   (items* data)
+        id      (:todo/id (nth items cursor))
         items'  (assoc-in items [cursor :todo/status] :status/ready)
         cursor' (review/next-cursor items' (inc cursor))]
-    [(ops/assign :items items')
+    [(ops/assign [:fulcro/state-map :todo/id id :todo/status] :status/ready)
      (ops/assign :cursor cursor')]))
 
 (defn- no-action
-  "Advance the cursor without changing items."
+  "Advance the cursor without changing item status."
   [_env data]
-  (let [{:keys [items cursor]} data
-        cursor' (review/next-cursor items (inc cursor))]
+  (let [cursor  (:cursor data)
+        cursor' (review/next-cursor (items* data) (inc cursor))]
     [(ops/assign :cursor cursor')]))
 
 (defn- quit-action

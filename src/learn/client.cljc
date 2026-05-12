@@ -24,6 +24,7 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [learn.parser :as parser]
     [learn.model.list :as model.list]
+    [learn.util.normalized :as norm]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -92,14 +93,6 @@
 ;; micromanaging. Cancel + clone serve those needs from a different angle.
 ;; ============================================================================
 
-(defn- denormalize-list-items
-  "Resolves the todo idents at [list-ident :list/todos] into a vector of
-   full todo maps, preserving order. Used by add-todo* to project
-   normalized state into the shape model.list functions expect."
-  [state-map list-ident]
-  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
-    (mapv #(get-in state-map %) todo-idents)))
-
 (defn add-todo*
   "Append a fresh todo to the given list and clear :ui/new-todo-text.
 
@@ -112,7 +105,7 @@
    {:ok? false :error/type :error/blank-item}; we no-op here for now.
    A future phase can surface the error via UI feedback."
   [state-map list-ident text]
-  (let [items  (denormalize-list-items state-map list-ident)
+  (let [items  (norm/denormalize-list-items state-map list-ident)
         result (model.list/add-todo items text)]
     (if (:ok? result)
       (let [new-todo (last (:items result))]
@@ -132,44 +125,34 @@
 ;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo*
 ;; Each helper denormalizes state → calls the corresponding model.list fn →
-;; on :ok? reprojects via sync-items, on refusal returns state unchanged.
+;; on :ok? reprojects via norm/sync-items, on refusal returns state unchanged.
 ;; ============================================================================
-
-(defn- sync-items
-  "Replaces entities in `:todo/id` and rebuilds `[list-ident :list/todos]`
-   to match `items`. Used after a model.list operation."
-  [state-map list-ident items]
-  (let [idents         (mapv (fn [t] [:todo/id (:todo/id t)]) items)
-        entity-updates (into {} (map (juxt :todo/id identity)) items)]
-    (-> state-map
-      (update :todo/id merge entity-updates)
-      (assoc-in (conj list-ident :list/todos) idents))))
 
 (defn cancel-todo*
   "State-helper for the cancel-todo mutation. Refusal is a no-op."
   [state-map list-ident todo-id]
-  (let [items  (denormalize-list-items state-map list-ident)
+  (let [items  (norm/denormalize-list-items state-map list-ident)
         result (model.list/cancel-todo items todo-id)]
     (if (:ok? result)
-      (sync-items state-map list-ident (:items result))
+      (norm/sync-items state-map list-ident (:items result))
       state-map)))
 
 (defn complete-benchmark-item*
   "State-helper for the complete-benchmark-item mutation. Refusal is a no-op."
   [state-map list-ident]
-  (let [items  (denormalize-list-items state-map list-ident)
+  (let [items  (norm/denormalize-list-items state-map list-ident)
         result (model.list/complete-benchmark-item items)]
     (if (:ok? result)
-      (sync-items state-map list-ident (:items result))
+      (norm/sync-items state-map list-ident (:items result))
       state-map)))
 
 (defn clone-todo*
   "State-helper for the clone-todo mutation. Refusal is a no-op."
   [state-map list-ident todo-id]
-  (let [items  (denormalize-list-items state-map list-ident)
+  (let [items  (norm/denormalize-list-items state-map list-ident)
         result (model.list/clone-todo items todo-id)]
     (if (:ok? result)
-      (sync-items state-map list-ident (:items result))
+      (norm/sync-items state-map list-ident (:items result))
       state-map)))
 
 ;; TODO: add status change enforcement mechanics - perhaps this
@@ -206,7 +189,7 @@
    at [:list/id 1] as `:list/items`. Server mutations write this vector
    straight to SERVER-DB."
   [env]
-  (let [items (denormalize-list-items @(:state env) [:list/id 1])]
+  (let [items (norm/denormalize-list-items @(:state env) [:list/id 1])]
     (m/with-params env {:list/items items})))
 
 (defmutation add-todo [{:todo/keys [text]}]
