@@ -6,10 +6,12 @@
   "scripts": {
     "watch": "shadow-cljs watch app",
     "release": "shadow-cljs release app",
-    "compile": "shadow-cljs compile app"
+    "compile": "shadow-cljs compile app",
+    "snapshot": "node scripts/snapshot.mjs"
   },
   "devDependencies": {
-    "shadow-cljs": "2.28.16"
+    "shadow-cljs": "2.28.16",
+    "playwright": "1.49.1"
   },
   "dependencies": {
     "react": "18.3.1",

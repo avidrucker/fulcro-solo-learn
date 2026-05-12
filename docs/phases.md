@@ -475,6 +475,14 @@ sub-steps:
   `resources/public/index.html` (unpkg CDN). No shadow-cljs config
   changes, no npm step. Visible effects after hard-reload: normalize
   baseline, system font stack. Actual class application lands in 6.5.3.
+- ✅ **6.5.x (snapshot infra)** — Playwright as a npm devDependency,
+  `scripts/snapshot.mjs` writes a full-page PNG of the running app to
+  `docs/snapshots/<short-hash>[-<label>].png`. `-dirty` suffix marks
+  snapshots taken with uncommitted changes. Forward-only; retroactive
+  replay over old commits would need a bash loop and a per-commit
+  `shadow-cljs compile` (deferred). Baseline saved at `e60306d`
+  showing the post-6.5.2 state (Tachyons loaded, no classes yet
+  applied).
 - **6.5.3** — Restyle `TodoItem` and `TodoList` to match the original
   Tachyons class strings from `js_ui_reference.md` §B. Header is
   thinner than the JS source for now — no theme toggle, no

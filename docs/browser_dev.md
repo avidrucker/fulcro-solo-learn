@@ -123,12 +123,40 @@ Phase 6.3 onward). Quick recipes:
 
 ```
 shadow-cljs.edn               # build config (target :browser, init-fn)
-package.json                  # shadow-cljs + react + react-dom
-resources/public/index.html   # entrypoint HTML, mounts <script>
+package.json                  # shadow-cljs + react + react-dom + playwright (dev)
+resources/public/index.html   # entrypoint HTML, mounts <script>, Tachyons CDN
 resources/public/js/main/     # build output (gitignored)
+scripts/snapshot.mjs          # Playwright snapshot of the running app
 src/learn/main.cljs           # ^:export init — what the bundle runs
 src/learn/*.cljc              # shared with JVM (server, parser, etc.)
+docs/snapshots/               # PNG screenshots, one per visually-meaningful commit
 ```
+
+---
+
+## Visual snapshots
+
+`scripts/snapshot.mjs` uses Playwright (headless Chromium) to capture
+the running app and save it under `docs/snapshots/<short-hash>[-<label>].png`.
+
+```bash
+# from a separate terminal — watch server must be running on :8000
+npm run snapshot                       # bare commit hash filename
+npm run snapshot -- phase-6.5.3        # appends -phase-6.5.3 for context
+```
+
+One-time install of the Chromium binary (Playwright doesn't bundle it
+to keep `node_modules/` small):
+
+```bash
+npx playwright install chromium
+```
+
+If the script runs against a working tree with uncommitted changes, the
+filename gets a `-dirty` marker so you remember the snapshot doesn't
+strictly represent the named commit. Rename the file manually after
+committing if the dirty changes don't actually affect the visual (e.g.
+docs-only).
 
 ---
 
