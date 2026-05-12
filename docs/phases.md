@@ -390,7 +390,7 @@ A `review chart syncs Yes decisions to the server` specification in `client_test
 
 ---
 
-## ⬜ Phase 6 — shadow-cljs + browser app (no real backend)
+## 🟡 Phase 6 — shadow-cljs + browser app (no real backend)
 
 First time the project actually runs in a browser. The "server" is the
 same `learn.server` atom + Pathom 2 parser we already built — just
@@ -428,11 +428,61 @@ wanted, it slots in as a much later, optional phase.
   reference (`review-session-id` used in `TodoList`'s render before it
   was `def`'d below) had to move up: CLJ tolerates the forward ref at
   runtime, CLJS rejects it at compile time.
-- ⬜ **6.4** — Verify the master CLJ test runner stays green AND the
-  browser app loads, renders, and round-trips a Yes click through the
-  in-process "server".
+- ✅ **6.4** — Browser app loads and round-trips. Surfaced three bugs
+  along the way, all fixed in one `fix ... phase 6 bugfix` commit:
+  1. **Review state subscription** — `TodoList` read chart state via
+     `scf/current-configuration` (a side-channel Fulcro can't see), so
+     the optimized renderer skipped re-rendering after Yes/No/Quit.
+     Headless tests masked this by calling `h/render-frame!` after
+     every click. Fix: ident-joins in `:query` against
+     `[::sc/session-id :review-session]` and `[::sc/local-data :review-session]`
+     so Fulcro knows the component depends on those paths.
+  2. **Fulcro Inspect 1.x wiring** — the deprecated
+     `com.fulcrologic.fulcro.inspect.preload` was logging "Inspect
+     NOT installed" because Inspect 1.x requires both
+     `com.fulcrologic.devtools.chrome-preload` *and* an explicit
+     `(fulcro.inspect.tool/add-fulcro-inspect! spa)` call. Both wired
+     in.
+  3. **`goog.reflect.cache is not a function`** at runtime — the
+     **shaded** `closure-compiler` jar pulled in by ClojureScript
+     1.12.42 bundles `lib/{base,goog,reflect}.js`, which shadow-cljs
+     mis-classifies as JS sources, producing a duplicate provide for
+     `goog.reflect` (stripped vs full). Fix: top-level
+     `:exclusions [com.google.javascript/closure-compiler]` on
+     `org.clojure/clojurescript` in deps.edn. shadow-cljs supplies
+     `closure-compiler-unshaded` itself, so nothing else broke.
 
-**Out of scope here:** persistence. Page reload still resets the seed.
+**Out of scope here:** persistence (page reload resets seed) and
+styling (Phase 6.5).
+
+### ⬜ 6.5 — Strings + Tachyons port to match the original JS UI
+
+Reference: `docs/js_ui_reference.md` — captured 2026-05-12 from the
+upstream JS app (`pwa-autofocus-app`). Three concerns, addressed in
+sub-steps:
+
+- **6.5.1** — Pull the 24 named string constants + inline labels into
+  `learn.ui.strings` (CLJC). Use them in the existing UI; leave the
+  ones we don't have features for (`badJSONimportErrMsg1`, etc.) for
+  later phases to wire up. Strings become the i18n attachment point
+  later (Phase 12).
+- **6.5.2** — Add Tachyons CSS. Likely via CDN `<link>` in
+  `index.html` to start (no build config changes); npm install if we
+  later need PurgeCSS-style trimming.
+- **6.5.3** — Restyle `TodoItem` and `TodoList` to match the original
+  Tachyons class strings from `js_ui_reference.md` §B. Header is
+  thinner than the JS source for now — no theme toggle, no
+  import/export icons (Phase 6.6+).
+- **6.5.4** — Promote the inline review UI to a real modal overlay
+  (`modal-shell` component, transparent close button etc.) so the
+  prioritize flow looks like the JS version.
+- **6.5.5 (deferred)** — Status icons via `react-icons` or
+  `font-awesome` (so `[o]`/`[x]`/`[~]`/`[ ]` text symbols become the
+  filled/dot/empty circle and X glyphs the JS uses).
+
+**Out of scope here:** features we lack the data layer for — delete-list
+mutation, import/export, theme toggle, conflict resolution, debug
+modal. Those land in 6.6+ as separate phases.
 
 ---
 
