@@ -590,6 +590,52 @@ type-then-add-then-reload-then-snap demo. Each `chromium.launch()` is
 a fresh browser instance, so localStorage is empty at the start of
 each snapshot run — runs are isolated automatically.
 
+### ⬜ 7.3 — Delete List + Mark Done + Enter-to-submit + refocus
+
+Add the two remaining JS-port primary buttons (mutations already
+exist: `delete-all`, `complete-benchmark-item`). Form `onSubmit`
+becomes Enter-to-add-item, with the input refocused after both Add
+and Delete so the user can type the next item without grabbing the
+mouse. Delete acts immediately; the JS port's confirm modal is
+deferred. Implements **S-complete-benchmark**, **S-delete-list**,
+**S-input-enter-submit**, **S-input-refocus-after-delete**.
+
+### ⬜ 7.4 — Modal state foundation (mutex + bg-click close)
+
+New `:ui/open-modal` keyword in `[:list/id 1]` (values: `:none`,
+`:about`, `:help`, `:save`). `set-open-modal!` enforces mutex.
+`modal-shell` already accepts `:on-close`; the new modals wire it to
+close their own modal. Headless tests cover open-one→close-others
+and clicking the transparent close-overlay. Implements
+**S-modal-mutex**, **S-modal-bg-close**, **S-modal-toggle-via-button**.
+
+### ⬜ 7.5 — About + Help modals
+
+Add `info-circle` and `question-circle` SVGs to `learn.ui.icons`.
+Header gets two new icon buttons. Modal bodies pull from
+`learn.ui.strings` (`info-string-1/2`, `version-line`, `instructions/2`,
+`how-to-report-issues`, link constants). Spec: open About → expected
+text visible; open Help → expected text visible. Implements
+**S-about**, **S-help**.
+
+### ⬜ 7.6 — Import/Export modal (stubbed)
+
+Add `save-disk` SVG. Header gets a save-disk button. Modal body has
+Copy URL / Import (file label) / Export / textarea + Submit per
+`docs/js_ui_reference.md` §C. All four onClicks just `(js/console.log
+...)` — real impl is a much later phase. Spec: open Save → markup
+visible. Implements **S-import-export** (stubbed).
+
+### ⬜ 7.7 — Theme toggle (light/dark)
+
+Add `lightbulb-solid` + `lightbulb-regular` SVGs. `:ui/theme` keyword
+on `[:list/id 1]` toggled by a header button. Thread theme through
+Root (`black`/`white` text), button class selection
+(`bg-moon-gray black` ↔ `bg-dark-gray white`), input
+(`hover-bg-light-gray active-bg-white` ↔ `hover-bg-dark-gray active-bg-black`),
+and `modal-shell` (`bg-white-90` ↔ `bg-black-90`). Snapshot both
+modes. Implements **S-theme-toggle**.
+
 ---
 
 ## ⬜ Phase 8 — Production Pathom patterns
