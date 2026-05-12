@@ -7,8 +7,11 @@
 // localhost:8000 before invocation.
 //
 // Usage:
-//   npm run snapshot              # bare commit-hash filename
-//   npm run snapshot -- phase-6.5.2   # appends "-phase-6.5.2"
+//   npm run snapshot                                # default view
+//   npm run snapshot -- phase-6.5.2                 # add label suffix
+//   npm run snapshot -- phase-6.5.4-review-modal --click "Prioritize"
+//                                                   # click button(s) then snap;
+//                                                   # repeat --click for a sequence
 //
 // Snapshots are full-page PNGs at 1280x800 viewport. Saved to
 // docs/snapshots/ which is committed (PNGs of a simple UI stay small;
@@ -40,7 +43,7 @@ function isDirty() {
   }
 }
 
-async function snapshot({ url = URL_DEFAULT, label } = {}) {
+async function snapshot({ url = URL_DEFAULT, label, clicks = [] } = {}) {
   const hash = shortHash();
   const dirty = isDirty() ? '-dirty' : '';
   const suffix = label ? `-${label}` : '';
@@ -60,6 +63,14 @@ async function snapshot({ url = URL_DEFAULT, label } = {}) {
     await page.waitForSelector(APP_SELECTOR, { timeout: 5000 });
     // Belt-and-suspenders: give Fulcro one more tick to settle layout.
     await page.waitForTimeout(250);
+
+    // Optional click sequence — useful for capturing modal states.
+    // `--click "Prioritize"` clicks the button with that visible text.
+    for (const text of clicks) {
+      await page.getByText(text, { exact: true }).first().click();
+      await page.waitForTimeout(200);
+    }
+
     await page.screenshot({ path: outPath, fullPage: true });
 
     console.log(`saved: ${outPath}`);
@@ -68,5 +79,16 @@ async function snapshot({ url = URL_DEFAULT, label } = {}) {
   }
 }
 
-const label = process.argv[2]; // optional: e.g. "phase-6.5.2"
-await snapshot({ label });
+// Argv parsing: first non-flag arg is the label; any number of
+// `--click <text>` pairs add to the pre-snapshot click sequence.
+const args = process.argv.slice(2);
+let label;
+const clicks = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--click') {
+    clicks.push(args[++i]);
+  } else if (!label) {
+    label = args[i];
+  }
+}
+await snapshot({ label, clicks });

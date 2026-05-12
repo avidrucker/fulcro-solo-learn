@@ -154,6 +154,30 @@
 (def ^:private review-btn-class
   "br3 w3 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 pointer grow ma1 dib")
 
+(defn- modal-shell
+  "Tachyons-styled overlay used by all modals in the JS port (Phase 6.5.4).
+
+   The outer `<section>` is absolutely positioned over the app container
+   (which is itself `position: relative` on `Root`); the inner `<section>`
+   centers its content in a `measure-narrow` column.
+
+   Options map:
+     :on-close   — fn invoked when the transparent full-area close button
+                   is clicked. When nil, no close button is rendered —
+                   used by the review modal (must use Quit to dismiss).
+     :close-label — a11y text for that close button (e.g. \"Close Save Modal\").
+
+   `children` are positional DOM nodes for the modal body."
+  [{:keys [on-close close-label]} & children]
+  (dom/section {:className "absolute f5 top-0 w-100 h-100 bg-white-90"}
+    (apply dom/section
+      {:className "measure-narrow ml-auto mr-auto relative z-1 pa3"}
+      children)
+    (when on-close
+      (dom/button {:className "absolute z-0 top-0 left-0 w-100 o-0 min-h-100"
+                   :onClick   on-close}
+        close-label))))
+
 (defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -236,25 +260,25 @@
         (when benchmark
           (dom/p {:className "ma0 o-70 measure-narrow ml-auto mr-auto lh-135 line-clamp-3 overflow-hidden"}
             (s/next-actionable-line (:todo/text benchmark)))))
-      ;; Review affordances — inline for now. Phase 6.5.4 wraps these in
-      ;; a modal-shell so they overlay the page like the JS version's
-      ;; prioritization modal.
+      ;; Review modal — `on-close` is intentionally absent: the JS port
+      ;; (and our chart) requires Quit to dismiss, no background click.
       (when active?
-        (dom/div {:className "ph3 pt3 tc"}
+        (modal-shell {}
           (when question
-            (dom/p {:className "ma0 pb2 lh-135 measure-narrow ml-auto mr-auto"} question))
-          (dom/button {:className review-btn-class
-                       :title     s/tooltip-quit-review
-                       :tabIndex  0
-                       :onClick   #(send-and-pump! this chart/event-quit)} s/btn-quit)
-          (dom/button {:className review-btn-class
-                       :title     s/tooltip-review-no
-                       :tabIndex  1
-                       :onClick   #(send-and-pump! this chart/event-no)}  s/btn-no)
-          (dom/button {:className review-btn-class
-                       :title     s/tooltip-review-yes
-                       :tabIndex  2
-                       :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes))))))
+            (dom/p {:className "ma0 pb3 lh-135 tc"} question))
+          (dom/div {:className "tc"}
+            (dom/button {:className review-btn-class
+                         :title     s/tooltip-quit-review
+                         :tabIndex  0
+                         :onClick   #(send-and-pump! this chart/event-quit)} s/btn-quit)
+            (dom/button {:className review-btn-class
+                         :title     s/tooltip-review-no
+                         :tabIndex  1
+                         :onClick   #(send-and-pump! this chart/event-no)}  s/btn-no)
+            (dom/button {:className review-btn-class
+                         :title     s/tooltip-review-yes
+                         :tabIndex  2
+                         :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes)))))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 

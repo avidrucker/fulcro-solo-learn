@@ -497,9 +497,17 @@ sub-steps:
   from "no longer visible" to "stays rendered, disabled during review".
   The hidden `New TODO` `<label>` keeps the `h/type-into-labeled!` test
   affordance working (uses Tachyons' `clip` SR-only class).
-- **6.5.4** — Promote the inline review UI to a real modal overlay
-  (`modal-shell` component, transparent close button etc.) so the
-  prioritize flow looks like the JS version.
+- ✅ **6.5.4** — Private `modal-shell` helper in `learn.client.cljc`
+  takes `:on-close` + `:close-label` opts and renders the JS port's
+  modal pattern: absolutely-positioned outer `<section>` with
+  `bg-white-90` tint over the app-container (`position: relative` on
+  Root's section anchors it), an inner `measure-narrow` content
+  column, and an optional transparent full-area close button behind
+  the content. Review affordances now render inside `modal-shell {}`
+  with no `:on-close` (review modal must use Quit, matching the JS
+  spec). Inlined rather than extracted to its own ns until a second
+  modal needs it. Also extended `scripts/snapshot.mjs` with a
+  `--click <text>` flag so the modal state can be captured.
 - **6.5.5 (deferred)** — Status icons via `react-icons` or
   `font-awesome` (so `[o]`/`[x]`/`[~]`/`[ ]` text symbols become the
   filled/dot/empty circle and X glyphs the JS uses).
