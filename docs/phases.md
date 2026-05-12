@@ -328,7 +328,43 @@ Single-file chart definition using `com.fulcrologic/statecharts 1.3.0` (added to
 **Noise control:** statecharts library emits a lot of `:debug` logs. `chart_test.clj` sets `taoensso.timbre` `:min-level` to `:warn` at namespace load so subsequent test runs stay readable.
 
 **Acceptance:** 5 components / 19 new assertions covering start-guard rejection, happy-path :start seeding, Yes/No advancement and item promotion, eventless auto-exit on walk-off-end, and :quit. **Totals:** 34 specs / 287 assertions, all green. Warm ~3.0 s.
-### ⬜ 5K.5 — Client wiring (mutations + chart session lifecycle)
+### 🟡 5K.5 — Client wiring (chart session lifecycle + UI affordances)
+
+Stitch the review chart into the live Fulcro app. Broken into cycles so each red-green pass stays bite-sized; server sync deferred to 5K.6.
+
+**Decisions locked in:**
+- Shared denormalization helpers (previously `defn-` in `client.cljc`) promoted to `learn.util.normalized` once the chart became a second caller. Keeps `client.cljc` focused on UI/mutations.
+- Chart reads items from `(:fulcro/state-map data)` at the singleton ident `[:list/id 1]` and mutates state-map via path-based `(ops/assign [:fulcro/state-map :todo/id <id> :todo/status] :status/ready)`. No local `:items` in the chart's session data — the only session-local datum is `:cursor`.
+- Singleton review session at well-known id `:review-session`.
+- UI will dispatch via **direct `scf/send!`** from onClicks — no thin mutation wrappers around chart events (avoids one indirection layer per affordance).
+- Statecharts installed with `:event-loop? false` so headless tests pump deterministically via `scf/process-events!`. The same install will need re-evaluation when Phase 7 introduces a real browser.
+- Expression-fns are variadic (`& _`) — the testing env calls them with `[env data]` (2 args) while the Fulcro install calls with `[env data event-name event-data]` (4 args); a single signature covers both. The Fulcro arity is called out explicitly in `install-fulcro-statecharts!`'s docstring as a crash-on-mismatch hazard.
+
+### ✅ 5K.5 Cycle A — Chart reads/writes the Fulcro state-map
+
+- **A.1** Extracted `denormalize-list-items` and `sync-items` from `client.cljc` `defn-`s into `learn.util.normalized` (new namespace). Both keep their Guardrails contracts.
+- **A.2** Rewrote `learn.review.chart-test` to seed `:fulcro/state-map` via `t/goto-configuration!` (so chart-only unit tests don't need a Fulcro app). Confirmed RED on all 4 chart specs.
+- **A.3** Replaced chart expression-fns' `:items` reads with `norm/denormalize-list-items (:fulcro/state-map data) [:list/id 1]`; `yes-action` now emits a path-based assign into `:fulcro/state-map`. Chart's session-local data is just `:cursor`.
+
+**Acceptance:** 5 chart specs / 23 assertions green. Totals: 33 specs / 291 assertions.
+
+### ✅ 5K.5 Cycle B — `init` installs/registers/starts the chart
+
+`learn.client/init` now calls `scf/install-fulcro-statecharts!` (with `:event-loop? false`), `scf/register-statechart!` under key `::review-chart`, then `scf/start!` at session id `:review-session`. A `scf/process-events!` pump drains the initial entry actions.
+
+Made chart expression-fns variadic (`& _`) so they work in both calling conventions.
+
+Added a `review chart wiring via init` specification in `client_test.clj` covering: session in `:inactive` after init; `:event.review/start` enters `:active` when the loaded list is prioritizable; `:event.review/yes` promotes the cursor todo in the live Fulcro state-map; `:event.review/quit` returns to `:inactive` without mutating todos.
+
+**Acceptance:** 35 specs / 301 assertions, all green. Warm ~8s (the slow run includes app-build + load + chart install per spec).
+
+### ⬜ 5K.5 Cycle C — UI affordances (Start/Yes/No/Quit + question display)
+
+Add buttons in `TodoList` that `scf/send!` chart events directly. Surface `model.review/current-question` when the chart is in `:active`. Integration test exercises the full round trip via `h/click-on-text!`.
+
+### ⬜ 5K.6 — Server sync of review decisions
+
+Replace today's "mutations send the whole post-action items vector" pattern (5J.5) with a `sync-list` mutation that the chart can fire on each transition that mutates state-map. Likely via `fop/invoke-remote` from the chart, or a single mutation wrapper.
 
 ---
 

@@ -46,22 +46,28 @@
   (norm/denormalize-list-items (:fulcro/state-map data) list-ident))
 
 ;; ----------------------------------------------------------------------
-;; Expression functions — all pure, all take [env data].
+;; Expression functions.
+;;
+;; Variadic `& _` accommodates both calling conventions:
+;;   - statecharts testing env passes `[env data]` (2 args)
+;;   - Fulcro integration passes `[env data event-name event-data]` (4 args)
+;; Crash-on-arity-mismatch is called out explicitly in the
+;; `install-fulcro-statecharts!` docstring.
 ;; ----------------------------------------------------------------------
 
 (defn- start-guard
   "True iff the seeded state-map's list at [:list/id 1] is prioritizable."
-  [_env data]
+  [_env data & _]
   (review/prioritizable? (items* data)))
 
 (defn- start-action
   "Compute the initial cursor from the seeded list."
-  [_env data]
+  [_env data & _]
   [(ops/assign :cursor (review/initial-cursor (items* data)))])
 
 (defn- yes-action
   "Mark the cursor item :status/ready in state-map and advance the cursor."
-  [_env data]
+  [_env data & _]
   (let [{:keys [cursor]} data
         items   (items* data)
         id      (:todo/id (nth items cursor))
@@ -72,19 +78,19 @@
 
 (defn- no-action
   "Advance the cursor without changing item status."
-  [_env data]
+  [_env data & _]
   (let [cursor  (:cursor data)
         cursor' (review/next-cursor (items* data) (inc cursor))]
     [(ops/assign :cursor cursor')]))
 
 (defn- quit-action
   "Reset the cursor to -1 to mark the review inactive."
-  [_env _data]
+  [_env _data & _]
   [(ops/assign :cursor -1)])
 
 (defn- cursor-invalid?
   "Guard for the eventless auto-exit transition in :active."
-  [_env data]
+  [_env data & _]
   (= -1 (:cursor data)))
 
 ;; ----------------------------------------------------------------------

@@ -22,8 +22,10 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.parser :as parser]
     [learn.model.list :as model.list]
+    [learn.review.chart :as chart]
     [learn.util.normalized :as norm]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
@@ -235,11 +237,22 @@
   ;; doesn't blow away an in-progress app you've been driving from REPL.
   (atom nil))
 
+;; Well-known singleton session id for the review chart. The chart runs at
+;; most one session at a time per app (SCHEMA.md §13 "One per app instance"),
+;; so a keyword id is sufficient; no need to mint random UUIDs.
+(def review-session-id :review-session)
+
+;; Registry key for the review chart definition on the Fulcro app.
+(def review-chart-key ::review-chart)
+
 (defn init
   "Build, mount, and load the app. Returns the spa.
 
    Side effects:
      - Resets `SPA` to the new app instance.
+     - Installs statecharts on the app with `:event-loop? false` (so tests
+       can drain the queue deterministically via `scf/process-events!`).
+     - Registers and starts the review chart at `review-session-id`.
      - Issues an immediate `df/load!` to populate :list/todos from the server.
 
    The remote is a `sync-remote` wrapping `parser/handler` — meaning loads
@@ -250,6 +263,11 @@
               {:root-class Root
                :remotes    {:remote (lr/sync-remote parser/handler)}})]
     (reset! SPA spa)
+    (scf/install-fulcro-statecharts! spa {:event-loop? false})
+    (scf/register-statechart! spa review-chart-key chart/chart)
+    (scf/start! spa {:machine    review-chart-key
+                     :session-id review-session-id})
+    (scf/process-events! spa)
     (app/mount! spa Root :app)
     (df/load! spa :all-todos TodoItem
       {:target [:list/id 1 :list/todos]})

@@ -6,7 +6,9 @@
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.headless :as h]
+    [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.client :as sut]
+    [learn.review.chart :as chart]
     [learn.server :as server]))
 
 ;; ============================================================================
@@ -476,3 +478,75 @@
         "no loaded entities remain in the :todo/id table"
         (contains? (:todo/id db) server-id-1) => false
         (contains? (:todo/id db) server-id-2) => false))))
+
+;; ============================================================================
+;; Review chart wiring — init installs the statechart support, registers the
+;; chart, and starts a singleton session at `:review-session`. The chart's
+;; expression-fns read items from `(:fulcro/state-map data)` at [:list/id 1]
+;; and mutate it directly via path-assigns, so this spec proves the round-trip
+;; through Fulcro's normalized state works the same as the chart-only unit
+;; tests in `learn.review.chart-test`.
+;;
+;; We install with `:event-loop? false` and pump via `scf/process-events!` to
+;; keep these tests deterministic (same pattern the scf install! docstring
+;; recommends).
+;; ============================================================================
+
+(defn- pump! [spa]
+  (scf/process-events! spa))
+
+(specification "review chart wiring via init"
+  (component "init starts a session at :review-session in :inactive"
+    (server/seed!)
+    (let [spa    (sut/init)
+          config (scf/current-configuration spa sut/review-session-id)]
+      (assertions
+        "chart session exists and contains :review.state/inactive"
+        (contains? config chart/inactive) => true
+        ":active is not yet entered"
+        (contains? config chart/active) => false)))
+
+  (component ":event.review/start enters :active when the loaded list is prioritizable"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (let [config (scf/current-configuration spa sut/review-session-id)]
+        (assertions
+          "chart is now in :review.state/active"
+          (contains? config chart/active) => true
+          ":inactive is no longer in the configuration"
+          (contains? config chart/inactive) => false))))
+
+  (component ":event.review/yes promotes the cursor todo to :status/ready in the Fulcro state-map"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (scf/send! spa sut/review-session-id chart/event-yes)
+      (pump! spa)
+      (let [db (app/current-state spa)]
+        (assertions
+          "server-id-2 (sole :new) is now :ready in client state"
+          (get-in db [:todo/id server-id-2 :todo/status]) => :status/ready
+          "server-id-1 (:ready) is unchanged"
+          (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
+          "single-:new walk-off-end returns the chart to :inactive"
+          (contains? (scf/current-configuration spa sut/review-session-id) chart/inactive)
+          => true))))
+
+  (component ":event.review/quit returns to :inactive without mutating todos"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (scf/send! spa sut/review-session-id chart/event-start)
+      (pump! spa)
+      (scf/send! spa sut/review-session-id chart/event-quit)
+      (pump! spa)
+      (let [db (app/current-state spa)]
+        (assertions
+          "chart is back in :inactive"
+          (contains? (scf/current-configuration spa sut/review-session-id) chart/inactive)
+          => true
+          "todos in state-map are unchanged"
+          (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
+          (get-in db [:todo/id server-id-2 :todo/status]) => :status/new)))))

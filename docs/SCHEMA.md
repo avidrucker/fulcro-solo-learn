@@ -302,6 +302,14 @@ src/learn/
     list.cljc              ; List operations (add-todo, complete-benchmark, ...)
     review.cljc            ; Review session (cursor, decisions)
 
+  review/
+    chart.cljc             ; Fulcrologic statechart for the prioritize flow
+
+  util/
+    normalized.cljc        ; Projections between Fulcro normalized state and
+                           ; denormalized item vectors (used by both UI
+                           ; mutations and the review chart)
+
 test/learn/
   client_test.clj          ; UI/mutation specs
   resolvers_test.clj       ; Pathom layer specs
@@ -310,6 +318,8 @@ test/learn/
     item_test.cljc         ; Item predicate specs
     list_test.cljc         ; List operation specs (the bulk of TDD coverage)
     review_test.cljc       ; Review flow specs
+  review/
+    chart_test.clj         ; Statechart specs (CLJ-only; chart is CLJC)
 
 docs/
   SCHEMA.md                ; this file
