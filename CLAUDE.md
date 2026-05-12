@@ -57,7 +57,10 @@ without it, output gets fragmented and downstream tooling breaks.
 
 ## Master test runner
 
-This snippet is the source of truth for "is everything green?":
+This snippet is the source of truth for "is everything green?". Scans
+`.clj` and `.cljc` only — `.cljs` files (e.g. `learn.main`) are
+browser-only and not loadable on the JVM, so they're deliberately
+excluded:
 
 \```clojure
 (do
@@ -68,13 +71,13 @@ This snippet is the source of truth for "is everything green?":
             (let [base (io/file base-dir)]
               (->> (file-seq base)
                    (filter #(.isFile %))
-                   (filter #(re-find #"\.clj[cs]?$" (.getName %)))
+                   (filter #(re-find #"\.cljc?$" (.getName %)))
                    (map (fn [f]
                           (let [rel (-> (.toPath base)
                                         (.relativize (.toPath f))
                                         str
                                         (str/replace "\\" "/")
-                                        (str/replace #"\.clj[cs]?$" ""))]
+                                        (str/replace #"\.cljc?$" ""))]
                             (symbol (-> rel
                                         (str/replace "/" ".")
                                         (str/replace "_" "-"))))))

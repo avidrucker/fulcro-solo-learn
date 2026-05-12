@@ -39,13 +39,18 @@
 ;; to a structured server error. Without this, a single resolver crash
 ;; kills the whole response. In production this is also where you'd
 ;; hook into observability (Sentry, structured logs, etc.).
+;;
+;; Reader conditional on the catch: ClojureScript has no Throwable
+;; class — `:default` catches any thrown value (Error, plain object,
+;; etc.). The semantics match: any failure inside the parser becomes a
+;; structured `:server/error` response rather than blowing up the call.
 (def error-handling-plugin
   {::p/wrap-parser
    (fn [parser]
      (fn [env tx]
        (try
          (parser env tx)
-         (catch Throwable e
+         (catch #?(:clj Throwable :cljs :default) e
            (log/error e "Parser error processing:" (pr-str tx))
            {:server/error      (ex-message e)
             :server/error-data (ex-data e)}))))})

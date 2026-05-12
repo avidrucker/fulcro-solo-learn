@@ -404,18 +404,24 @@ true server-process backend isn't part of the AutoFocus learning arc —
 the front-end-only design is the target. If a real backend is ever
 wanted, it slots in as a much later, optional phase.
 
-**Sub-steps (planned):**
-- **6.1** — Add `shadow-cljs.edn`, declare a browser target, get a
-  trivial "Hello" JS bundle building.
-- **6.2** — Convert `server.clj` / `resolvers.clj` / `parser.clj` to
-  `.cljc` so the Pathom 2 parser is reachable from CLJS. The atom
-  store, projection helpers, and resolver bodies are all
-  environment-agnostic; the file extensions are the change.
-- **6.3** — Create a browser entrypoint (`learn.main.cljs` or similar)
-  that mounts `Root` to a DOM node and calls `init`. Replace the
-  headless-DOM rendering with real `react-dom`. Reuse `lr/sync-remote`
-  as-is.
-- **6.4** — Verify the master CLJ test runner stays green AND the
+**Sub-steps:**
+- ✅ **6.1** — Add `shadow-cljs.edn`, declare a browser target, get a
+  trivial "Hello" JS bundle building. (`build` commit; deps come from
+  deps.edn via the new `:cljs` alias; `npm install` bootstraps
+  shadow-cljs + react/react-dom.)
+- ✅ **6.2** — Convert `server.clj` / `resolvers.clj` / `parser.clj`
+  to `.cljc`. Only one JVM-only construct surfaced: `(catch Throwable
+  e ...)` in `parser`'s error-handling plugin — fixed with a reader
+  conditional `(catch #?(:clj Throwable :cljs :default) e ...)`. The
+  master test runner regex was tightened to `\.cljc?$` so `.cljs`
+  files (browser-only) are excluded from JVM scans. `learn.main`
+  briefly requires the three namespaces as a smoke test for CLJS
+  compilation; Phase 6.3 will replace that with the real entrypoint.
+- ⬜ **6.3** — Create a browser entrypoint (`learn.main.cljs` or
+  similar) that mounts `Root` to a DOM node and calls `init`. Replace
+  the headless-DOM rendering with real `react-dom`. Reuse
+  `lr/sync-remote` as-is.
+- ⬜ **6.4** — Verify the master CLJ test runner stays green AND the
   browser app loads, renders, and round-trips a Yes click through the
   in-process "server".
 
