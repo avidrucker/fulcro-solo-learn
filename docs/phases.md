@@ -471,9 +471,10 @@ sub-steps:
   `Prioritize`. Tests updated accordingly. `learn.model.review/current-question`
   keeps its prompt template inline (function's reason for existing);
   flagged in the strings doc for the Phase 12 i18n pass.
-- **6.5.2** — Add Tachyons CSS. Likely via CDN `<link>` in
-  `index.html` to start (no build config changes); npm install if we
-  later need PurgeCSS-style trimming.
+- ✅ **6.5.2** — Tachyons 4.12.0 added via a single `<link>` in
+  `resources/public/index.html` (unpkg CDN). No shadow-cljs config
+  changes, no npm step. Visible effects after hard-reload: normalize
+  baseline, system font stack. Actual class application lands in 6.5.3.
 - **6.5.3** — Restyle `TodoItem` and `TodoList` to match the original
   Tachyons class strings from `js_ui_reference.md` §B. Header is
   thinner than the JS source for now — no theme toggle, no
