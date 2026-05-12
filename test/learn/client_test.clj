@@ -550,3 +550,80 @@
           "todos in state-map are unchanged"
           (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
           (get-in db [:todo/id server-id-2 :todo/status]) => :status/new)))))
+
+;; ============================================================================
+;; Review UI affordances — Start/Yes/No/Quit buttons + current question.
+;; The buttons dispatch chart events directly via `scf/send!` (no thin mutation
+;; wrappers). The current question is rendered as a sibling of the buttons
+;; while the chart is in :active.
+;; ============================================================================
+
+(specification "review UI affordances"
+  (component "while :inactive: Start Review button is visible; Yes/No/Quit are not"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (assertions
+        "the 'Start Review' button is visible"
+        (h/text-exists? spa "Start Review") => true
+        "no review-question prompt is rendered"
+        (h/text-exists? spa "are you more ready to") => false
+        "no Yes button while :inactive"
+        (h/text-exists? spa "Yes") => false
+        "no Quit button while :inactive"
+        (h/text-exists? spa "Quit") => false)))
+
+  (component "clicking 'Start Review' enters :active and renders the question + Yes/No/Quit"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Start Review")
+          _   (h/render-frame! spa)]
+      (assertions
+        "chart is in :active"
+        (contains? (scf/current-configuration spa sut/review-session-id) chart/active)
+        => true
+        "current-question text is now rendered"
+        (h/text-exists? spa "are you more ready to") => true
+        "Yes button is visible"
+        (h/text-exists? spa "Yes") => true
+        "No button is visible"
+        (h/text-exists? spa "No") => true
+        "Quit button is visible"
+        (h/text-exists? spa "Quit") => true
+        "'Start Review' is no longer visible"
+        (h/text-exists? spa "Start Review") => false)))
+
+  (component "clicking 'Yes' promotes the cursor todo to :ready in the state-map"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Start Review")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Yes")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "the sole :new (server-id-2) is now :status/ready in the client state"
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/ready
+        "after walking off the end, chart returns to :inactive"
+        (contains? (scf/current-configuration spa sut/review-session-id) chart/inactive)
+        => true
+        "'Start Review' is visible again after the chart returns to :inactive"
+        (h/text-exists? spa "Start Review") => true)))
+
+  (component "clicking 'Quit' returns to :inactive without mutating todos"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Start Review")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Quit")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "chart is :inactive"
+        (contains? (scf/current-configuration spa sut/review-session-id) chart/inactive)
+        => true
+        "server-id-1 is unchanged (:ready)"
+        (get-in db [:todo/id server-id-1 :todo/status]) => :status/ready
+        "server-id-2 is unchanged (:new)"
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/new
+        "'Start Review' button is visible again"
+        (h/text-exists? spa "Start Review") => true))))

@@ -25,6 +25,7 @@
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.parser :as parser]
     [learn.model.list :as model.list]
+    [learn.model.review :as review]
     [learn.review.chart :as chart]
     [learn.util.normalized :as norm]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
@@ -59,6 +60,24 @@
 
 (def ui-todo-item (comp/factory TodoItem {:keyfn :todo/id}))
 
+(defn- send-and-pump!
+  "Dispatch a chart event and immediately drain the statechart event queue.
+   Required because `init` installs with `:event-loop? false` — without the
+   pump, `scf/send!` only enqueues and tests would have to drive the loop
+   themselves. Pumping here makes onClicks behave synchronously, which also
+   matches the project's broader headless / sync-remote stance."
+  [app-ish event]
+  (scf/send! app-ish review-session-id event)
+  (scf/process-events! app-ish))
+
+(defn- review-cursor
+  "Reads the chart session's local `:cursor` from the Fulcro state-map. The
+   chart stores its only session-local datum (the cursor) here; the UI uses
+   it to render the current-question prompt."
+  [app-ish]
+  (get-in (app/current-state app-ish)
+    [:com.fulcrologic.statecharts/local-data review-session-id :cursor]))
+
 (defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -68,15 +87,27 @@
                     {:list/id          1
                      :list/todos       []
                      :ui/new-todo-text ""})}
-  (dom/div
-    (dom/h1 "AutoFocus WIP in Fulcro")
-    (dom/ul (mapv ui-todo-item todos))
-    (dom/label {:htmlFor "new-todo"} "New TODO:")
-    (dom/input {:id       "new-todo"
-                :value    (or new-todo-text "")
-                :onChange #(m/set-string! this :ui/new-todo-text :event %)})
-    (dom/button {:onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
-      "Add")))
+  (let [config   (scf/current-configuration this review-session-id)
+        active?  (contains? config chart/active)
+        cursor   (when active? (review-cursor this))
+        question (when (and active? cursor)
+                   (review/current-question todos cursor))]
+    (dom/div
+      (dom/h1 "AutoFocus WIP in Fulcro")
+      (dom/ul (mapv ui-todo-item todos))
+      (if active?
+        (dom/div
+          (when question (dom/p question))
+          (dom/button {:onClick #(send-and-pump! this chart/event-yes)} "Yes")
+          (dom/button {:onClick #(send-and-pump! this chart/event-no)} "No")
+          (dom/button {:onClick #(send-and-pump! this chart/event-quit)} "Quit"))
+        (dom/button {:onClick #(send-and-pump! this chart/event-start)} "Start Review"))
+      (dom/label {:htmlFor "new-todo"} "New TODO:")
+      (dom/input {:id       "new-todo"
+                  :value    (or new-todo-text "")
+                  :onChange #(m/set-string! this :ui/new-todo-text :event %)})
+      (dom/button {:onClick #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
+        "Add"))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 

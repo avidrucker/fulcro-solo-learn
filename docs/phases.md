@@ -328,7 +328,7 @@ Single-file chart definition using `com.fulcrologic/statecharts 1.3.0` (added to
 **Noise control:** statecharts library emits a lot of `:debug` logs. `chart_test.clj` sets `taoensso.timbre` `:min-level` to `:warn` at namespace load so subsequent test runs stay readable.
 
 **Acceptance:** 5 components / 19 new assertions covering start-guard rejection, happy-path :start seeding, Yes/No advancement and item promotion, eventless auto-exit on walk-off-end, and :quit. **Totals:** 34 specs / 287 assertions, all green. Warm ~3.0 s.
-### 🟡 5K.5 — Client wiring (chart session lifecycle + UI affordances)
+### ✅ 5K.5 — Client wiring (chart session lifecycle + UI affordances)
 
 Stitch the review chart into the live Fulcro app. Broken into cycles so each red-green pass stays bite-sized; server sync deferred to 5K.6.
 
@@ -358,9 +358,19 @@ Added a `review chart wiring via init` specification in `client_test.clj` coveri
 
 **Acceptance:** 35 specs / 301 assertions, all green. Warm ~8s (the slow run includes app-build + load + chart install per spec).
 
-### ⬜ 5K.5 Cycle C — UI affordances (Start/Yes/No/Quit + question display)
+### ✅ 5K.5 Cycle C — UI affordances (Start/Yes/No/Quit + question display)
 
-Add buttons in `TodoList` that `scf/send!` chart events directly. Surface `model.review/current-question` when the chart is in `:active`. Integration test exercises the full round trip via `h/click-on-text!`.
+`TodoList` now reads chart configuration via `scf/current-configuration` and renders one of two affordance blocks:
+- `:inactive` → a single `Start Review` button.
+- `:active` → the `current-question` text from `model.review/current-question` plus `Yes` / `No` / `Quit` buttons.
+
+Each onClick goes through a private `send-and-pump!` helper that wraps `scf/send!` + `scf/process-events!`. The pump is necessary because the chart is installed with `:event-loop? false`; making it part of the send keeps the click handler synchronous (and incidentally keeps tests honest — no separate pump call after every simulated click).
+
+A small `review-cursor` helper reads the chart's single session-local datum (`:cursor`) directly from `(:com.fulcrologic.statecharts/local-data ...)` in the live app state. Skipped a Fulcro query subscription on the chart entity to keep TodoList's `:query` short; tests force a render frame after each click so the chart's most recent state is visible.
+
+Added a `review UI affordances` specification in `client_test.clj` with 4 components covering: initial inactive state (Start visible, no other buttons), clicking Start (enters :active, question + Yes/No/Quit appear), clicking Yes (state-map mutated, chart returns to :inactive on single-:new walk-off), and clicking Quit (no mutations, chart returns to :inactive).
+
+**Acceptance:** 36 specs / 318 assertions, all green. Warm ~6.6 s.
 
 ### ⬜ 5K.6 — Server sync of review decisions
 
