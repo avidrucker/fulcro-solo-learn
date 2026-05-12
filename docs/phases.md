@@ -534,28 +534,61 @@ modal. Those land in 6.6+ as separate phases.
 
 ---
 
-## ⬜ Phase 7 — localStorage persistence
+## ✅ Phase 7 — localStorage persistence
 
-Add a watch on `SERVER-DB` that serializes to `js/localStorage` on
-every change; hydrate from localStorage in `init` before mount, falling
-back to the seed when no storage entry exists or the entry is
-corrupted (failed `read-string`).
+The user's list survives page reloads. `learn.util.storage` watches
+`SERVER-DB` and dumps it to `js/localStorage` on every change; the CLJS
+init branch hydrates the atom from storage before `df/load!` runs so
+the first render shows the persisted state.
 
-Choice: localStorage over IndexedDB. Sync API matches the project's
-sync-everything design, the AutoFocus list will never approach the ~5
-MB limit, and `pr-str` / `clojure.edn/read-string` round-trip is fewer
-moving parts than IndexedDB's request-callback dance.
+Choice (locked in): localStorage over IndexedDB. Sync API matches the
+project's sync-everything design, the AutoFocus list will never
+approach the ~5 MB limit, and `pr-str` / `clojure.edn/read-string`
+round-trip is fewer moving parts than IndexedDB's request-callback
+dance.
 
-**Acceptance shape:**
-- Reload-survival spec: dehydrate `SERVER-DB`, mount a fresh app,
-  verify list state matches.
-- Corruption fallback spec: write garbage to the storage key, mount,
-  verify init falls back to seed (logs a warning).
+### ✅ 7.1 — `learn.util.storage` ns
 
-CLJ-only side stays atom-only — no localStorage shim. CLJC split for
-the storage adapter: `:cljs` writes to `js/localStorage`, `:clj` is a
-no-op (or, if useful for tests, an in-memory atom). Either way the
-master CLJ runner stays untouched.
+CLJC split:
+- Pure `->edn` / `<-edn` (testable on JVM). `<-edn` returns `nil` on
+  blank input, malformed EDN, reader-eval forms (`#=`), and **any
+  non-map result** — the last guard catches `clojure.edn/read-string`
+  succeeding on garbage like `"not edn"` by returning the symbol
+  `'not`. Map-only contract is just strong enough that callers can
+  always feed `(or (<-edn s) seed)` and trust the type.
+- CLJS-only `save!` / `load!` / `clear!` wrap `js/localStorage` with
+  try-catch swallows (quota-exceeded, privacy-mode disabled, etc.
+  shouldn't crash a render).
+- `install-persistence!` is CLJC: on CLJS it hydrates + attaches a
+  watch on `SERVER-DB`; on JVM it's a no-op so callers can use a
+  single signature.
+- Storage key is `"autofocus.server-db"` — namespaced enough that an
+  unrelated site key collision is implausible.
+
+40 specs / 337 assertions, all green (added 3 specs / 13 assertions
+for the round-trip + corruption + key-name properties).
+
+### ✅ 7.2 — Wire into init
+
+`learn.client/init`'s CLJS branch calls `install-persistence!` between
+the Inspect setup and `start-chart!`, so the order is:
+
+1. build app
+2. register Inspect
+3. **hydrate `SERVER-DB` + attach persistence watch**
+4. start review chart
+5. mount Root
+6. `df/load!` (now reads the hydrated server)
+
+JVM init is unchanged in behavior because `install-persistence!` is a
+no-op there; the call is omitted from the `:clj` branch to keep the
+test-driven path byte-for-byte identical.
+
+`scripts/snapshot.mjs` grew `--type <text>` and `--reload` flags
+(executed in argv order) so a single command captures the
+type-then-add-then-reload-then-snap demo. Each `chromium.launch()` is
+a fresh browser instance, so localStorage is empty at the start of
+each snapshot run — runs are isolated automatically.
 
 ---
 

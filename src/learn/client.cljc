@@ -34,10 +34,12 @@
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
+    [learn.server :as server]
     [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
     [learn.util.normalized :as norm]
     [learn.util.remote :as remote]
+    [learn.util.storage :as storage]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -501,6 +503,11 @@
       use, exposed through the CLJC `remote/sync-remote` shim because the
       headless `lr/sync-remote` is JVM-only.
 
+      `install-persistence!` runs BEFORE `load-todos!` so that
+      `df/load!` sees any state hydrated from localStorage. The watch
+      it attaches then re-saves on every subsequent change to
+      `SERVER-DB` (Phase 7).
+
       Returns the spa. Exported so shadow-cljs can call it as the
       module's `:init-fn`."
      []
@@ -511,6 +518,9 @@
        ;; `com.fulcrologic.devtools.chrome-preload` in shadow-cljs.edn.
        ;; Noop if Inspect is disabled by compiler flags (release builds).
        (inspect-tool/add-fulcro-inspect! spa)
+       ;; Hydrate from localStorage and attach the persistence watch
+       ;; BEFORE the initial load so any saved state is what we render.
+       (storage/install-persistence! server/SERVER-DB)
        (start-chart! spa)
        (app/mount! spa Root "app")
        (load-todos! spa)

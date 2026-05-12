@@ -10,8 +10,13 @@
 //   npm run snapshot                                # default view
 //   npm run snapshot -- phase-6.5.2                 # add label suffix
 //   npm run snapshot -- phase-6.5.4-review-modal --click "Prioritize"
-//                                                   # click button(s) then snap;
-//                                                   # repeat --click for a sequence
+//   npm run snapshot -- phase-7-persistence \
+//     --type "Persisted item" --click "Add Item" --reload
+//                                                   # flags execute in argv order:
+//                                                   # type into the new-todo input,
+//                                                   # click the Add Item button,
+//                                                   # reload the page (localStorage
+//                                                   # survives), then snapshot.
 //
 // Snapshots are full-page PNGs at 1280x800 viewport. Saved to
 // docs/snapshots/ which is committed (PNGs of a simple UI stay small;
@@ -43,7 +48,7 @@ function isDirty() {
   }
 }
 
-async function snapshot({ url = URL_DEFAULT, label, clicks = [] } = {}) {
+async function snapshot({ url = URL_DEFAULT, label, actions = [] } = {}) {
   const hash = shortHash();
   const dirty = isDirty() ? '-dirty' : '';
   const suffix = label ? `-${label}` : '';
@@ -64,11 +69,22 @@ async function snapshot({ url = URL_DEFAULT, label, clicks = [] } = {}) {
     // Belt-and-suspenders: give Fulcro one more tick to settle layout.
     await page.waitForTimeout(250);
 
-    // Optional click sequence — useful for capturing modal states.
-    // `--click "Prioritize"` clicks the button with that visible text.
-    for (const text of clicks) {
-      await page.getByText(text, { exact: true }).first().click();
-      await page.waitForTimeout(200);
+    // Sequenced actions — preserve argv order so callers can compose
+    // multi-step demos like "type X, click Add Item, reload, snap".
+    for (const action of actions) {
+      if (action.kind === 'click') {
+        await page.getByText(action.text, { exact: true }).first().click();
+        await page.waitForTimeout(200);
+      } else if (action.kind === 'type') {
+        // Hardcoded to the new-todo input — only one input in the app
+        // currently. If we add a second, take a selector explicitly.
+        await page.getByPlaceholder('Type new task here').fill(action.text);
+        await page.waitForTimeout(100);
+      } else if (action.kind === 'reload') {
+        await page.reload({ waitUntil: 'networkidle' });
+        await page.waitForSelector(APP_SELECTOR, { timeout: 5000 });
+        await page.waitForTimeout(250);
+      }
     }
 
     await page.screenshot({ path: outPath, fullPage: true });
@@ -79,16 +95,24 @@ async function snapshot({ url = URL_DEFAULT, label, clicks = [] } = {}) {
   }
 }
 
-// Argv parsing: first non-flag arg is the label; any number of
-// `--click <text>` pairs add to the pre-snapshot click sequence.
+// Argv parsing: first non-flag positional is the label. Flags run in
+// the order given so multi-step demos compose naturally.
+//   --click <text> — click an element with the given visible text
+//   --type  <text> — type into the new-todo input (placeholder match)
+//   --reload       — reload the page (no value)
 const args = process.argv.slice(2);
 let label;
-const clicks = [];
+const actions = [];
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--click') {
-    clicks.push(args[++i]);
+  const a = args[i];
+  if (a === '--click') {
+    actions.push({ kind: 'click', text: args[++i] });
+  } else if (a === '--type') {
+    actions.push({ kind: 'type', text: args[++i] });
+  } else if (a === '--reload') {
+    actions.push({ kind: 'reload' });
   } else if (!label) {
-    label = args[i];
+    label = a;
   }
 }
-await snapshot({ label, clicks });
+await snapshot({ label, actions });
