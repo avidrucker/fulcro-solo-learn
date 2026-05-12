@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(clj-nrepl-eval *)"
+      "Bash(clj-nrepl-eval *)",
+      "Bash(where shadow-cljs *)",
+      "Bash(where npx *)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npx shadow-cljs *)",
+      "Bash(git check-ignore *)"
     ]
   },
   "hooks": {
@@ -10,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "shell": "powershell",
-            "command": "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()"
+            "command": "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()",
+            "shell": "powershell"
           }
         ]
       }
@@ -21,8 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "shell": "powershell",
-            "command": "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()"
+            "command": "(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()",
+            "shell": "powershell"
           }
         ]
       }
