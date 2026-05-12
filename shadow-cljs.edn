@@ -13,6 +13,6 @@
   {:target     :browser
    :output-dir "resources/public/js/main"
    :asset-path "/js/main"
-   :modules    {:main {:init-fn learn.main/init}}
+   :modules    {:main {:init-fn learn.client/init}}
    :devtools   {:http-root "resources/public"
                 :http-port 8000}}}}
