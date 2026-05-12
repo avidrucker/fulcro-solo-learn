@@ -213,3 +213,48 @@
                              (assoc :todo/was :status/ready))
                            (todo id-4 "D" :status/new)])
       => 3)))
+
+(specification "current-question"
+  (component "returns nil for degenerate inputs"
+    (assertions
+      "cursor = -1 (no review active) — nil"
+      (sut/current-question [(todo id-1 "A" :status/ready)
+                             (todo id-2 "B" :status/new)]
+        -1)
+      => nil
+
+      "cursor at-or-past end of list — nil"
+      (sut/current-question [(todo id-1 "A" :status/ready)
+                             (todo id-2 "B" :status/new)]
+        5)
+      => nil
+
+      "empty list with cursor 0 — nil"
+      (sut/current-question [] 0)
+      => nil
+
+      "list has no :status/ready (no benchmark) — nil"
+      (sut/current-question [(todo id-1 "A" :status/new)] 0)
+      => nil))
+
+  (component "formats the question with cursor item text and benchmark text"
+    (assertions
+      "single :ready + :new — quotes both texts"
+      (sut/current-question [(todo id-1 "Read the Fulcro book" :status/ready)
+                             (todo id-2 "Walk the dog" :status/new)]
+        1)
+      => "In this moment, are you more ready to 'Walk the dog' than 'Read the Fulcro book'?"
+
+      "multiple :ready — benchmark is the LAST :ready"
+      (sut/current-question [(todo id-1 "First ready" :status/ready)
+                             (todo id-2 "Last ready" :status/ready)
+                             (todo id-3 "Cursor target" :status/new)]
+        2)
+      => "In this moment, are you more ready to 'Cursor target' than 'Last ready'?"
+
+      ":done/:cancelled between benchmark and cursor are ignored in question"
+      (sut/current-question [(todo id-1 "Anchor" :status/ready)
+                             (todo id-2 "Skip me" :status/done)
+                             (todo id-3 "Pick me" :status/new)]
+        2)
+      => "In this moment, are you more ready to 'Pick me' than 'Anchor'?")))

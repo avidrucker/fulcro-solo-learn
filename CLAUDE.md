@@ -5,8 +5,9 @@ utoFocus Fulcro project � agent context
 Hands-on TDD port of the AutoFocus productivity model to Fulcro/Pathom.
 Multi-phase learning project; **never skip phases, always TDD red-green-refactor**.
 
-- `docs/phases.md` � phase tracker. Current state: **Phase 5K.3 next**
-  (`current-question`). Read this BEFORE doing anything.
+- `docs/phases.md` � phase tracker. Current state: **Phase 5K.4 next**
+  (review statechart — new `com.fulcrologic/statecharts` dep + chart def).
+  Read this BEFORE doing anything.
 - `docs/js_source_reference.md` � signatures + behavior summaries for every
   function in the original JS source, with divergence notes per phase.
   Consult before introducing any new model-layer function in 5J/5K.

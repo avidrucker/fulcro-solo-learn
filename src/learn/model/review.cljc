@@ -6,6 +6,7 @@
    and actions."
   (:require
     [com.fulcrologic.guardrails.malli.core :refer [>defn =>]]
+    [learn.model.list :as model.list]
     [learn.model.schema]))                            ; loads registry
 
 (>defn prioritizable?
@@ -48,3 +49,18 @@
                         last)]
     (next-cursor items last-ready)
     -1))
+
+(>defn current-question
+  "Returns the review prompt comparing the cursor item to the benchmark
+   (last `:status/ready`). Returns `nil` if the cursor is out of range or
+   the list has no benchmark — the UI/statechart should treat that as
+   'no question to ask'."
+  [items cursor]
+  [:learn.model.schema/items :learn.model.schema/review-cursor => [:maybe :string]]
+  (when (and (nat-int? cursor) (< cursor (count items)))
+    (when-let [benchmark (model.list/benchmark-item items)]
+      (str "In this moment, are you more ready to '"
+        (:todo/text (nth items cursor))
+        "' than '"
+        (:todo/text benchmark)
+        "'?"))))
