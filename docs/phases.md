@@ -390,7 +390,7 @@ A `review chart syncs Yes decisions to the server` specification in `client_test
 
 ---
 
-## 🟡 Phase 6 — shadow-cljs + browser app (no real backend)
+## ✅ Phase 6 — shadow-cljs + browser app (no real backend)
 
 First time the project actually runs in a browser. The "server" is the
 same `learn.server` atom + Pathom 2 parser we already built — just
