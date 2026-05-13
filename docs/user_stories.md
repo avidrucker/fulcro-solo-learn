@@ -69,24 +69,43 @@ Clicking the "Mark Done" button marks the benchmark (last `:ready`)
 `:ready` remains. The button is dimmed when no actionable items exist.
 
 ### S-delete-list — Delete the list
-**Phase:** 3 (state-helper) / 7.3 (UI button + server sync)
+**Phase:** 3 (state-helper) / 7.3 (UI button + server sync) / 7.12 (confirm modal)
 **Status:** ✅
 **Tests:** `client_test:delete-all mutation`, `client_test:Delete List button`
 
 As a user who wants to start over, I want a "Delete List" button that
 empties the entire list. The button is dimmed when the list is already
-empty. **After deletion, the new-todo input refocuses** so the user can
-immediately start typing the replacement list. The refocus piece is
-browser-manual — headless doesn't track focus.
+empty. **After confirming the delete, the new-todo input refocuses** so
+the user can immediately start typing the replacement list. The
+refocus piece is browser-manual — headless doesn't track focus.
 
 In Phase 7.3, the client-side `delete-all` defmutation grew a `(remote
 [env] (remote-list-items env))` so persistence reflects deletes (no
-ghost items after reload).
+ghost items after reload). In Phase 7.12, Delete List now goes through
+the confirm modal (see [S-delete-list-confirm]) instead of acting
+immediately — the underlying `delete-all` mutation is unchanged.
 
-> Future: the JS port shows a confirm modal first
-> (`confirmListDelete`). Our Phase 7.3 implementation skips the
-> confirm modal and acts immediately; the confirm-modal can land in a
-> later phase if we want to match the JS UX exactly.
+### S-delete-list-confirm — Confirmation modal for Delete List
+**Phase:** 7.12
+**Status:** ✅
+**Tests:** `client_test:Delete-confirm modal — opens via Delete List click`, `client_test:Delete-confirm modal — Yes commits, No cancels`
+
+As a user clicking Delete List on a non-empty list, I want a
+confirmation prompt ("Are you sure you want to delete your list? This
+action cannot be undone.") before the list is destroyed, so an
+accidental click doesn't wipe my work.
+
+Behavior:
+- Delete List on a non-empty list opens `:delete-confirm` (the JS
+  port's `confirmListDelete` text + No/Yes buttons).
+- Yes empties the list (client + SERVER-DB), clears any prior error,
+  refocuses the input, and closes the modal.
+- No just closes the modal.
+- Delete List on an empty list bypasses the modal and surfaces the
+  existing `nothing-to-delete-err` (Phase 7.9) — no modal for a
+  no-op.
+- Background click on the transparent overlay cancels (matches the
+  other modals; matches the JS port's "tap outside" behavior).
 
 ---
 
@@ -333,7 +352,7 @@ Adding here so they're discoverable when we pick them up.
   localStorage diverge. Requires URL-shareable lists, which we don't
   have.
 - **PWA debug modal** — requires service worker + manifest work.
-- **Delete-list confirmation modal** — Phase 7.3 acts immediately;
-  confirm modal could come back as a smaller follow-up.
+<!-- Delete-list confirmation modal: landed in Phase 7.12; see S-delete-list-confirm. -->
+
 - **Keyboard shortcuts** beyond Enter (the JS port has a commented-out
   block in the Help modal documenting intent).

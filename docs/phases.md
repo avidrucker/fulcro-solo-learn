@@ -752,6 +752,37 @@ visual-regression gating.
 
 Implements **S-deployed-reference-comparison** (new story).
 
+### ✅ 7.12 — Delete-list confirmation modal
+
+Phase 7.3 had Delete List empty the list immediately, with a footnote
+in `user_stories.md` that the JS port shows a confirm modal first.
+This phase closes that gap.
+
+`:ui/open-modal` grew a fourth value `:delete-confirm`, joining the
+existing mutex (`:about`, `:help`, `:save`). `submit-delete!` now
+splits two ways:
+- Empty list → still surfaces `nothing-to-delete-err` (no modal for a
+  no-op, matching the JS port).
+- Non-empty list → opens `:delete-confirm` via `set-open-modal`. The
+  actual `delete-all` mutation only fires when the user clicks Yes.
+
+New `delete-confirm-modal` helper reuses `modal-shell` (transparent
+background close = cancel, matching the other modals) and the
+`review-btn-class` styling for its No/Yes buttons. Body text is
+`s/confirm-list-delete` (already in strings.cljc since Phase 6.5).
+Yes calls `delete-all`, closes the modal, clears any prior error,
+and refocuses the input; No just closes.
+
+3 new specs / 11 new assertions (opens-modal path, empty-list-bypass,
+Yes commits, No cancels). Two existing specs (`Delete List button`
+and `Error surfacing — Delete List on empty list`, plus
+`Prioritize on non-prioritizable list`) were updated for the new
+two-click flow. **65 specs / 456 assertions, all green. CLJS: 327
+files, 0 warnings.**
+
+Implements **S-delete-list-confirm** (new story); updates
+**S-delete-list** for the two-step flow.
+
 ### ✅ 7.11 — Wire Copy List URL action
 
 The Phase 7.6 Import/Export modal shipped with all four interactive

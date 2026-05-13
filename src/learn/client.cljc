@@ -418,6 +418,31 @@
         s/btn-submit))
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
 
+(defn- delete-confirm-modal
+  "Phase 7.12 — confirm step for Delete List. Body text matches the JS
+   port's `confirmListDelete` string. Yes empties + closes; No just
+   closes; background click also cancels (matches the JS port's
+   transparent-close overlay).
+
+   `on-yes` / `on-no` are 0-arg handlers passed in from the TodoList
+   render so they can close over the `submit-*!` helpers built there."
+  [this theme on-yes on-no]
+  (modal-shell {:on-close    on-no
+                :close-label s/close-delete-modal
+                :theme       theme}
+    (dom/p {:className "ma0 pb3 lh-135 tc"} s/confirm-list-delete)
+    (dom/div {:className "tc"}
+      (dom/button {:type      "button"
+                   :className (review-btn-class theme)
+                   :title     s/tooltip-cancel-delete
+                   :onClick   #(on-no)}
+        s/btn-no)
+      (dom/button {:type      "button"
+                   :className (review-btn-class theme)
+                   :title     s/tooltip-confirm-delete
+                   :onClick   #(on-yes)}
+        s/btn-yes))))
+
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text open-modal theme err-msg]
                        :or        {theme :theme/light}}]
@@ -494,12 +519,22 @@
                                      [(add-todo {:todo/text new-todo-text})])
                                    (clear-err!)
                                    (focus-new-todo-input!))))
+        ;; Phase 7.12: Delete List no longer empties the list directly
+        ;; on a non-empty list — it opens the confirm modal. The empty
+        ;; path still surfaces the existing `nothing-to-delete-err`
+        ;; (matching the JS port: skip the modal when there's nothing
+        ;; to confirm).
         submit-delete!     (fn []
                              (if no-todos?
                                (set-err! s/nothing-to-delete-err)
-                               (do (comp/transact! this [(delete-all)])
-                                   (clear-err!)
-                                   (focus-new-todo-input!))))
+                               (comp/transact! this
+                                 [(set-open-modal {:ui/open-modal :delete-confirm})])))
+        confirm-delete!    (fn []
+                             (comp/transact! this [(delete-all)])
+                             (close-current-modal! this)
+                             (clear-err!)
+                             (focus-new-todo-input!))
+        cancel-delete!     (fn [] (close-current-modal! this))
         submit-mark-done!  (fn []
                              (if (not actionable?)
                                (set-err! s/cannot-take-action-err)
@@ -614,9 +649,11 @@
       ;; Menu modals — driven by `:ui/open-modal`. Mutex by construction
       ;; (single keyword), so at most one is visible at a time.
       (case open-modal
-        :about (about-modal this theme)
-        :help  (help-modal this theme)
-        :save  (save-modal this theme todos)
+        :about          (about-modal this theme)
+        :help           (help-modal this theme)
+        :save           (save-modal this theme todos)
+        :delete-confirm (delete-confirm-modal this theme
+                          confirm-delete! cancel-delete!)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -704,10 +741,11 @@
 ;; Modal state foundation (Phase 7.4)
 ;;
 ;; `[:list/id 1 :ui/open-modal]` carries one of:
-;;   :none   — no modal open (default)
-;;   :about  — About modal
-;;   :help   — Help modal
-;;   :save   — Import/Export modal
+;;   :none           — no modal open (default)
+;;   :about          — About modal
+;;   :help           — Help modal
+;;   :save           — Import/Export modal
+;;   :delete-confirm — Phase 7.12: Are-you-sure prompt for Delete List
 ;;
 ;; `set-open-modal*` is mutex-by-construction (single value), so opening
 ;; any modal closes whatever else was open. `toggle-open-modal*` lets the

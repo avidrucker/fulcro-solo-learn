@@ -91,6 +91,7 @@
 (def close-info-modal     "Close Info Modal")
 (def close-help-modal     "Close Help Modal")
 (def close-debug-modal    "Close Debug Modal")
+(def close-delete-modal   "Close Delete Modal")
 
 ;; ============================================================================
 ;; Named error / info constants — verbatim from App.js constants block.

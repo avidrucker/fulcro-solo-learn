@@ -701,19 +701,127 @@
         "'Delete List' button text is visible"
         (h/text-exists? spa "Delete List") => true)))
 
-  (component "clicking 'Delete List' empties the list on client AND server"
+  ;; Phase 7.12: Delete List on a non-empty list no longer empties
+  ;; immediately — it opens a confirm modal. The "click → Yes" path is
+  ;; what now matches the prior 7.3 behavior.
+  (component "clicking 'Delete List' then 'Yes' empties the list on client AND server"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Yes")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "client :list/todos is empty after the Yes click"
+        (get-in db [:list/id 1 :list/todos]) => []
+        "SERVER-DB :list/todos is empty too (delete-all has a remote in 7.3)"
+        (get-in @server/SERVER-DB [:list/id 1 :list/todos]) => []
+        "delete-confirm modal closed after Yes"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        "list-count footer pluralizes correctly: 'You have 0 items in your list.'"
+        (h/text-exists? spa "You have 0 items in your list.") => true))))
+
+;; ============================================================================
+;; Phase 7.12 — Delete-list confirmation modal.
+;;
+;; Matches the JS port's UX: clicking Delete List on a non-empty list
+;; opens a confirm modal instead of acting immediately. Yes empties +
+;; closes; No just closes. Empty-list clicks still go straight to the
+;; "nothing to delete" error and do NOT open the modal (per the JS
+;; port — the modal would be a confusing no-op).
+;; ============================================================================
+
+(specification "Delete-confirm modal — opens via Delete List click"
+  (component "clicking 'Delete List' on a non-empty list opens :delete-confirm modal"
     (server/seed!)
     (let [spa (sut/init)
           _   (h/click-on-text! spa "Delete List")
           _   (h/render-frame! spa)
           db  (app/current-state spa)]
       (assertions
-        "client :list/todos is empty after click"
+        ":ui/open-modal flipped to :delete-confirm"
+        (get-in db [:list/id 1 :ui/open-modal]) => :delete-confirm
+        "list is NOT yet emptied — Yes is the commit step"
+        (count (get-in db [:list/id 1 :list/todos])) => 2
+        "SERVER-DB is also untouched until Yes"
+        (count (get-in @server/SERVER-DB [:list/id 1 :list/todos])) => 2
+        "modal body text is visible"
+        (h/text-exists? spa
+          "Are you sure you want to delete your list? This action cannot be undone.")
+        => true
+        "Yes and No buttons are visible"
+        (h/text-exists? spa "Yes") => true
+        (h/text-exists? spa "No")  => true)))
+
+  (component "clicking 'Delete List' on an EMPTY list does NOT open the confirm modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; First Delete List click opens the modal; click Yes to actually empty.
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Yes")
+          _   (h/render-frame! spa)
+          ;; Now empty — click Delete List again.
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        ":ui/open-modal stays at :none on empty list"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        ":ui/err-msg surfaces the nothing-to-delete error (existing 7.9 path)"
+        (get-in db [:list/id 1 :ui/err-msg])
+        => "There is nothing to delete."))))
+
+(specification "Delete-confirm modal — Yes commits, No cancels"
+  (component "clicking 'Yes' empties the list and closes the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          ;; Pin the intermediate (post-Delete-List, pre-Yes) state so the
+          ;; assertions can't pass via the old "Delete List empties
+          ;; immediately" path.
+          mid (app/current-state spa)
+          _   (h/click-on-text! spa "Yes")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "intermediate: modal is open after first click, list still populated"
+        (get-in mid [:list/id 1 :ui/open-modal]) => :delete-confirm
+        (count (get-in mid [:list/id 1 :list/todos])) => 2
+        "post-Yes: list emptied on client"
         (get-in db [:list/id 1 :list/todos]) => []
-        "SERVER-DB :list/todos is empty too (delete-all has a remote in 7.3)"
+        "post-Yes: list emptied on server"
         (get-in @server/SERVER-DB [:list/id 1 :list/todos]) => []
-        "list-count footer pluralizes correctly: 'You have 0 items in your list.'"
-        (h/text-exists? spa "You have 0 items in your list.") => true))))
+        "post-Yes: modal closed"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        "post-Yes: prior error message cleared"
+        (get-in db [:list/id 1 :ui/err-msg]) => nil)))
+
+  (component "clicking 'No' leaves the list untouched and closes the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; Capture todos BEFORE Delete List click so the assertion can't
+          ;; coincidentally pass if Delete List were to still empty the
+          ;; list immediately. Client side carries idents
+          ;; (`[[:todo/id uuid] ...]`); SERVER-DB carries bare UUIDs.
+          before-client-todos (get-in (app/current-state spa) [:list/id 1 :list/todos])
+          before-server-todos (get-in @server/SERVER-DB [:list/id 1 :list/todos])
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "No")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "list was populated before any click (sanity: 2 items)"
+        (count before-client-todos) => 2
+        "modal closed by No"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        "client list is unchanged (still has the original 2 items)"
+        (get-in db [:list/id 1 :list/todos]) => before-client-todos
+        "SERVER-DB is unchanged (No had no remote — delete-all was never run)"
+        (get-in @server/SERVER-DB [:list/id 1 :list/todos]) => before-server-todos))))
 
 (specification "Mark Done button"
   (component "renders at default state with an actionable list"
@@ -1022,16 +1130,19 @@
   (component "clicking 'Delete List' on an empty list shows nothing-to-delete-err"
     (server/seed!)
     (let [spa (sut/init)
-          ;; First emptying the list ourselves, then clicking again to
-          ;; hit the "already empty" path.
+          ;; Phase 7.12: emptying the list now takes Delete List → Yes;
+          ;; only after that do subsequent Delete List clicks hit the
+          ;; "already empty" error path.
           _   (h/click-on-text! spa "Delete List")
           _   (h/render-frame! spa)
-          ;; Sanity: list is empty after first click and err is clear.
+          _   (h/click-on-text! spa "Yes")
+          _   (h/render-frame! spa)
+          ;; Sanity: list is empty after Delete List → Yes and err is clear.
           first-err (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
           _   (h/click-on-text! spa "Delete List")
           _   (h/render-frame! spa)]
       (assertions
-        "after the first (valid) delete, err is nil"
+        "after the first (valid) delete via the modal, err is nil"
         first-err => nil
         "second click (list already empty) sets the nothing-to-delete error"
         (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
@@ -1065,7 +1176,10 @@
     (server/seed!)
     (let [spa (sut/init)
           ;; Empty the list so the prioritizable predicate is false.
+          ;; Phase 7.12: delete now goes through the confirm modal.
           _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Yes")
           _   (h/render-frame! spa)
           _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)]
