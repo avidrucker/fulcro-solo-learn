@@ -534,7 +534,7 @@ modal. Those land in 6.6+ as separate phases.
 
 ---
 
-## ✅ Phase 7 — localStorage persistence
+## ✅ Phase 7 — localStorage persistence + UI feature parity
 
 The user's list survives page reloads. `learn.util.storage` watches
 `SERVER-DB` and dumps it to `js/localStorage` on every change; the CLJS
