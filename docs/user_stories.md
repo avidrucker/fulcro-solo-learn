@@ -60,26 +60,32 @@ The "Clone" affordance appears on `:done`/`:cancelled` rows (replacing
 follows the AutoFocus add rule, not the source's.
 
 ### S-complete-benchmark — Mark Done
-**Phase:** 5J.2 (model) / 5J.4 (mutation) / **7.3 (UI button)**
-**Status:** ✅ (model + mutation); 🟢 (UI button — not headless-tested yet, browser-manual)
-**Tests:** `model.list-test:complete-benchmark-item`, `client_test:complete-benchmark-item*`, `client_test:complete-benchmark-item mutation`
+**Phase:** 5J.2 (model) / 5J.4 (mutation) / 7.3 (UI button)
+**Status:** ✅
+**Tests:** `model.list-test:complete-benchmark-item`, `client_test:complete-benchmark-item*`, `client_test:complete-benchmark-item mutation`, `client_test:Mark Done button`
 
 Clicking the "Mark Done" button marks the benchmark (last `:ready`)
 `:status/done`. Auto-mark promotes the next `:new` to `:ready` if no
 `:ready` remains. The button is dimmed when no actionable items exist.
 
 ### S-delete-list — Delete the list
-**Phase:** 3 (state-helper) / **7.3 (UI button)**
-**Status:** 🟢 (no spec-suite coverage yet; browser-manual)
+**Phase:** 3 (state-helper) / 7.3 (UI button + server sync)
+**Status:** ✅
+**Tests:** `client_test:delete-all mutation`, `client_test:Delete List button`
 
 As a user who wants to start over, I want a "Delete List" button that
 empties the entire list. The button is dimmed when the list is already
 empty. **After deletion, the new-todo input refocuses** so the user can
-immediately start typing the replacement list.
+immediately start typing the replacement list. The refocus piece is
+browser-manual — headless doesn't track focus.
+
+In Phase 7.3, the client-side `delete-all` defmutation grew a `(remote
+[env] (remote-list-items env))` so persistence reflects deletes (no
+ghost items after reload).
 
 > Future: the JS port shows a confirm modal first
-> (`confirmListDelete`). Our Phase 7.3 implementation can skip the
-> confirm modal and act immediately, with the confirm-modal landing in a
+> (`confirmListDelete`). Our Phase 7.3 implementation skips the
+> confirm modal and acts immediately; the confirm-modal can land in a
 > later phase if we want to match the JS UX exactly.
 
 ---

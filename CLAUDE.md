@@ -87,6 +87,13 @@ excluded:
           test-syms (ns-syms-in "test")]
       (doseq [ns-sym (concat src-syms test-syms)]
         (require ns-sym :reload))
+      ;; learn.parser captures `learn.resolvers/all-resolvers` into the
+      ;; Pathom parser instance at load time. The alphabetical reload
+      ;; above hits parser BEFORE resolvers, so a freshly-added
+      ;; defresolver/defmutation isn't visible until parser reloads
+      ;; once more with the new resolvers vector in scope.
+      (when (some #{'learn.parser} src-syms)
+        (require 'learn.parser :reload))
       (require 'fulcro-spec.reporters.repl)
       (let [results (mapv #(clojure.test/run-tests %) test-syms)
             totals (apply merge-with +

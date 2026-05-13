@@ -43,7 +43,7 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(declare cancel-todo add-todo clone-todo)
+(declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -75,6 +75,22 @@
    class in `app.css`) hides the button until the row is hovered on
    pointer-capable devices and stays visible on touch."
   "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn moon-gray")
+
+(def ^:private new-todo-input-id
+  "DOM id of the new-todo input — also used by `focus-new-todo-input!`
+   to refocus the input after Add Item / Delete List actions (Phase 7.3,
+   user stories S-input-enter-submit / S-input-refocus-after-delete)."
+  "new-todo")
+
+(defn- focus-new-todo-input!
+  "Refocus the new-todo input. CLJS-only (DOM only exists in the
+   browser); no-op on JVM so the headless spec suite isn't disturbed.
+   Headless mode also doesn't track focus the way a real browser does;
+   the keep-typing UX is verified browser-manually via the Phase 7.3
+   snapshot."
+  []
+  #?(:cljs (some-> (.getElementById js/document new-todo-input-id) .focus)
+     :clj nil))
 
 (defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark?]}]
   {:query [:todo/id :todo/text :todo/status :todo/was]
@@ -205,40 +221,85 @@
                          (review/current-question todos cursor))
         benchmark      (model.list/benchmark-item todos)
         benchmark-id   (some-> benchmark :todo/id)
+        actionable?    (some? benchmark)             ; benchmark exists iff at least one :ready
+        no-todos?      (empty? todos)
         prioritizable? (review/prioritizable? todos)
-        prioritize-cls (if (or active? (not prioritizable?))
-                         btn-primary-dim-class
-                         btn-primary-class)]
+        ;; Disabled / dim conditions per JS port:
+        ;;   Add Item — dim/disabled while reviewing
+        ;;   Delete List — dim/disabled when the list is empty or reviewing
+        ;;   Prioritize — dim/disabled when not prioritizable or reviewing
+        ;;   Mark Done — dim/disabled when no actionable items or reviewing
+        add-disabled?       active?
+        delete-disabled?    (or active? no-todos?)
+        prioritize-disabled? (or active? (not prioritizable?))
+        mark-done-disabled?  (or active? (not actionable?))
+        btn-cls            (fn [disabled?]
+                             (if disabled? btn-primary-dim-class btn-primary-class))
+        ;; One canonical handler for "submit the Add Item action" so both
+        ;; the form's onSubmit (Enter key) and the button's onClick
+        ;; converge on the same code path. Trusts the model to refuse
+        ;; blank text; refocuses regardless so the user can keep typing.
+        submit-add!        (fn []
+                             (comp/transact! this [(add-todo {:todo/text new-todo-text})])
+                             (focus-new-todo-input!))
+        submit-delete!     (fn []
+                             (comp/transact! this [(delete-all)])
+                             (focus-new-todo-input!))
+        submit-mark-done!  (fn []
+                             (comp/transact! this [(complete-benchmark-item)]))]
     (comp/fragment
-      ;; Form: input + Add Item / Prioritize buttons. Wrapped in a real
-      ;; <form> so the implicit "Enter to submit" works once we want it.
+      ;; Form wraps the input so the browser's default form-submit
+      ;; (Enter key) routes through `submit-add!`. The action buttons
+      ;; live in a separate <section> below, so they don't accidentally
+      ;; submit the form on click.
       (dom/form {:className "ph3"
-                 :onSubmit  #(.preventDefault %)}
+                 :onSubmit  (fn [e]
+                              (.preventDefault e)
+                              (submit-add!))}
         (dom/div {:className "measure-narrow ml-auto mr-auto"}
           ;; Hidden label preserves the headless-test affordance
           ;; (`h/type-into-labeled! ... "New TODO"`) while staying out of
           ;; the visible UI. Tachyons class `clip` is the screen-reader-only
           ;; hide pattern.
-          (dom/label {:htmlFor "new-todo" :className "clip"} "New TODO:")
-          (dom/input {:id          "new-todo"
+          (dom/label {:htmlFor new-todo-input-id :className "clip"} "New TODO:")
+          (dom/input {:id          new-todo-input-id
                       :className   input-class
                       :placeholder s/input-placeholder
                       :value       (or new-todo-text "")
                       :onChange    #(m/set-string! this :ui/new-todo-text :event %)})))
       (dom/section {:className "pt2 pb2 flex justify-center flex-wrap measure-wide ml-auto mr-auto"}
+        ;; Group 1: list-mutation actions (Add Item, Delete List).
         (dom/div {:className "dib"}
           (dom/div {:className "ma1 dib"}
-            (dom/button {:className btn-primary-class
+            (dom/button {:type      "button"
+                         :className (btn-cls add-disabled?)
                          :title     s/tooltip-add-item
-                         :disabled  active?
-                         :onClick   #(comp/transact! this [(add-todo {:todo/text new-todo-text})])}
+                         :disabled  add-disabled?
+                         :onClick   #(submit-add!)}
               s/btn-add-item))
           (dom/div {:className "ma1 dib"}
-            (dom/button {:className prioritize-cls
+            (dom/button {:type      "button"
+                         :className (btn-cls delete-disabled?)
+                         :title     s/tooltip-delete-list
+                         :disabled  delete-disabled?
+                         :onClick   #(submit-delete!)}
+              s/btn-delete-list)))
+        ;; Group 2: review-flow actions (Prioritize, Mark Done).
+        (dom/div {:className "dib"}
+          (dom/div {:className "ma1 dib"}
+            (dom/button {:type      "button"
+                         :className (btn-cls prioritize-disabled?)
                          :title     s/tooltip-prioritize
-                         :disabled  (or active? (not prioritizable?))
+                         :disabled  prioritize-disabled?
                          :onClick   #(send-and-pump! this chart/event-start)}
-              s/btn-prioritize))))
+              s/btn-prioritize))
+          (dom/div {:className "ma1 dib"}
+            (dom/button {:type      "button"
+                         :className (btn-cls mark-done-disabled?)
+                         :title     s/tooltip-mark-done
+                         :disabled  mark-done-disabled?
+                         :onClick   #(submit-mark-done!)}
+              s/btn-mark-done))))
       ;; Task list
       (when (seq todos)
         (dom/section {:className "task-list"}
@@ -408,8 +469,10 @@
 (defmutation delete-all [_]
   (action [{:keys [state ref]}]
     (swap! state delete-all* ref))
-  #_(remote [_] true)               ; no server handler
-  )
+  ;; Phase 7.3: enable server sync so localStorage persistence reflects
+  ;; the empty list after the user clicks Delete List. Server has a
+  ;; matching `learn.client/delete-all` Pathom mutation.
+  (remote [env] (remote-list-items env)))
 
 (defmutation set-status [{:todo/keys [id status]}]
   (action [{:keys [state]}]

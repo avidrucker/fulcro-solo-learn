@@ -683,3 +683,59 @@
         "SERVER-DB is unchanged"
         (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status]) => :status/ready
         (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status]) => :status/new))))
+
+;; ============================================================================
+;; Phase 7.3 — Delete List + Mark Done button affordances.
+;;
+;; Verifies the click-through path for the two new primary buttons added in
+;; 7.3. Refocus-after-delete and Enter-to-submit are browser-manual (headless
+;; lacks DOM-focus tracking and key-press simulation in this library) — they
+;; are covered by `docs/snapshots/<phase-7.3>*.png` and the user-story doc.
+;; ============================================================================
+
+(specification "Delete List button"
+  (component "renders at default state with todos present"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (assertions
+        "'Delete List' button text is visible"
+        (h/text-exists? spa "Delete List") => true)))
+
+  (component "clicking 'Delete List' empties the list on client AND server"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "client :list/todos is empty after click"
+        (get-in db [:list/id 1 :list/todos]) => []
+        "SERVER-DB :list/todos is empty too (delete-all has a remote in 7.3)"
+        (get-in @server/SERVER-DB [:list/id 1 :list/todos]) => []
+        "list-count footer pluralizes correctly: 'You have 0 items in your list.'"
+        (h/text-exists? spa "You have 0 items in your list.") => true))))
+
+(specification "Mark Done button"
+  (component "renders at default state with an actionable list"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (assertions
+        "'Mark Done' button text is visible"
+        (h/text-exists? spa "Mark Done") => true)))
+
+  (component "clicking 'Mark Done' completes the benchmark and auto-marks the next :new"
+    ;; Fixture: server-id-1 is :ready (benchmark), server-id-2 is :new.
+    ;; Mark Done flips id-1 to :done; auto-mark promotes id-2 to :ready.
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Mark Done")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "server-id-1 (former benchmark) is now :status/done"
+        (get-in db [:todo/id server-id-1 :todo/status]) => :status/done
+        "server-id-2 was auto-marked from :new to :ready"
+        (get-in db [:todo/id server-id-2 :todo/status]) => :status/ready
+        "SERVER-DB matches (mutation has a remote)"
+        (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status]) => :status/done
+        (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status]) => :status/ready))))

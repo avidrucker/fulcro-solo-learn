@@ -85,6 +85,14 @@
    ::pc/output [:list/id]}
   (record-list-items items))
 
+;; Mirrors the client's `delete-all` so persistence covers list-clear
+;; too. Empty `:list/items` overwrites SERVER-DB to an empty list,
+;; which the client-side watch then re-saves to localStorage.
+(pc/defmutation delete-all-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/delete-all
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
 ;; ----------------------------------------------------------------------
 ;; Registry
 ;; ----------------------------------------------------------------------
@@ -96,7 +104,8 @@
    cancel-todo-mutation
    complete-benchmark-item-mutation
    clone-todo-mutation
-   sync-list-mutation])
+   sync-list-mutation
+   delete-all-mutation])
 
 ;; REPL: to trace EQL traffic, enable parser debug:
 ;;   (require 'learn.parser :reload)
