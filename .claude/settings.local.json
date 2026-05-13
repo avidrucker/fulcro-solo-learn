@@ -8,7 +8,17 @@
       "Bash(npm install *)",
       "Bash(npx shadow-cljs *)",
       "Bash(git check-ignore *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(cp /tmp/inspect.mjs scripts/_inspect.mjs)",
+      "Bash(node scripts/_inspect.mjs)",
+      "Bash(2>&1)",
+      "Bash(node scripts/snapshot.mjs --help)",
+      "Bash(node scripts/snapshot.mjs phase-7.12-delete-confirm-modal --click \"Delete List\")",
+      "Bash(node *)",
+      "Bash(curl -s 'https://avidrucker.github.io/pwa-autofocus-app/static/css/main.065c2c02.css' -o /tmp/og-main.css)",
+      "Bash(curl -s 'https://raw.githubusercontent.com/avidrucker/pwa-autofocus-app/refs/heads/main/src/core/tasksIO.js' -o /tmp/tasksIO.js)"
     ]
   },
   "hooks": {
