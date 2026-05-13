@@ -18,6 +18,7 @@ disjoint avoids the "is this in phases or stories or bugs?" question.
 | [`browser_dev.md`](./browser_dev.md) | **Browser dev workflow** — shadow-cljs, REPL, Inspect | The browser-side dev loop changes |
 | [`clj_project_stats.md`](./clj_project_stats.md) | **Project size** — LOC by namespace | When summarizing project scale; touched occasionally, not authoritative |
 | [`snapshots/`](./snapshots/) | **Visual record** — PNGs of the app at landmark commits | A phase introduces visible UI change; `reference/` mirrors the same in the deployed JS port |
+| [`diagrams/`](./diagrams/) | **High-level visuals** — Mermaid diagrams for AutoFocus + each tech in the stack | A new technology lands, or an existing layer changes shape |
 
 ## Status conventions (used by `user_stories.md` and `bugs.md`)
 
