@@ -49,15 +49,26 @@ Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-d
    `question-circle` were `width: 1.25rem` while `save-disk` and
    `lightbulb-*` used `height: 1.5rem`, making the first two visually
    smaller. First fix normalized to `height: 1.5rem` across all four.
-2. **Header icon sizing — second pass** — after seeing the deployed
-   HTML at `docs/html_snapshots/snapshot_not_prioritizable_error.html`
+2. **Header icon structure** — after seeing the deployed HTML at
+   `docs/html_snapshots/snapshot_not_prioritizable_error.html`
    (gitignored), discovered the JS port carries `pl3`/`pl2` on a
    wrapper `<div>` and `pa1 w2 h2` on the button (no `pl` class on
    the button itself), with `info-circle`/`question-circle` SVGs
-   having **no** explicit width/height. Matched the structure
-   exactly — header now uses a wrapper-div pattern and `info`/`question`
-   SVGs drop their `height` attribute. Icons render uniformly.
-3. **New-todo input width** — Tachyons sets `* { box-sizing: inherit
+   having **no** explicit width/height. Matched the structure exactly.
+3. **`save-disk` viewBox typo (root cause of "save-disk looks small")** —
+   side-by-side diff of the two markup blocks made it obvious: the JS
+   port has `viewBox="0 24 448 472"` (Font Awesome's intended
+   y-offset), our port had `viewBox="0 0 448 472"`. The lost y=24
+   offset meant the top 24/472 ≈ 5% of the rendered area was empty
+   viewBox space, shrinking the visible glyph. Fixed at the source —
+   not a CSS layout problem.
+4. **Missing `type="button"` on header buttons** — also surfaced by
+   the markup diff. The JS port sets it explicitly; ours relied on
+   the default (`type="submit"` inside a form, `"button"` otherwise).
+   Our header icons sit outside the `<form>` so behaviour is fine
+   today, but adding the attribute is defensive against any future
+   refactor that nests them inside one.
+5. **New-todo input width** — Tachyons sets `* { box-sizing: inherit
    }` with `html { box-sizing: border-box }`, but a browser
    user-agent stylesheet was overriding it to `content-box` on
    `<input>`, so the `pa2` padding and `bw1` border were adding ~20px
@@ -67,12 +78,22 @@ Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-d
    `resources/public/css/app.css`. Input is now 320px exactly,
    centered with the buttons row.
 
-### Minor / accepted
+### Known intentional differences
 
-- **`save-disk` glyph density** — its viewBox is `0 24 448 472`, so
-  the glyph itself doesn't fill the full 1.5rem height; visually a
-  hair smaller than the other circle icons. Matches the deployed
-  (both use the same source SVG), so we accept it.
+- **Extra `<span class="clip">` inside each header button** — keeps
+  the label text in the DOM so `h/click-on-text!` finds the button
+  by its accessible name. The JS port doesn't have this; we accept
+  one extra DOM element per icon button in exchange for headless-test
+  ergonomics. Could be removed if we switch the tests to find by
+  `:aria-label` or `:title`.
+
+### Diffing methodology
+
+Side-by-side markup comparison is the highest-signal first pass —
+it surfaces typos (Diff 3 above) and structural mismatches (Diff 2)
+that pixel-level eyeballing tends to miss. For computed-style
+differences (Diff 5, the `box-sizing` issue), use Playwright:
+`page.locator(selector).evaluate(el => window.getComputedStyle(el))`.
 
 ### Eyeball process
 

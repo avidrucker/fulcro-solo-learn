@@ -275,10 +275,15 @@
    `clip` (visually hidden, screen-reader visible, h/click-on-text!
    findable for tests — the JS port has no such span; this is our
    testability tweak). Pass `:first? true` for the leftmost icon to
-   match the JS port's `pl3`/`pl2` spacing."
+   match the JS port's `pl3`/`pl2` spacing.
+
+   `:type \"button\"` is explicit (matches the JS port) so the button
+   stays a no-op activation even if it ever ends up inside a `<form>`
+   — HTML's default for a form-internal `<button>` is `type=\"submit\"`."
   [this {:keys [icon label modal-id first?]}]
   (dom/div {:className (header-icon-wrapper-class {:first? first?})}
-    (dom/button {:className header-icon-btn-class
+    (dom/button {:type      "button"
+                 :className header-icon-btn-class
                  :title     label
                  :onClick   #(comp/transact! this
                                [(toggle-open-modal {:ui/open-modal modal-id})])}
@@ -618,9 +623,12 @@
                                   :modal-id :help})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
         ;; flips to dark), lightbulb-regular when in dark mode. Same
-        ;; wrapper-div pattern as the modal toggles.
+        ;; wrapper-div pattern as the modal toggles; explicit
+        ;; `type="button"` per the JS port (and defensive against any
+        ;; future enclosing <form>).
         (dom/div {:className (header-icon-wrapper-class {})}
-          (dom/button {:className header-icon-btn-class
+          (dom/button {:type      "button"
+                       :className header-icon-btn-class
                        :title     s/tooltip-toggle-theme
                        :onClick   #(comp/transact! this [(toggle-theme)])}
             (if (dark? theme) icons/lightbulb-regular icons/lightbulb-solid)

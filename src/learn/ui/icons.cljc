@@ -86,8 +86,13 @@
                        "35.78-73.18 52.42-92.16C335.55 260.85 352 220.37 352 176 352 78.8 273.2 0 176 0z")})))
 
 ;; `save-disk` — floppy-disk glyph. Header "Import/Export" button.
+;; viewBox is `"0 24 448 472"` (y-offset 24) — the Font Awesome source
+;; positions the glyph starting at y=24 in a 0-512 coord system. Keeping
+;; that offset makes the glyph fill the rendered 1.5rem box; without it
+;; (`"0 0 448 472"`), the top 24/472 ≈ 5% is empty space and the glyph
+;; shrinks visibly relative to the other header icons.
 (def save-disk
-  (dom/svg (merge svg-attrs {:viewBox "0 0 448 472" :height "1.5rem"})
+  (dom/svg (merge svg-attrs {:viewBox "0 24 448 472" :height "1.5rem"})
     (dom/path {:d (str "M433.941 129.941l-83.882-83.882A48 48 0 0 0 316.118 32H48C21.49 32 0 53.49 0 80v352c0 "
                        "26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V163.882a48 48 0 0 0-14.059-33.941zM224 "
                        "416c-35.346 0-64-28.654-64-64 0-35.346 28.654-64 64-64s64 28.654 64 64c0 35.346-28.654 "
