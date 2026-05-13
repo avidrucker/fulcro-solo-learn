@@ -113,13 +113,6 @@ Local (post-fix): `docs/snapshots/47d2cad-phase-7.12-delete-confirm-modal-dark.p
 
 ### Outstanding (deliberately not fixed)
 
-- **Modal inner padding** — og's inner section is bare
-  `measure-narrow ml-auto mr-auto`; our `modal-shell` wraps with
-  `relative z-1 pa3`. The extra `pa3` reduces usable text width and
-  pushes the body `<p>` to wrap to 3 lines instead of og's 2. Could
-  be lifted by making `pa3` opt-in on `modal-shell`, but the same
-  helper is shared by About/Help/Save modals which look fine today —
-  parking until we decide all modals should match exactly.
 - **Body `<p>` styling** — og uses bare `<p class="lh-135">`; we
   add `ma0 pb3 lh-135 tc`. The `tc` is the only behavioural change
   (center vs left-align); the others (`ma0`, `pb3`) just tighten
@@ -128,6 +121,30 @@ Local (post-fix): `docs/snapshots/47d2cad-phase-7.12-delete-confirm-modal-dark.p
   transparent overlay; we added one (clicking outside cancels).
   This is a UX choice we kept; the original markup forces an
   explicit Yes/No.
+
+## Diff log — save modal at 26 items (local 7.12 v2 vs deployed)
+
+References: `phase-7.12-og-save-modal-26items.png` (dark),
+`phase-7.12-og-save-26-light.png` (light).
+Local (post-fix): `docs/snapshots/4c91db8-phase-7.12-save-modal-26dark.png`
++ `4c91db8-phase-7.12-save-modal-26light.png`.
+
+### Confirmed fixed (this pass)
+
+9. **Modal text squeezed to 3 lines** — `modal-shell`'s inner section
+   was `measure-narrow ml-auto mr-auto relative z-1 pa3`; the `pa3`
+   shrank usable text width by 64px (32px each side) and forced the
+   modal body `<p>` to wrap to 3 lines vs og's 2. Dropped `pa3`;
+   kept `relative z-1` for click-stacking with the transparent close
+   button (which the og doesn't have).
+10. **Default white canvas leaked past `<main>`** — when content
+    overflows the viewport (e.g. 26 items), the area past `<main>`'s
+    box was the browser's default white. og hides this via body
+    `bg-black` class — the bg-color propagates to the browser canvas
+    for the entire scroll height. Added `install-body-theme-sync!`
+    (companion to `install-ui-prefs-persistence!`, same state-atom
+    watch shape) — sets `document.body.className` to `bg-black` in
+    dark / "" in light when `:ui/theme` changes.
 
 ### Diffing methodology
 
