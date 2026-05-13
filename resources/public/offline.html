@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoFocus — offline</title>
+  <link rel="stylesheet"
+        href="https://unpkg.com/tachyons@4.12.0/css/tachyons.min.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .offline-card { max-width: 28rem; padding: 1rem; text-align: center; }
+    h1 { font-weight: 800; letter-spacing: .05em; }
+  </style>
+</head>
+<body>
+  <div class="offline-card">
+    <h1>AutoFocus</h1>
+    <p class="lh-copy">You're offline and the app shell isn't cached yet.</p>
+    <p class="lh-copy o-70 f6">
+      Open the app once with a network connection so the service
+      worker can cache the shell; future visits will work offline.
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "AutoFocus (Fulcro port)",
+  "short_name": "AutoFocus",
+  "description": "Stay focused and productive with AutoFocus — the Fulcro port of avidrucker/pwa-autofocus-app.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

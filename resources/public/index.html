@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AutoFocus</title>
 
+  <!-- PWA manifest + theme color + icon (Phase 7.19 / S-pwa-offline).
+       The webmanifest lets the browser offer "install app", and pairs
+       with the service worker (sw.js) for offline support. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <meta name="theme-color" content="#000000" />
+
   <!-- Montserrat from Google Fonts (Phase 6.5.5). The 400/600/800 set
        matches what the JS port uses for body, semi-bold, and the heading
        weight. Preconnects shave first-byte latency since the page also
@@ -31,5 +38,19 @@
 <body>
   <div id="app">Loading…</div>
   <script src="/js/main/main.js"></script>
+  <!-- Service worker registration (Phase 7.19). Path is scope-relative
+       so the same script works on localhost and at any GH Pages
+       subpath. The `?source=pwa` start_url in the manifest is
+       independent of this registration. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('sw.js')
+          .then((reg) => console.log('[SW] registered, scope:', reg.scope))
+          .catch((err) => console.warn('[SW] registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>

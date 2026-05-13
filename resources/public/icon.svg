@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="AutoFocus icon">
+  <rect width="512" height="512" fill="#000"/>
+  <!-- AF monogram, white -->
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="Montserrat, sans-serif" font-weight="800" font-size="200" fill="#fff">AF</text>
+</svg>
