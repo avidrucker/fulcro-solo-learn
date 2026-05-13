@@ -17,7 +17,9 @@ until a test catches up with it.
 | ✅ | Functional **and** tested |
 | 🟢 | Functional, **not** tested in the spec suite (browser-manual or pure-UX) |
 | 🟡 | Stubbed — UI present but the underlying action is a no-op / `console.log` |
-| ⬜ | Not yet implemented |
+| ⬜ | Planned — will build, not started yet |
+| 🆒 | Nice-to-have — would be cool, no urgency (no phase commitment) |
+| ❌ | Won't implement — acknowledged scope cut (rationale recorded) |
 
 Test pointers use `ns:specification` form, e.g. `client_test:add-todo*`.
 "Browser-manual" means the behavior is observed via the dev server +
@@ -373,16 +375,131 @@ divergence is spotted.
 
 ---
 
-## Out of scope (so far)
+## Planned (⬜) — will build, not started
 
-These exist in the JS port but aren't on the current Fulcro roadmap.
-Adding here so they're discoverable when we pick them up.
+Stories that are clearly on the roadmap but haven't been built yet.
+Phase assignment is TBD until we slot them. Open bugs that block or
+relate live in [`bugs.md`](./bugs.md) — currently `B-3` (header
+icons clickable during review / delete-confirm).
 
-- **Conflict-resolution modal** — auto-opens when URL `?list=` and
-  localStorage diverge. Requires URL-shareable lists, which we don't
-  have.
-- **PWA debug modal** — requires service worker + manifest work.
-<!-- Delete-list confirmation modal: landed in Phase 7.12; see S-delete-list-confirm. -->
+### S-url-sync-current-list — URL bar reflects the current list
+**Phase:** TBD
+**Status:** ⬜
+**Tests:** TBD
 
-- **Keyboard shortcuts** beyond Enter (the JS port has a commented-out
-  block in the Help modal documenting intent).
+As a user looking at the address bar, I want it to always carry my
+current list as `?list=<encoded>` so I can copy any URL from the
+browser bar (not just via the modal's Copy List URL button) and
+share or bookmark it. We already have the encoding side
+(`learn.util.url-encoding/items->base64-url-segment` from Phase
+7.11); this story adds the WRITE side: a state-atom watch (same
+shape as `install-ui-prefs-persistence!`) that calls
+`history.replaceState` whenever the denormalized item vector
+changes. Skipped during init / hydration to avoid a redundant write
+of the just-loaded value.
+
+### S-url-load-on-init — Page load reads `?list=<encoded>`
+**Phase:** TBD
+**Status:** ⬜
+**Tests:** TBD
+
+As a user opening a shared link, I want the list encoded in the URL
+to populate the app on load. Companion to `S-url-sync-current-list`
+— this is the READ side. Needs a pure decoder (inverse of
+`items->base64-url-segment`: base64-decode → URL-decode →
+JSON.parse → validate shape), then `init` reads `window.location`
+and merges the decoded list into the Fulcro state-atom before the
+initial `df/load!`. Validation refuses gracefully (corrupt URL =
+fall back to seed / localStorage).
+
+### S-conflict-modal — Conflict-resolution modal (URL ≠ localStorage)
+**Phase:** TBD (depends on S-url-sync-current-list + S-url-load-on-init)
+**Status:** ⬜
+**Tests:** TBD
+
+As a user opening a shared link with localStorage already
+populated, I want a modal that asks me which list to keep — the one
+from the URL or the one from localStorage. Markup follows the JS
+port (`js_ui_reference.md` line 120–125; see also
+`js_ui_reference.md` C/6 for full content): heading + mismatch
+message + two non-interactive list previews (offsets 100/200 per
+the JS port) + Copy Link URL / Copy Local URL buttons + Keep Link /
+Keep Local choice buttons. No transparent close — must choose.
+Opens automatically on init when both lists exist and differ;
+closing dismisses for the rest of the session (does NOT remember
+across reloads — re-trigger on each load).
+
+### S-pwa-offline — Progressive Web App with offline support
+**Phase:** TBD (post-Phase 7 stretch)
+**Status:** ⬜
+**Tests:** TBD
+
+As a user deploying this to GitHub Pages, I want a service worker
++ web app manifest so the app installs as a PWA and runs offline
+(reading the localStorage-backed list and adding/editing items
+while disconnected). Includes:
+- `manifest.webmanifest` with icons, name, start URL, display
+- Service worker that pre-caches the shell on install, then
+  network-falls-back-to-cache for assets
+- shadow-cljs build that emits a stable file naming pattern the
+  service worker can hash
+- A "new version available — reload to update" banner (standard
+  PWA refresh-prompt UX)
+
+### S-keyboard-shortcuts — Keyboard shortcuts beyond Enter
+**Phase:** TBD
+**Status:** ⬜
+**Tests:** TBD
+
+The JS port has a commented-out shortcuts block in the Help modal
+documenting intent (e.g. `d` to delete, `p` to prioritize, etc.).
+Land these once the rest of the parity work is closed.
+
+---
+
+## Nice-to-have (🆒) — would be cool, no urgency
+
+No commitment to build. If it surfaces organically (e.g. a user
+asks for the export) we revisit.
+
+### S-markdown-export — Export the list as a Markdown checklist
+**Phase:** —
+**Status:** 🆒
+**Tests:** TBD when promoted to ⬜
+
+As a user who keeps notes in Markdown, I want to export the current
+list as a `.md` checklist with the AutoFocus statuses preserved as
+distinct prefixes:
+
+| Status | Prefix |
+|---|---|
+| `:status/new` | `- [ ] ` |
+| `:status/ready` | `- [o] ` |
+| `:status/done` | `- [x] ` |
+| `:status/cancelled` | `- [~] ` |
+
+Pure CLJC encoder: `items → markdown-string`. UI plug-in point would
+be a new button in the save modal (next to Export-JSON) and/or a
+clipboard-write action. Pairs naturally with a future
+markdown-import story (parse Markdown checklist → items).
+
+### S-pwa-debug-modal — PWA debug info modal
+**Phase:** —
+**Status:** 🆒
+**Tests:** TBD when promoted to ⬜
+
+The JS port's debug modal (`docs/js_ui_reference.md` C/7) shows the
+service worker state, cache contents, offline status, and a
+general-info JSON dump. Useful once `S-pwa-offline` is live and we
+need to debug install/cache behaviour. Until then there's nothing
+to debug.
+
+---
+
+## Won't implement (❌) — acknowledged scope cuts
+
+Currently empty. The two items previously listed here
+(conflict-resolution modal, PWA debug modal) have been promoted —
+conflict modal to **Planned ⬜** (the Phase 7.11 encoder removed
+its main blocker), debug modal to **Nice-to-have 🆒** (depends on
+S-pwa-offline which is now planned).
