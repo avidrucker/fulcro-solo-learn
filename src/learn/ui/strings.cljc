@@ -122,6 +122,9 @@
 (def cannot-take-action-err
   "There are no actionable tasks in your list.")
 
+(def not-prioritizable-err
+  "The list isn't prioritizable right now.")
+
 (def max-list-length-err
   (str "Maximum list length reached. Please create a new list to continue "
        "adding items."))

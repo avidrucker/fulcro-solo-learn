@@ -264,6 +264,18 @@ Clicking Mark Done when no `:status/ready` items exist sets
 tasks in your list."). On an actionable list, Mark Done clears the
 prior error and completes the benchmark as before.
 
+### S-error-not-prioritizable — Prioritize on non-prioritizable list
+**Phase:** 7.9 (follow-up)
+**Status:** ✅
+**Tests:** `client_test:Error surfacing — Prioritize on non-prioritizable list`
+
+Clicking Prioritize when the list isn't prioritizable (empty, or no
+`:new` items after the last `:ready` per SCHEMA.md §15) sets
+`:ui/err-msg` to `s/not-prioritizable-err` ("The list isn't
+prioritizable right now."). Matches the JS port verbatim — confirmed
+against the deployed HTML reference. On a prioritizable list,
+clicking starts the review chart and clears the prior error.
+
 ---
 
 ## Tooling / dev affordances

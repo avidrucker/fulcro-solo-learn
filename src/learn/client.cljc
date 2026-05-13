@@ -249,32 +249,41 @@
                    :onClick   on-close}
         close-label))))
 
-(defn- header-icon-btn-class
-  "Tachyons class string for header icon buttons. `clip` is applied to
-   the inner `<span>` so the screen-reader-only text label is invisible
-   visually but still in the DOM (a11y + h/click-on-text! findable).
+;; Phase 7.8 (revised) — matching the JS port's structure exactly:
+;;   <div class="pl3 inline-flex items-center">       ; or pl2
+;;     <button class="button-reset pa1 w2 h2 ... gray">
+;;       <svg ...>
+;;       <span class="clip">label</span>               ; our addition for tests
+;;     </button>
+;;   </div>
+;; The pl3/pl2 lives on the WRAPPER div (not the button), and the button
+;; stays a fixed 2rem × 2rem. SVGs without explicit width/height (info,
+;; question) fill the button's content area uniformly.
 
-   Per `docs/js_ui_reference.md` §B, the JS port pads the FIRST header
-   icon with `pl3` and the others with `pl2`. The caller passes `:first?`
-   to opt into the larger left-pad."
+(def ^:private header-icon-btn-class
+  "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray")
+
+(defn- header-icon-wrapper-class
+  "Outer-div padding class — `pl3` for the leftmost icon, `pl2` for
+   the rest (matches the JS port's spacing)."
   [{:keys [first?]}]
-  (str "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray "
-       (if first? "pl3" "pl2")
-       " inline-flex items-center"))
+  (str (if first? "pl3" "pl2") " inline-flex items-center"))
 
 (defn- header-icon-button
   "A header icon button that toggles `modal-id` via
    `toggle-open-modal`. The label text is kept in the DOM via Tachyons'
    `clip` (visually hidden, screen-reader visible, h/click-on-text!
-   findable for tests). Pass `:first? true` for the leftmost icon to
+   findable for tests — the JS port has no such span; this is our
+   testability tweak). Pass `:first? true` for the leftmost icon to
    match the JS port's `pl3`/`pl2` spacing."
   [this {:keys [icon label modal-id first?]}]
-  (dom/button {:className (header-icon-btn-class {:first? first?})
-               :title     label
-               :onClick   #(comp/transact! this
-                             [(toggle-open-modal {:ui/open-modal modal-id})])}
-    icon
-    (dom/span {:className "clip"} label)))
+  (dom/div {:className (header-icon-wrapper-class {:first? first?})}
+    (dom/button {:className header-icon-btn-class
+                 :title     label
+                 :onClick   #(comp/transact! this
+                               [(toggle-open-modal {:ui/open-modal modal-id})])}
+      icon
+      (dom/span {:className "clip"} label))))
 
 (defn- close-current-modal!
   "Dispatch `set-open-modal :none`. Used by `modal-shell`'s :on-close."
@@ -426,14 +435,14 @@
         no-todos?      (empty? todos)
         prioritizable? (review/prioritizable? todos)
         blank-input?   (str/blank? (or new-todo-text ""))
-        ;; Phase 7.9: per JS port, dim the buttons whose actions would
-        ;; refuse, but keep them clickable — the click surfaces an
-        ;; error message via `:ui/err-msg`. Prioritize still hard-
-        ;; disables when not prioritizable since the JS port has no
-        ;; matching error string for that case.
+        ;; Phase 7.9 / 7.8 revised: dim the buttons whose actions
+        ;; would refuse, but keep them clickable — the click surfaces
+        ;; an error message via `:ui/err-msg`. The JS port has a
+        ;; matching error string for every primary action now,
+        ;; including Prioritize (`s/not-prioritizable-err`).
         add-dim?            blank-input?
         delete-dim?         no-todos?
-        prioritize-disabled? (or active? (not prioritizable?))
+        prioritize-dim?     (not prioritizable?)
         mark-done-dim?      (not actionable?)
         btn-cls            (fn [dim-or-disabled?]
                              (if dim-or-disabled?
@@ -463,6 +472,11 @@
                              (if (not actionable?)
                                (set-err! s/cannot-take-action-err)
                                (do (comp/transact! this [(complete-benchmark-item)])
+                                   (clear-err!))))
+        submit-prioritize! (fn []
+                             (if (not prioritizable?)
+                               (set-err! s/not-prioritizable-err)
+                               (do (send-and-pump! this chart/event-start)
                                    (clear-err!))))]
     (comp/fragment
       ;; Form wraps the input so the browser's default form-submit
@@ -510,17 +524,16 @@
                          :disabled  active?
                          :onClick   #(submit-delete!)}
               s/btn-delete-list)))
-        ;; Group 2: review-flow actions (Prioritize, Mark Done).
-        ;; Prioritize stays hard-disabled when not prioritizable (no
-        ;; matching error string in the JS port); Mark Done follows the
-        ;; click-surfaces-error pattern.
+        ;; Group 2: review-flow actions (Prioritize, Mark Done). Both
+        ;; follow the click-surfaces-error pattern now; only the
+        ;; active-review case still hard-disables them.
         (dom/div {:className "dib"}
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
-                         :className (btn-cls prioritize-disabled?)
+                         :className (btn-cls (or active? prioritize-dim?))
                          :title     s/tooltip-prioritize
-                         :disabled  prioritize-disabled?
-                         :onClick   #(send-and-pump! this chart/event-start)}
+                         :disabled  active?
+                         :onClick   #(submit-prioritize!)}
               s/btn-prioritize))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
@@ -604,12 +617,14 @@
                                   :label    s/tooltip-help
                                   :modal-id :help})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
-        ;; flips to dark), lightbulb-regular when in dark mode.
-        (dom/button {:className (header-icon-btn-class {})
-                     :title     s/tooltip-toggle-theme
-                     :onClick   #(comp/transact! this [(toggle-theme)])}
-          (if (dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
-          (dom/span {:className "clip"} s/tooltip-toggle-theme)))
+        ;; flips to dark), lightbulb-regular when in dark mode. Same
+        ;; wrapper-div pattern as the modal toggles.
+        (dom/div {:className (header-icon-wrapper-class {})}
+          (dom/button {:className header-icon-btn-class
+                       :title     s/tooltip-toggle-theme
+                       :onClick   #(comp/transact! this [(toggle-theme)])}
+            (if (dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
+            (dom/span {:className "clip"} s/tooltip-toggle-theme))))
       (dom/section {:className "app-container relative flex flex-column h-100"}
         (when list (ui-todo-list list))))))
 

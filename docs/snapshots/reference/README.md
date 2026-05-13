@@ -45,11 +45,19 @@ Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-d
 
 ### Confirmed fixed (this phase)
 
-1. **Header icon sizing** — `info-circle` and `question-circle` were
-   `width: 1.25rem` while `save-disk` and `lightbulb-*` used
-   `height: 1.5rem`, making the first two visually smaller.
-   Normalized to `height: 1.5rem` across all four header icons.
-2. **New-todo input width** — Tachyons sets `* { box-sizing: inherit
+1. **Header icon sizing — first pass** — `info-circle` and
+   `question-circle` were `width: 1.25rem` while `save-disk` and
+   `lightbulb-*` used `height: 1.5rem`, making the first two visually
+   smaller. First fix normalized to `height: 1.5rem` across all four.
+2. **Header icon sizing — second pass** — after seeing the deployed
+   HTML at `docs/html_snapshots/snapshot_not_prioritizable_error.html`
+   (gitignored), discovered the JS port carries `pl3`/`pl2` on a
+   wrapper `<div>` and `pa1 w2 h2` on the button (no `pl` class on
+   the button itself), with `info-circle`/`question-circle` SVGs
+   having **no** explicit width/height. Matched the structure
+   exactly — header now uses a wrapper-div pattern and `info`/`question`
+   SVGs drop their `height` attribute. Icons render uniformly.
+3. **New-todo input width** — Tachyons sets `* { box-sizing: inherit
    }` with `html { box-sizing: border-box }`, but a browser
    user-agent stylesheet was overriding it to `content-box` on
    `<input>`, so the `pa2` padding and `bw1` border were adding ~20px
@@ -59,14 +67,12 @@ Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-d
    `resources/public/css/app.css`. Input is now 320px exactly,
    centered with the buttons row.
 
-### Minor / unaddressed
+### Minor / accepted
 
-- **`pl3` on first header icon** vs `pl2` on the rest — already
-  applied earlier in 7.8 via the `:first?` flag.
 - **`save-disk` glyph density** — its viewBox is `0 24 448 472`, so
-  the glyph itself doesn't fill the full 1.5rem height; visually
-  smaller than the other circle icons. Matches the deployed (both
-  use the same source SVG), so we accept it.
+  the glyph itself doesn't fill the full 1.5rem height; visually a
+  hair smaller than the other circle icons. Matches the deployed
+  (both use the same source SVG), so we accept it.
 
 ### Eyeball process
 

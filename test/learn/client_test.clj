@@ -1059,3 +1059,22 @@
         => "There are no actionable tasks in your list."
         "error text visible in the DOM"
         (h/text-exists? spa "There are no actionable tasks in your list.") => true))))
+
+(specification "Error surfacing — Prioritize on non-prioritizable list"
+  (component "clicking 'Prioritize' with an empty list shows not-prioritizable-err"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; Empty the list so the prioritizable predicate is false.
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Prioritize")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/err-msg = not-prioritizable-err"
+        (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
+        => "The list isn't prioritizable right now."
+        "error text visible in the DOM"
+        (h/text-exists? spa "The list isn't prioritizable right now.") => true
+        "review chart did not transition to :active"
+        (contains? (scf/current-configuration spa sut/review-session-id) chart/active)
+        => false))))
