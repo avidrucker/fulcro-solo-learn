@@ -234,9 +234,11 @@ Behavior (mirrors `pwa-autofocus-app/src/core/tasksIO.js`
 - Submit on blank-or-whitespace-only textarea surfaces
   `:ui/err-msg = empty-textarea-err` and leaves the modal open so
   the user can correct.
-- Successful Submit: clears the textarea, closes the modal, clears
-  any prior error, and refocuses the top-level new-todo input so
-  typing flows naturally.
+- Successful Submit: clears the textarea and any prior error,
+  imports the items, and leaves the modal open so the user can
+  verify the import or paste a second batch. (Per B-2 fix —
+  whether to auto-close is tracked in
+  [`ideas.md#modal-auto-close`](./ideas.md).)
 - Persistence: the mutation has a remote so SERVER-DB stays in sync
   (same wire pattern as `add-todo`, `delete-all`, etc.).
 

@@ -594,10 +594,13 @@
                                    (clear-err!))))
         ;; Phase 7.12 batch import. The textarea content `textarea-import-text`
         ;; is the controlled value. On Submit:
-        ;;   - blank → surface `empty-textarea-err` (modal stays open).
+        ;;   - blank → surface `empty-textarea-err`.
         ;;   - non-blank → run the import-from-text mutation, clear the
-        ;;     textarea, close the modal, clear the prior error,
-        ;;     refocus the new-todo input so typing flows naturally.
+        ;;     textarea, clear the prior error. The modal stays open
+        ;;     (B-2 fix) so the user can verify the import or paste a
+        ;;     second batch without re-opening the modal. Auto-close
+        ;;     and a settings-modal preference are tracked as future
+        ;;     ideas in `docs/ideas.md`.
         textarea-blank?    (str/blank? (or textarea-import-text ""))
         submit-import!     (fn []
                              (if textarea-blank?
@@ -607,9 +610,7 @@
                                         {:ui/textarea-import-text textarea-import-text})])
                                    (m/set-string! this :ui/textarea-import-text
                                      :value "")
-                                   (close-current-modal! this)
-                                   (clear-err!)
-                                   (focus-new-todo-input!))))]
+                                   (clear-err!))))]
     (comp/fragment
       ;; Form wraps the input so the browser's default form-submit
       ;; (Enter key) routes through `submit-add!`. The action buttons

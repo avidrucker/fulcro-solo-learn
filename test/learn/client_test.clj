@@ -551,8 +551,11 @@
         => ["foo" "bar" "baz"]
         ":ui/textarea-import-text cleared after successful Submit"
         (get-in db [:list/id 1 :ui/textarea-import-text]) => ""
-        "modal closed after successful Submit"
-        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        ;; B-2 fix: modal stays open after a successful import so the
+        ;; user can verify the new items or paste a second batch. Auto-
+        ;; close is tracked as a future idea in `docs/ideas.md`.
+        "modal STAYS OPEN after successful Submit"
+        (get-in db [:list/id 1 :ui/open-modal]) => :save
         ":ui/err-msg cleared after successful Submit"
         (get-in db [:list/id 1 :ui/err-msg]) => nil)))
 

@@ -100,3 +100,81 @@ End-to-end verification is browser-manual via the snapshot pair —
 the same `--reload` flag we used for the SERVER-DB persistence demo
 works here: toggle theme → reload → snapshot shows the toggled
 theme.
+
+---
+
+## B-2 — Batch-import Submit closes the save modal
+
+**Status:** ✅ Fixed in Phase 7.12 followup
+**Reported:** 2026-05-13 by user
+**Related story:** [`S-import-batch-text`](./user_stories.md)
+
+### Symptom
+
+Open the Import/Export modal, paste a list into the textarea, click
+Submit. The import works (items get added) but the modal also closes.
+The user expected the modal to stay open so they could verify the
+import landed, paste a follow-up batch, or continue using other
+modal actions.
+
+### Root cause
+
+`submit-import!` (in `learn.client/TodoList`'s let-binding) had a
+`(close-current-modal! this)` call in its success path — leftover
+from the initial impl where I assumed Add-Item parity ("act + close
++ refocus"). Add Item doesn't have its own modal, so that pattern
+doesn't apply here.
+
+### Resolution
+
+Removed the `close-current-modal!` call from `submit-import!`. The
+mutation still runs, textarea still clears, prior errors still
+clear; only the modal-close step was dropped. Test
+`Save modal — batch import textarea flow` updated to assert
+`:ui/open-modal => :save` after Submit.
+
+Whether auto-close is ever the right default — and whether to expose
+it as a settings preference — is tracked in
+`docs/ideas.md#modal-auto-close`.
+
+---
+
+## B-3 — Header menu icons clickable during review / delete-confirm modals
+
+**Status:** 🐛 Open
+**Reported:** 2026-05-13 by user
+
+### Symptom
+
+While the prioritization review modal is open (`active?`) or the
+delete-confirm modal is open (`:ui/open-modal = :delete-confirm`),
+the user can still click the header icon buttons (Import/Export,
+About, Help) and open a second modal on top of (or in place of) the
+current one. The og JS port disables those icons during these
+states — only the theme-toggle (lightbulb) stays clickable.
+
+### Reference (JS port)
+
+From `docs/js_ui_reference.md` line 149:
+
+> All header buttons except Toggle Theme are
+> `disabled={isPrioritizing || showingDeleteModal || showingConflictModal}`.
+> Toggle Theme is always enabled.
+
+We don't have a conflict modal yet, so the predicate simplifies to
+`active? || (open-modal = :delete-confirm)`.
+
+### Fix sketch
+
+`header-icon-button` accepts an additional `:disabled?` arg (or the
+existing wrapper handles the logic). Three callsites in `Root`'s
+render pass it; the lightbulb toggle button does NOT. Predicate is
+the same one TodoList already computes — `active?` and
+`open-modal`. Easiest: thread both into Root via the TodoList query
+(or read `:ui/open-modal` directly in Root, which already reads
+`:ui/theme` from the same path).
+
+Tests: extend the existing About/Help/Save modal specs with a
+"during review session" / "during delete-confirm" case where the
+header click should be a no-op. Theme-toggle spec gets the opposite
+case — always works.
