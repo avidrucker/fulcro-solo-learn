@@ -752,6 +752,138 @@ visual-regression gating.
 
 Implements **S-deployed-reference-comparison** (new story).
 
+### ✅ 7.19 — PWA service worker + manifest (S-pwa-offline)
+
+App is now installable as a PWA and runs offline once the shell has
+been cached. Adapted from the og JS port's `serviceWorker.js`
+(avidrucker/pwa-autofocus-app/public/serviceWorker.js), simplified
+for our single-bundle shadow-cljs output.
+
+Files added under `resources/public/`:
+- **`sw.js`** — service worker. Version-bumped cache key
+  (`autofocus-cache-v7.19`) cleared on activate. Pre-caches the
+  shell on install (index.html, offline.html, manifest, CSS, JS,
+  icon, Tachyons CDN, Google Fonts CDN). Network-first for
+  navigations (fall back to cached index → offline.html);
+  cache-first for static assets.
+- **`manifest.webmanifest`** — basic PWA manifest with `standalone`
+  display, scope-relative `start_url ./?source=pwa`, SVG icon.
+- **`offline.html`** — minimal fallback page.
+- **`icon.svg`** — AF-monogram placeholder.
+- `scripts/verify-sw.mjs` — Playwright probe that dumps SW
+  registration state + cache contents for browser-manual review.
+
+Index.html got manifest link, theme-color meta, and an inline SW-
+registration block. Browser-manual verification only — no JVM
+tests.
+
+Implements **S-pwa-offline** (Planned ⬜ → ✅).
+
+### ✅ 7.18 — Conflict-resolution modal (S-conflict-modal)
+
+When the page loads with `?list=<encoded>` AND localStorage has
+saved state AND the two differ, a modal opens auto-magically with
+both lists side-by-side and four buttons (Copy Link URL, Copy Local
+URL, Keep Link, Keep Local). User must explicitly choose — no
+background-click cancel (matches the JS port's "must choose"
+contract).
+
+Pure decision in `learn.util.url-encoding/decide-initial-list`
+returns one of `{:source #{:seed :url :local :conflict} …}`. The
+conflict branch defers SERVER-DB updates and writes a transient
+stash + opens the modal post-mount.
+
+`storage/install-persistence!` grew a `{:hydrated? bool}` return so
+init can distinguish "localStorage was present" from "fell back to
+seed". `:conflict` was already in the menu-disabled predicate from
+Phase 7.14 (B-3 fix).
+
+UI: `conflict-list-preview` helper renders read-only items with
+status icons; cancelled rows fall back to `:todo/was`'s icon
+matching the JS port's `statusToSymbol` recursion. Two mutations:
+`keep-link-list` (syncs URL items → SERVER-DB via remote) and
+`keep-local-list` (close modal + force URL bar refresh since the
+items vector didn't change so `install-url-sync!` wouldn't fire).
+
+4 new specs / 11 new assertions for the state-helpers + 1 spec /
+7 assertions for `decide-initial-list`. Master runner: 87 / 596,
+all green.
+
+Implements **S-conflict-modal** (Planned ⬜ → ✅).
+
+### ✅ 7.17 — Read `?list=` on page load (S-url-load-on-init)
+
+Companion to 7.16's url-sync. When the page opens with
+`?list=<encoded>`, decode it into items and overwrite SERVER-DB's
+list. The seed and any localStorage-hydrated state get overridden
+when the URL alone wins. (Move 2e refined this for the conflict
+case.)
+
+`parse-list-param` (pure CLJC) extracts `?list=<value>` from a
+query string. `items-from-query-string` chains it with
+`url-segment->items` and returns nil if no list param OR decode
+fails. `items-from-current-url` (CLJS-only) reads
+`window.location.search`. 2 new specs / 15 new assertions.
+
+Implements **S-url-load-on-init** (Planned ⬜ → ✅).
+
+### ✅ 7.16 — URL sync watch (S-url-sync-current-list)
+
+Address bar now reflects the current list — the user can copy any
+URL straight from the browser (without going through the Copy List
+URL modal). Pattern mirrors `install-ui-prefs-persistence!`:
+state-atom watch that change-detects on the denormalized items
+vector at `[:list/id 1]` and calls a `url-setter` fn when items
+differ.
+
+1-arity production defaults to `replace-url-with-items!` (CLJS-
+only — builds URL from `window.location` + encoded segment, calls
+`history.replaceState`). 2-arity (tests) injects a recording
+setter. 3 new specs / 7 new assertions. Wired in `init` after the
+other install-* helpers.
+
+Implements **S-url-sync-current-list** (Planned ⬜ → ✅).
+
+### ✅ 7.15 — URL encoder OG-compat shape + decoder
+
+Phase 7.11's encoder dumped our Fulcro shape verbatim — URLs we
+produced wouldn't decode in the JS port. This phase makes the
+output cross-compatible:
+
+- `status->og-string` / `og-string->status` — status keyword ↔
+  lowercase string.
+- `items->og-shape` / `og-shape->items` — vector translation.
+  Integer ids derived from list position; UUIDs assigned fresh on
+  decode. `:was` preserved for cancelled items.
+- `items->json` now translates to OG shape first. Single-:ready-
+  item fixture pinned to the og's deployed URL fragment
+  `JTVCJTdCJTIyaWQlMjI…JTdEJTVE`.
+
+Decoder added: `base64-decode`, `js-url-decode`, `parse-json-array`
+(JVM hand-rolled JSON, CLJS `js/JSON.parse`), `url-segment->items`
+(full round-trip). Corrupt input returns nil at every layer —
+caller treats as "fall back to seed".
+
+14 specs / 69 assertions (was 5/20). All TDD-built.
+
+### ✅ 7.14 — B-3 fix: header menu icons disable during review / delete-confirm
+
+Per the JS port (`docs/js_ui_reference.md` line 149), Save / About /
+Help disable when `isPrioritizing || showingDeleteModal ||
+showingConflictModal`; Toggle Theme always enabled.
+
+`header-icon-button` grew `:disabled?`. Root computes the predicate
+`(or review-active? (contains? #{:delete-confirm :conflict} open-modal))`.
+`:conflict` included pre-emptively for Phase 7.18.
+
+Belt-and-suspenders: both the HTML `:disabled` attribute AND a nil
+`onClick` are set when disabled. The attribute covers real browsers
+(default click semantics); the nil handler covers the headless test
+framework whose `click!` invokes onClick without checking
+`:disabled`.
+
+6 new specs / 11 new assertions. Closes **B-3**.
+
 ### ✅ 7.13 — Visual parity sweep + B-2 fix
 
 Three visible diffs vs the deployed JS port were identified through

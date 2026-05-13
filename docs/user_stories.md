@@ -383,68 +383,80 @@ relate live in [`bugs.md`](./bugs.md) — currently `B-3` (header
 icons clickable during review / delete-confirm).
 
 ### S-url-sync-current-list — URL bar reflects the current list
-**Phase:** TBD
-**Status:** ⬜
-**Tests:** TBD
+**Phase:** 7.16
+**Status:** ✅ (watch logic); 🟢 (end-to-end is browser-manual — `history.replaceState` isn't reachable from JVM)
+**Tests:** `util.url-encoding-test:install-url-sync!`, `util.url-encoding-test:extract-items`
 
-As a user looking at the address bar, I want it to always carry my
+As a user looking at the address bar, the URL always carries my
 current list as `?list=<encoded>` so I can copy any URL from the
 browser bar (not just via the modal's Copy List URL button) and
-share or bookmark it. We already have the encoding side
-(`learn.util.url-encoding/items->base64-url-segment` from Phase
-7.11); this story adds the WRITE side: a state-atom watch (same
-shape as `install-ui-prefs-persistence!`) that calls
-`history.replaceState` whenever the denormalized item vector
-changes. Skipped during init / hydration to avoid a redundant write
-of the just-loaded value.
+share or bookmark it.
+
+Implemented via `learn.util.url-encoding/install-url-sync!` —
+state-atom watch (same shape as `install-ui-prefs-persistence!`)
+that calls `history.replaceState` whenever the denormalized items
+vector at `[:list/id 1]` changes. Skipped during identical-state
+swaps so unrelated state edits (theme, modal open, err-msg) don't
+trigger redundant writes.
 
 ### S-url-load-on-init — Page load reads `?list=<encoded>`
-**Phase:** TBD
-**Status:** ⬜
-**Tests:** TBD
+**Phase:** 7.17
+**Status:** ✅
+**Tests:** `util.url-encoding-test:url-segment->items`, `util.url-encoding-test:items-from-query-string`, `util.url-encoding-test:parse-list-param`, `util.url-encoding-test:og-shape->items`
 
-As a user opening a shared link, I want the list encoded in the URL
-to populate the app on load. Companion to `S-url-sync-current-list`
-— this is the READ side. Needs a pure decoder (inverse of
-`items->base64-url-segment`: base64-decode → URL-decode →
-JSON.parse → validate shape), then `init` reads `window.location`
-and merges the decoded list into the Fulcro state-atom before the
-initial `df/load!`. Validation refuses gracefully (corrupt URL =
-fall back to seed / localStorage).
+As a user opening a shared link, the list encoded in the URL
+populates the app on load. Companion (read-side) to
+`S-url-sync-current-list`.
+
+Full decode chain: `base64-decode → js-url-decode → parse-json-array
+→ og-shape->items` with corrupt-input → nil at every layer. `init`
+calls `items-from-current-url`; if it returns items, they overwrite
+SERVER-DB (deferred to `S-conflict-modal` if localStorage also has
+state and the two differ).
 
 ### S-conflict-modal — Conflict-resolution modal (URL ≠ localStorage)
-**Phase:** TBD (depends on S-url-sync-current-list + S-url-load-on-init)
-**Status:** ⬜
-**Tests:** TBD
+**Phase:** 7.18
+**Status:** ✅
+**Tests:** `url-encoding-test:decide-initial-list`, `client_test:keep-link-list*`, `client_test:keep-local-list*`
 
-As a user opening a shared link with localStorage already
-populated, I want a modal that asks me which list to keep — the one
+As a user opening a shared link with localStorage already populated
+with a different list, a modal asks me which list to keep — the one
 from the URL or the one from localStorage. Markup follows the JS
-port (`js_ui_reference.md` line 120–125; see also
-`js_ui_reference.md` C/6 for full content): heading + mismatch
-message + two non-interactive list previews (offsets 100/200 per
-the JS port) + Copy Link URL / Copy Local URL buttons + Keep Link /
-Keep Local choice buttons. No transparent close — must choose.
-Opens automatically on init when both lists exist and differ;
-closing dismisses for the rest of the session (does NOT remember
-across reloads — re-trigger on each load).
+port (`js_ui_reference.md` C/6): heading + mismatch message + two
+read-only list previews + Copy Link URL / Copy Local URL buttons +
+Keep Link / Keep Local choice buttons. No transparent close —
+explicit choice required.
+
+Pure decision in `decide-initial-list` classifies the state as
+`:seed / :url / :local / :conflict`. Init wires it: `:url`
+overrides SERVER-DB; `:conflict` defers SERVER-DB updates and
+post-mount opens the modal with both lists stashed at
+`:ui/conflict-url-items` (URL items) and the live list (local).
+`keep-link-list` mutation replaces normalized state with URL items
+and syncs to SERVER-DB; `keep-local-list` is just close-modal +
+force URL bar refresh.
 
 ### S-pwa-offline — Progressive Web App with offline support
-**Phase:** TBD (post-Phase 7 stretch)
-**Status:** ⬜
-**Tests:** TBD
+**Phase:** 7.19
+**Status:** ✅ (manifest + SW shipped); 🟢 (offline-mode behaviour is browser-manual)
+**Tests:** `scripts/verify-sw.mjs` (Playwright probe; not in spec suite)
 
-As a user deploying this to GitHub Pages, I want a service worker
-+ web app manifest so the app installs as a PWA and runs offline
-(reading the localStorage-backed list and adding/editing items
-while disconnected). Includes:
-- `manifest.webmanifest` with icons, name, start URL, display
-- Service worker that pre-caches the shell on install, then
-  network-falls-back-to-cache for assets
-- shadow-cljs build that emits a stable file naming pattern the
-  service worker can hash
-- A "new version available — reload to update" banner (standard
-  PWA refresh-prompt UX)
+As a user deploying this to GitHub Pages, the app installs as a
+PWA and runs offline once the shell has been cached.
+
+Implementation under `resources/public/`:
+- `sw.js` — service worker. Pre-caches the shell on install
+  (HTML, CSS, JS, manifest, icon, Tachyons CDN, Google Fonts CDN).
+  Network-first for navigations (fall back to cached index, then
+  offline.html); cache-first for static assets.
+- `manifest.webmanifest` — basic manifest, scope-relative
+  start_url, SVG icon.
+- `offline.html` — fallback page.
+- `icon.svg` — placeholder AF monogram.
+
+Adapted from the og JS port's `serviceWorker.js` (simpler — single
+JS bundle, no `static/` split). New-version-available reload banner
+is deferred to a follow-up if/when needed.
 
 ### S-keyboard-shortcuts — Keyboard shortcuts beyond Enter
 **Phase:** TBD
