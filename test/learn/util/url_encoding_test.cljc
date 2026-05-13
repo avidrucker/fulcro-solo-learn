@@ -320,3 +320,55 @@
         (count @calls) => 3
         "last call's items vector is empty"
         (last @calls) => []))))
+
+;; ============================================================================
+;; URL load on init — Move 2d (S-url-load-on-init).
+;;
+;; Pure helper: parse `?list=<segment>` out of a query string, decode
+;; through the chain, return our items vector. Wrapped in CLJS-only
+;; `items-from-current-url` that reads `window.location.search`.
+;; ============================================================================
+
+(specification "parse-list-param"
+  (assertions
+    "happy path — leading ?, single param"
+    (sut/parse-list-param "?list=JTVCJTVE") => "JTVCJTVE"
+    "tolerates `=` padding in the base64 segment"
+    (sut/parse-list-param "?list=Zg==") => "Zg=="
+    "no leading `?` (some callers pre-strip it)"
+    (sut/parse-list-param "list=JTVCJTVE") => "JTVCJTVE"
+    "absent ?list — returns nil"
+    (sut/parse-list-param "?theme=dark") => nil
+    "empty string — returns nil"
+    (sut/parse-list-param "") => nil
+    "nil — returns nil"
+    (sut/parse-list-param nil) => nil
+    "?list with multiple params (anywhere in the string)"
+    (sut/parse-list-param "?theme=dark&list=JTVCJTVE&zoom=2") => "JTVCJTVE"
+    "list= with empty value — returns empty string (caller filters)"
+    (sut/parse-list-param "?list=") => ""))
+
+(specification "items-from-query-string"
+  (component "happy path round-trip"
+    (assertions
+      "empty-list fixture"
+      (sut/items-from-query-string "?list=JTVCJTVE") => []
+      "single-:ready-item fixture from og deployed URL"
+      (count (sut/items-from-query-string
+               "?list=JTVCJTdCJTIyaWQlMjIlM0EwJTJDJTIydGV4dCUyMiUzQSUyMmElMjIlMkMlMjJzdGF0dXMlMjIlM0ElMjJyZWFkeSUyMiU3RCU1RA=="))
+      => 1))
+
+  (component "no list param — returns nil (NOT empty vector)"
+    ;; nil tells the caller 'no URL list at all', distinct from
+    ;; '[] = URL says empty list'. Move 2e (conflict modal) cares.
+    (assertions
+      (sut/items-from-query-string "")          => nil
+      (sut/items-from-query-string "?theme=dark") => nil
+      (sut/items-from-query-string nil)         => nil))
+
+  (component "corrupt list param — returns nil"
+    (assertions
+      "garbage base64"
+      (sut/items-from-query-string "?list=!!!notbase64!!!") => nil
+      "valid base64 but not JSON array"
+      (sut/items-from-query-string (str "?list=" (sut/base64-encode "not json"))) => nil)))

@@ -1162,6 +1162,12 @@
        ;; Hydrate from localStorage and attach the persistence watch
        ;; BEFORE the initial load so any saved state is what we render.
        (storage/install-persistence! server/SERVER-DB)
+       ;; Phase 7.17: if the page was opened with `?list=<encoded>`,
+       ;; decode it and overwrite SERVER-DB's list. URL wins over
+       ;; localStorage for now; Move 2e will refine this into the
+       ;; conflict-modal flow when both exist and differ.
+       (when-let [url-items (url-encoding/items-from-current-url)]
+         (swap! server/SERVER-DB server/write-items server/list-id url-items))
        (start-chart! spa)
        (app/mount! spa Root "app")
        ;; Mount populates the app state-atom; only now can we hydrate

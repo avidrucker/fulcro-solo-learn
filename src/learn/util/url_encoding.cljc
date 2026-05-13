@@ -330,6 +330,40 @@
            url (list-share-url (.-origin loc) (.-pathname loc) seg)]
        (.replaceState js/history nil "" url))))
 
+(defn parse-list-param
+  "Pure: extract the value of `?list=<value>` from a URL query string.
+   Returns the raw segment (still base64-encoded) or nil if absent.
+
+   Accepts strings with or without a leading `?`. Multi-param query
+   strings work — searches for `list=` anywhere in the string, bounded
+   by `?`, `&`, or start-of-string."
+  [query-string]
+  (when (string? query-string)
+    (let [;; Strip leading `?` if present.
+          s (if (.startsWith ^String query-string "?")
+              (subs query-string 1)
+              query-string)]
+      (some (fn [pair]
+              (let [[k v] (str/split pair #"=" 2)]
+                (when (= "list" k) (or v ""))))
+        (str/split s #"&")))))
+
+(defn items-from-query-string
+  "Pure: combine `parse-list-param` with `url-segment->items`. Returns
+   nil if there's no `?list=` param OR if it fails to decode."
+  [query-string]
+  (when-let [seg (parse-list-param query-string)]
+    (when-not (str/blank? seg)
+      (url-segment->items seg))))
+
+#?(:cljs
+   (defn items-from-current-url
+     "Read `window.location.search` and decode `?list=` into items.
+      Returns nil if no list param or if decode fails — caller falls
+      back to seed / localStorage."
+     []
+     (items-from-query-string (.-search js/window.location))))
+
 (defn install-url-sync!
   "Watch `fulcro-state-atom`. When the denormalized items at
    `[:list/id 1]` change, call `url-setter` with the new items
