@@ -78,6 +78,13 @@
   "Foreground text color class for the page root."
   [theme] (if (dark? theme) "white" "black"))
 
+(defn- theme-page-bg-class
+  "Page background class for `<main>` — `bg-near-black` in dark mode so
+   the white-text content is readable. Light mode is the document's
+   default (no class needed). The JS port's CSS handles this at the
+   body level; we apply it on <main> here since that's our root."
+  [theme] (if (dark? theme) "bg-near-black" ""))
+
 (defn- theme-modal-bg-class
   "Modal overlay tint."
   [theme] (if (dark? theme) "bg-black-90" "bg-white-90"))
@@ -541,8 +548,10 @@
   ;; Root reads it from `(:ui/theme list)` and applies the text-color
   ;; class. Other theme tokens cascade through TodoList's children.
   (let [theme (or (:ui/theme list) :theme/light)]
-    (dom/main {:className (str "app h-100 flex flex-column f5 montserrat "
-                               (theme-text-class theme))}
+    (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
+                               (theme-text-class theme)
+                               " "
+                               (theme-page-bg-class theme))}
       (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
         (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
           s/app-name)

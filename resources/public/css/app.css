@@ -8,6 +8,16 @@
  * any same-specificity collisions resolve in favor of these rules.
  */
 
+/* Full-viewport height so <main class="h-100"> actually fills the
+ * window — important for the Phase 7.7 dark-theme background, which
+ * is applied to <main> and would otherwise only cover the content
+ * area. The JS port relies on the same chain (html/body 100% +
+ * h-100 on main). */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
 /* Montserrat hook — the Google Fonts `<link>` in index.html loads the
  * weights; this class opts an element into the family. Applied at the
  * <main> level so it cascades down. */
