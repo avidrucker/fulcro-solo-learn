@@ -46,7 +46,8 @@
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
 (declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item
-         import-from-text set-open-modal toggle-open-modal toggle-theme
+         import-from-text keep-link-list keep-local-list
+         set-open-modal toggle-open-modal toggle-theme
          set-err-msg)
 
 ;; ============================================================================
@@ -472,6 +473,75 @@
         s/btn-submit))
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
 
+(defn- conflict-list-preview
+  "Render a read-only list of items for the conflict modal. Mirrors the
+   JS port's preview (`docs/js_ui_reference.md` line 122–124): each row
+   has the status icon + the item text, no per-row actions, no theming
+   on the items themselves — they inherit the surrounding modal's
+   text colour. Cancelled rows fall back to `:todo/was` for the icon
+   (the JS port's `statusToSymbol(task.was)` recursion)."
+  [items]
+  (dom/ul {:className "ph0 todo-list list ma0 tl measure-narrow ml-auto mr-auto"}
+    (for [item items]
+      (let [status (:todo/status item)
+            ;; Cancelled rows show the prior status's icon, not nothing.
+            icon-status (if (= status :status/cancelled)
+                          (:todo/was item)
+                          status)]
+        (dom/li {:key (str (:todo/id item))
+                 :className "flex lh-135 align-start mb1-butlast"}
+          (dom/span {:title     (name (or icon-status :status/new))
+                     :className "mr1 dib h-15"}
+            (icons/status-icon icon-status))
+          (dom/span {:className "break-word"}
+            (:todo/text item)))))))
+
+(defn- conflict-modal
+  "Phase 7.18 — conflict resolution modal. Opens automatically from
+   `init` when the URL list and the localStorage list both exist and
+   differ. Shows both lists side-by-side (in vertical stacking
+   actually — measure-narrow column), Copy URL buttons for each, and
+   two Keep buttons. NO background close — user must pick one of the
+   two Keeps (matches the JS port's `docs/js_ui_reference.md` C/6)."
+  [this theme local-items url-items]
+  (modal-shell {:theme theme}  ; no :on-close — must choose
+    (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
+    (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
+    (conflict-list-preview url-items)
+    (dom/div {:className "tc pt2 pb2"}
+      (dom/button {:type      "button"
+                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
+                                   (theme-primary-btn-suffix theme)
+                                   " pa2 pointer ma1")
+                   :title     s/tooltip-copy-link-url
+                   :onClick   (fn [_]
+                                #?(:cljs (copy-list-url! url-items)
+                                   :clj  nil))}
+        s/btn-copy-link-url))
+    (dom/p {:className "fw6 ma0 pt2"} s/label-local-list)
+    (conflict-list-preview local-items)
+    (dom/div {:className "tc pt2 pb2"}
+      (dom/button {:type      "button"
+                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
+                                   (theme-primary-btn-suffix theme)
+                                   " pa2 pointer ma1")
+                   :title     s/tooltip-copy-local-url
+                   :onClick   (fn [_]
+                                #?(:cljs (copy-list-url! local-items)
+                                   :clj  nil))}
+        s/btn-copy-local-url))
+    (dom/div {:className "pb3 tc"}
+      (dom/button {:type      "button"
+                   :className (delete-confirm-btn-class theme)
+                   :title     s/tooltip-keep-link-list
+                   :onClick   #(comp/transact! this [(keep-link-list)])}
+        s/btn-keep-link)
+      (dom/button {:type      "button"
+                   :className (delete-confirm-btn-class theme)
+                   :title     s/tooltip-keep-local-list
+                   :onClick   #(comp/transact! this [(keep-local-list)])}
+        s/btn-keep-local))))
+
 (defn- delete-confirm-modal
   "Phase 7.12 — confirm step for Delete List. Body text matches the JS
    port's `confirmListDelete` string. Yes empties + closes; No just
@@ -499,7 +569,8 @@
 
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text textarea-import-text
-                                   open-modal theme err-msg]
+                                   open-modal theme err-msg
+                                   conflict-url-items]
                        :or        {theme :theme/light}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -509,6 +580,12 @@
                    ;; `m/set-string!` on every keystroke; cleared after
                    ;; a successful Submit.
                    :ui/textarea-import-text
+                   ;; Phase 7.18: transient stash for the conflict
+                   ;; modal — the URL-derived items the user can choose
+                   ;; to keep over the localStorage list. Cleared by
+                   ;; either Keep button. The local items live in the
+                   ;; normalized list at `:list/todos`.
+                   :ui/conflict-url-items
                    ;; Phase 7.4: which (if any) menu modal is currently
                    ;; open. Default `:none`. The query lives here on
                    ;; TodoList because all modals are page-level — there
@@ -539,6 +616,7 @@
                      :list/todos              []
                      :ui/new-todo-text        ""
                      :ui/textarea-import-text ""
+                     :ui/conflict-url-items   nil
                      :ui/open-modal           :none
                      :ui/theme                :theme/light
                      :ui/err-msg              nil})}
@@ -735,6 +813,7 @@
                           textarea-import-text submit-import!)
         :delete-confirm (delete-confirm-modal this theme
                           confirm-delete! cancel-delete!)
+        :conflict       (conflict-modal this theme todos conflict-url-items)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -838,6 +917,36 @@
     (if (:ok? result)
       (norm/sync-items state-map list-ident (:items result))
       state-map)))
+
+(defn- close-conflict-modal*
+  "Clear the transient conflict-modal state at `list-ident` and close
+   the modal."
+  [state-map list-ident]
+  (-> state-map
+    (assoc-in (conj list-ident :ui/conflict-url-items) nil)
+    (assoc-in (conj list-ident :ui/open-modal) :none)))
+
+(defn keep-link-list*
+  "Phase 7.18 — user chose to keep the URL-list when the conflict
+   modal showed two divergent lists. Replaces the normalized list at
+   `list-ident` with `:ui/conflict-url-items`, then closes the modal
+   and clears the transient stash. No-op when `:ui/conflict-url-items`
+   is absent (defensive — the mutation can only fire while the modal
+   is open, but we guard anyway)."
+  [state-map list-ident]
+  (if-let [url-items (get-in state-map (conj list-ident :ui/conflict-url-items))]
+    (-> state-map
+      (norm/sync-items list-ident url-items)
+      (close-conflict-modal* list-ident))
+    state-map))
+
+(defn keep-local-list*
+  "Phase 7.18 — user chose to keep the localStorage-derived list. The
+   normalized list at `list-ident` already holds those items (we
+   hydrate from localStorage before showing the modal), so this is
+   just: close the modal + clear the transient stash."
+  [state-map list-ident]
+  (close-conflict-modal* state-map list-ident))
 
 (defn delete-all*
   "Removes every todo referenced by the given list-ident's :list/todos.
@@ -998,6 +1107,30 @@
   (action [{:keys [state ref]}]
     (swap! state import-from-text* ref textarea-import-text))
   (remote [env] (remote-list-items env)))
+
+(defmutation keep-link-list
+  "Phase 7.18 — user resolved the conflict modal by picking the URL
+   list. Replace normalized state with the stashed URL items, then
+   close the modal. The URL bar already reflects URL items (the user
+   came via that URL); `install-url-sync!` will idempotently re-write
+   it on the items-change anyway."
+  [_]
+  (action [{:keys [state ref]}]
+    (swap! state keep-link-list* ref))
+  (remote [env] (remote-list-items env)))
+
+(defmutation keep-local-list
+  "Phase 7.18 — user resolved the conflict modal by keeping the
+   localStorage list. State already holds those items; this is just
+   close-the-modal + clear-the-stash + force the URL bar to reflect
+   the local items (without an items change, `install-url-sync!`'s
+   watch wouldn't fire — see its docstring)."
+  [_]
+  (action [{:keys [state ref]}]
+    (swap! state keep-local-list* ref)
+    #?(:cljs
+       (let [items (norm/denormalize-list-items @state ref)]
+         (url-encoding/replace-url-with-items! items)))))
 
 (defmutation set-status [{:todo/keys [id status]}]
   (action [{:keys [state]}]
@@ -1161,15 +1294,36 @@
        (inspect-tool/add-fulcro-inspect! spa)
        ;; Hydrate from localStorage and attach the persistence watch
        ;; BEFORE the initial load so any saved state is what we render.
-       (storage/install-persistence! server/SERVER-DB)
-       ;; Phase 7.17: if the page was opened with `?list=<encoded>`,
-       ;; decode it and overwrite SERVER-DB's list. URL wins over
-       ;; localStorage for now; Move 2e will refine this into the
-       ;; conflict-modal flow when both exist and differ.
-       (when-let [url-items (url-encoding/items-from-current-url)]
-         (swap! server/SERVER-DB server/write-items server/list-id url-items))
-       (start-chart! spa)
-       (app/mount! spa Root "app")
+       (let [{hydrated? :hydrated?} (storage/install-persistence! server/SERVER-DB)
+             local-items (when hydrated?
+                           (server/items @server/SERVER-DB server/list-id))
+             url-items   (url-encoding/items-from-current-url)
+             decision    (url-encoding/decide-initial-list local-items url-items)]
+         ;; Phase 7.18: pure decision drives the initial-state strategy.
+         ;; - :url     → overwrite SERVER-DB with the URL list
+         ;; - :local   → SERVER-DB already has it (hydration ran)
+         ;; - :seed    → SERVER-DB is the seed (no localStorage, no URL)
+         ;; - :conflict → leave SERVER-DB as the local list; the modal
+         ;;               is set up post-mount and the user picks one.
+         (case (:source decision)
+           :url      (swap! server/SERVER-DB server/write-items
+                       server/list-id (:items decision))
+           :conflict nil  ; defer to post-mount
+           ;; :local / :seed — no-op (SERVER-DB already correct)
+           nil)
+         (start-chart! spa)
+         (app/mount! spa Root "app")
+         (when (= :conflict (:source decision))
+           ;; The state-atom only exists after mount! — write the
+           ;; transient stash + open the modal here, on the same
+           ;; tick, before any user interaction.
+           (let [state-atom (:com.fulcrologic.fulcro.application/state-atom spa)]
+             (swap! state-atom
+               (fn [s]
+                 (-> s
+                   (assoc-in [:list/id 1 :ui/conflict-url-items]
+                     (:url-items decision))
+                   (assoc-in [:list/id 1 :ui/open-modal] :conflict))))))
        ;; Mount populates the app state-atom; only now can we hydrate
        ;; the UI-prefs slice into it. The early position keeps theme
        ;; correct from the very first frame the user sees.
@@ -1186,7 +1340,7 @@
        (url-encoding/install-url-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
        (load-todos! spa)
-       spa)))
+       spa))))
 
 (defn snapshot
   "Returns the current normalized state. Useful from REPL to inspect

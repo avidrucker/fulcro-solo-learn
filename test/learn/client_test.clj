@@ -1428,3 +1428,66 @@
         (get-in db [:list/id 1 :ui/theme]) => :theme/dark
         "delete-confirm modal stayed open"
         (get-in db [:list/id 1 :ui/open-modal]) => :delete-confirm))))
+
+;; ============================================================================
+;; Phase 7.18 — Conflict modal (S-conflict-modal).
+;;
+;; State-helper specs for the keep-link / keep-local flow. The
+;; conflict modal is opened from `init` after detecting a URL/local
+;; mismatch (see `url-encoding/decide-initial-list`). Once open, the
+;; user clicks one of the Keep buttons; this is what those mutations
+;; do at the pure state-map level.
+;; ============================================================================
+
+(def conflict-id-1 #uuid "33333333-3333-3333-3333-333333333333")
+(def conflict-id-2 #uuid "44444444-4444-4444-4444-444444444444")
+
+(defn conflict-fixture-state
+  "State with the conflict modal open: local list has fixture-id-1 / -2;
+   `:ui/conflict-url-items` carries a different list with conflict-id-1
+   / -2."
+  []
+  {:list/id {1 {:list/id    1
+                :list/todos [[:todo/id fixture-id-1] [:todo/id fixture-id-2]]
+                :ui/open-modal :conflict
+                :ui/conflict-url-items
+                [{:todo/id conflict-id-1 :todo/text "alpha" :todo/status :status/ready}
+                 {:todo/id conflict-id-2 :todo/text "beta"  :todo/status :status/new}]}}
+   :todo/id {fixture-id-1 {:todo/id fixture-id-1 :todo/text "First"  :todo/status :status/ready}
+             fixture-id-2 {:todo/id fixture-id-2 :todo/text "Second" :todo/status :status/new}}})
+
+(specification "keep-link-list*"
+  (component "replaces normalized list with :ui/conflict-url-items"
+    (let [before (conflict-fixture-state)
+          after  (sut/keep-link-list* before [:list/id 1])]
+      (assertions
+        ":list/todos points at the URL items' idents"
+        (get-in after [:list/id 1 :list/todos])
+        => [[:todo/id conflict-id-1] [:todo/id conflict-id-2]]
+        ":todo/id table has the new entities"
+        (get-in after [:todo/id conflict-id-1 :todo/text]) => "alpha"
+        (get-in after [:todo/id conflict-id-2 :todo/text]) => "beta"
+        ":ui/conflict-url-items cleared"
+        (get-in after [:list/id 1 :ui/conflict-url-items]) => nil
+        ":ui/open-modal set to :none"
+        (get-in after [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "no-op when there's no conflict in flight"
+    (let [before (fixture-state)
+          after  (sut/keep-link-list* before [:list/id 1])]
+      (assertions
+        "state unchanged when :ui/conflict-url-items is nil"
+        after => before))))
+
+(specification "keep-local-list*"
+  (component "closes the modal and clears the URL-items stash"
+    (let [before (conflict-fixture-state)
+          after  (sut/keep-local-list* before [:list/id 1])]
+      (assertions
+        ":list/todos unchanged (local items already there)"
+        (get-in after [:list/id 1 :list/todos])
+        => [[:todo/id fixture-id-1] [:todo/id fixture-id-2]]
+        ":ui/conflict-url-items cleared"
+        (get-in after [:list/id 1 :ui/conflict-url-items]) => nil
+        ":ui/open-modal set to :none"
+        (get-in after [:list/id 1 :ui/open-modal]) => :none))))

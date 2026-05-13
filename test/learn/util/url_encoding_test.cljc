@@ -372,3 +372,45 @@
       (sut/items-from-query-string "?list=!!!notbase64!!!") => nil
       "valid base64 but not JSON array"
       (sut/items-from-query-string (str "?list=" (sut/base64-encode "not json"))) => nil)))
+
+;; ============================================================================
+;; Conflict-decision logic — Move 2e (S-conflict-modal).
+;;
+;; Pure decision: given the localStorage items (or nil) and URL items
+;; (or nil), what should `init` do?
+;;
+;;   - both non-nil AND differ                → :conflict (modal opens)
+;;   - both non-nil AND equal                 → :no-op (just pick one)
+;;   - URL only                               → :url    (URL wins)
+;;   - localStorage only                      → :local  (localStorage wins)
+;;   - neither                                → :seed   (fall back to seed)
+;; ============================================================================
+
+(def ^:private items-a [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}])
+(def ^:private items-b [{:todo/id id-uuid-2 :todo/text "b" :todo/status :status/new}])
+
+(specification "decide-initial-list"
+  (assertions
+    "neither URL nor localStorage — :seed (use the seed)"
+    (sut/decide-initial-list nil nil) => {:source :seed}
+
+    "URL only — :url"
+    (sut/decide-initial-list nil items-a) => {:source :url :items items-a}
+
+    "localStorage only — :local"
+    (sut/decide-initial-list items-a nil) => {:source :local :items items-a}
+
+    "both equal — :no-op (pick either; we pick :url for symmetry with the URL-only case)"
+    (sut/decide-initial-list items-a items-a) => {:source :url :items items-a}
+
+    "both differ — :conflict, carries both for the modal to render"
+    (sut/decide-initial-list items-a items-b)
+    => {:source :conflict :local-items items-a :url-items items-b}
+
+    "localStorage exists as `[]` (user emptied their list), URL has items — STILL a conflict"
+    (sut/decide-initial-list [] items-a)
+    => {:source :conflict :local-items [] :url-items items-a}
+
+    "URL exists as `[]` (someone shared an empty list), localStorage has items — STILL a conflict"
+    (sut/decide-initial-list items-a [])
+    => {:source :conflict :local-items items-a :url-items []}))

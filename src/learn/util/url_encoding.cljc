@@ -320,15 +320,42 @@
   (norm/denormalize-list-items state-map [:list/id 1]))
 
 #?(:cljs
-   (defn- replace-url-with-items!
+   (defn replace-url-with-items!
      "Default CLJS url-setter. Builds the share-URL for `items` using
       the current `window.location` and calls `history.replaceState`
-      so the browser bar reflects the new state without a navigation."
+      so the browser bar reflects the new state without a navigation.
+
+      Public because some flows (e.g. the conflict modal's Keep Local
+      path) need to force a URL refresh even when the state items
+      vector hasn't changed — `install-url-sync!`'s watch only fires
+      on items-vector diff, so callers that change *which* list
+      we're committed to (without changing items themselves) call
+      this directly."
      [items]
      (let [loc js/window.location
            seg (items->base64-url-segment items)
            url (list-share-url (.-origin loc) (.-pathname loc) seg)]
        (.replaceState js/history nil "" url))))
+
+(defn decide-initial-list
+  "Pure: classify what `init` should do given the localStorage items
+   and the URL items. Either side may be `nil` (absent) or any vector
+   (including `[]`).
+
+   Returns a tagged map with `:source` ∈ #{:seed :url :local :conflict}.
+   For :url and :local, also returns `:items`. For :conflict, returns
+   `:local-items` and `:url-items` so the modal can render both.
+
+   When both are equal we collapse to `:url` (the URL is the more
+   recent thing the user explicitly visited)."
+  [local-items url-items]
+  (cond
+    (and (some? local-items) (some? url-items) (not= local-items url-items))
+    {:source :conflict :local-items local-items :url-items url-items}
+
+    (some? url-items)   {:source :url   :items url-items}
+    (some? local-items) {:source :local :items local-items}
+    :else               {:source :seed}))
 
 (defn parse-list-param
   "Pure: extract the value of `?list=<value>` from a URL query string.

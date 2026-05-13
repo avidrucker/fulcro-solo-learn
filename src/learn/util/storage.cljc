@@ -108,19 +108,20 @@
 (defn install-persistence!
   "Hydrate `server-atom` from localStorage (if a saved state is
    present and parseable), then attach a watch that re-saves on every
-   change. Returns the atom for fluent composition.
+   change. Returns a map with `:hydrated?` so callers can distinguish
+   'localStorage was present' from 'fell back to seed' — Phase 7.18's
+   conflict-detection needs that distinction.
 
-   JVM: no-op, returns the atom unchanged. The CLJ test suite uses
+   JVM: no-op, returns `{:hydrated? false}`. The CLJ test suite uses
    `server/seed!` directly and never wants persistence behaviour."
   [server-atom]
   #?(:cljs
-     (do
-       (when-let [hydrated (load!)]
-         (reset! server-atom hydrated))
+     (let [hydrated (load!)]
+       (when hydrated (reset! server-atom hydrated))
        (add-watch server-atom ::persistence
          (fn [_k _ref _old new-state] (save! new-state)))
-       server-atom)
-     :clj server-atom))
+       {:hydrated? (some? hydrated)})
+     :clj {:hydrated? false}))
 
 ;; ============================================================================
 ;; UI preferences slice (Phase 7.10 / bugs.md B-1).
