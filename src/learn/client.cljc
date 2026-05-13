@@ -428,7 +428,11 @@
     (dom/div {:className "ph3 pt1"}
       (dom/textarea {:className   (str "db input-reset pa2 w-100 resize-none lh-135 "
                                        "br3 ba bw1 b--gray "
-                                       (theme-text-class theme))
+                                       ;; Phase 7.12 followup: use the same theme suffix
+                                       ;; as the new-todo input (text color + bg + hover
+                                       ;; states). The JS port's textarea uses the same
+                                       ;; theme suffix as its top-level input.
+                                       (theme-input-class theme))
                      :placeholder s/textarea-placeholder
                      :rows        2
                      :onChange    (stub-onclick "textarea-change")})
