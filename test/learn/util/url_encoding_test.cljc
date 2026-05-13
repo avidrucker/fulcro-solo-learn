@@ -413,4 +413,42 @@
 
     "URL exists as `[]` (someone shared an empty list), localStorage has items — STILL a conflict"
     (sut/decide-initial-list items-a [])
-    => {:source :conflict :local-items items-a :url-items []}))
+    => {:source :conflict :local-items items-a :url-items []})
+
+  (component "B-4 fix — UUIDs differ but content matches → NO conflict"
+    ;; The decoder (`og-shape->items`) assigns fresh UUIDs on every
+    ;; call, so localStorage items (with persisted UUIDs) and URL-
+    ;; decoded items NEVER `=` even when the user-visible content is
+    ;; identical. Conflict detection must compare semantically — text +
+    ;; status + was — and ignore UUIDs.
+    (let [local-same  [{:todo/id id-uuid   :todo/text "a" :todo/status :status/ready}]
+          url-fresh   [{:todo/id #uuid "ffffffff-ffff-ffff-ffff-ffffffffffff"
+                        :todo/text "a" :todo/status :status/ready}]]
+      (assertions
+        "same content, different UUIDs → :url (no conflict)"
+        (sut/decide-initial-list local-same url-fresh)
+        => {:source :url :items url-fresh})))
+
+  (component "cancelled items with different UUIDs are still semantically equal"
+    (let [local-cancelled [{:todo/id id-uuid
+                            :todo/text "x" :todo/status :status/cancelled
+                            :todo/was :status/ready}]
+          url-cancelled   [{:todo/id #uuid "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"
+                            :todo/text "x" :todo/status :status/cancelled
+                            :todo/was :status/ready}]]
+      (assertions
+        "same text + status + was, different UUIDs → no conflict"
+        (:source (sut/decide-initial-list local-cancelled url-cancelled))
+        => :url)))
+
+  (component "differing :todo/was IS a real conflict (preserves cancel-history)"
+    (let [cancelled-from-ready [{:todo/id id-uuid
+                                 :todo/text "x" :todo/status :status/cancelled
+                                 :todo/was :status/ready}]
+          cancelled-from-new   [{:todo/id id-uuid-2
+                                 :todo/text "x" :todo/status :status/cancelled
+                                 :todo/was :status/new}]]
+      (assertions
+        "same text+status but different :was → conflict"
+        (:source (sut/decide-initial-list cancelled-from-ready cancelled-from-new))
+        => :conflict))))

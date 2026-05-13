@@ -475,25 +475,36 @@
 
 (defn- conflict-list-preview
   "Render a read-only list of items for the conflict modal. Mirrors the
-   JS port's preview (`docs/js_ui_reference.md` line 122–124): each row
-   has the status icon + the item text, no per-row actions, no theming
-   on the items themselves — they inherit the surrounding modal's
-   text colour. Cancelled rows fall back to `:todo/was` for the icon
-   (the JS port's `statusToSymbol(task.was)` recursion)."
+   JS port's preview (`docs/js_ui_reference.md` line 122–124) AND
+   matches TodoItem's visual treatment for cancelled / done rows so
+   the user can see status accurately in the modal:
+     - Cancelled rows: text strikethrough (`strike`) + 50% opacity
+       (`o-50`), icon falls back to `:todo/was`.
+     - Done rows: 50% opacity (`o-50`), no strikethrough.
+     - Otherwise: normal text.
+
+   Same icon-fallback recursion as TodoItem (the JS port's
+   `statusToSymbol(task.was)`). B-4-related: cancelled rows were
+   previously rendered without the visual marker, so URL and local
+   lists looked identical even when statuses differed."
   [items]
   (dom/ul {:className "ph0 todo-list list ma0 tl measure-narrow ml-auto mr-auto"}
     (for [item items]
-      (let [status (:todo/status item)
-            ;; Cancelled rows show the prior status's icon, not nothing.
-            icon-status (if (= status :status/cancelled)
-                          (:todo/was item)
-                          status)]
+      (let [status      (:todo/status item)
+            was         (:todo/was item)
+            cancelled?  (= status :status/cancelled)
+            dim?        (#{:status/done :status/cancelled} status)
+            icon-status (if (and cancelled? was) was status)
+            li-class    (str "flex lh-135 align-start mb1-butlast "
+                             (when dim? "o-50"))
+            text-class  (str "break-word"
+                             (when cancelled? " strike"))]
         (dom/li {:key (str (:todo/id item))
-                 :className "flex lh-135 align-start mb1-butlast"}
-          (dom/span {:title     (name (or icon-status :status/new))
+                 :className li-class}
+          (dom/span {:title     (name status)
                      :className "mr1 dib h-15"}
             (icons/status-icon icon-status))
-          (dom/span {:className "break-word"}
+          (dom/span {:className text-class}
             (:todo/text item)))))))
 
 (defn- conflict-modal

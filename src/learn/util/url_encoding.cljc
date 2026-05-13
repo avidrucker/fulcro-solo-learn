@@ -337,6 +337,16 @@
            url (list-share-url (.-origin loc) (.-pathname loc) seg)]
        (.replaceState js/history nil "" url))))
 
+(defn- items-content-shape
+  "Strip UUIDs from items so two vectors can be compared on user-
+   visible content alone. The decoder (`og-shape->items`) assigns
+   fresh UUIDs on every call, so the localStorage and URL items
+   never `=` even when they were derived from the same source —
+   without this projection we'd flag a phantom conflict on every
+   refresh / back-button (B-4)."
+  [items]
+  (mapv #(select-keys % [:todo/text :todo/status :todo/was]) items))
+
 (defn decide-initial-list
   "Pure: classify what `init` should do given the localStorage items
    and the URL items. Either side may be `nil` (absent) or any vector
@@ -346,11 +356,16 @@
    For :url and :local, also returns `:items`. For :conflict, returns
    `:local-items` and `:url-items` so the modal can render both.
 
-   When both are equal we collapse to `:url` (the URL is the more
-   recent thing the user explicitly visited)."
+   When both are present, we compare on **content shape** (text,
+   status, :was) — NOT on UUID — because the URL decoder assigns
+   fresh UUIDs every load. If the content is the same we collapse to
+   `:url` (the URL is the more recent thing the user explicitly
+   visited). B-4 fix."
   [local-items url-items]
   (cond
-    (and (some? local-items) (some? url-items) (not= local-items url-items))
+    (and (some? local-items) (some? url-items)
+      (not= (items-content-shape local-items)
+            (items-content-shape url-items)))
     {:source :conflict :local-items local-items :url-items url-items}
 
     (some? url-items)   {:source :url   :items url-items}

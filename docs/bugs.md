@@ -185,3 +185,70 @@ all states.
 6 new specs / 11 new assertions (3 menu-icons × 1 review-active
 case; 1 theme-toggle-still-works during review; 1 menu-icon during
 delete-confirm; 1 theme-toggle during delete-confirm).
+
+---
+
+## B-4 — Conflict modal re-triggers on refresh / back; cancelled rows look uncancelled
+
+**Status:** ✅ Fixed in Phase 7.20 (a follow-up to 7.18)
+**Reported:** 2026-05-13 by user
+**Related story:** [`S-conflict-modal`](./user_stories.md)
+
+### Symptom (two facets reported together)
+
+1. **Re-trigger on refresh / back.** After resolving a conflict
+   (Keep Link or Keep Local), refreshing the page (or hitting the
+   back button) immediately re-opens the conflict modal — even
+   though the URL and localStorage now contain the same list. The
+   two list previews shown in the modal look identical.
+2. **Cancelled items appear uncancelled in the modal.** The list
+   previews inside the conflict modal don't visually distinguish
+   cancelled rows (no strikethrough, no opacity dim), so
+   `[a:ready, b:cancelled(was=ready), c:cancelled(was=new)]` looks
+   the same as `[a:ready, b:ready, c:new]` at a glance.
+
+### Root cause
+
+**Facet 1**: `learn.util.url-encoding/og-shape->items` assigns
+`(random-uuid)` to every decoded item — it can't recover the
+original UUIDs because the OG-compatible JSON shape encodes integer
+ids derived from list position, not UUIDs. So even when the user-
+visible content is identical, localStorage items (with persisted
+UUIDs) and URL-decoded items (with fresh UUIDs) never `=`.
+`decide-initial-list` was comparing the full item maps with
+`(not= local-items url-items)`, so the UUID-only difference looked
+like a real divergence → phantom conflict on every reload.
+
+**Facet 2**: `conflict-list-preview` (the read-only list rendering
+inside the conflict modal) had the icon-fallback to `:todo/was` but
+didn't apply the `strike` text class or `o-50` opacity that
+`TodoItem` uses for cancelled / done rows. Visually indistinguishable
+from non-cancelled.
+
+Both facets surfaced together because the phantom conflict (facet
+1) gave the user repeated chances to study the previews and notice
+the cancelled visual was missing (facet 2).
+
+### Resolution
+
+**Facet 1**: `decide-initial-list` now compares via a private
+`items-content-shape` projection that strips `:todo/id` and keeps
+only user-visible content (`:todo/text`, `:todo/status`,
+`:todo/was`). Same-content-different-UUIDs → no conflict.
+
+Tests:
+- "B-4 fix — UUIDs differ but content matches → NO conflict"
+- "cancelled items with different UUIDs are still semantically equal"
+- Regression guard: "differing :todo/was IS a real conflict" — we
+  still flag a conflict when the cancel-prior-status differs,
+  because that's a real difference in semantic state.
+
+**Facet 2**: `conflict-list-preview` now mirrors `TodoItem`'s
+visual treatment:
+- Cancelled rows: `strike` text + `o-50` opacity, icon falls back
+  to `:todo/was`.
+- Done rows: `o-50` opacity.
+- Otherwise: normal text.
+
+3 new specs / 6 new assertions on `decide-initial-list`. Cancelled-
+visual fix is browser-manual.
