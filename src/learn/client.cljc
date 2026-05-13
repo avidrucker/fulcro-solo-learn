@@ -255,8 +255,14 @@
   [{:keys [on-close close-label theme] :or {theme :theme/light}} & children]
   (dom/section {:className (str "absolute f5 top-0 w-100 h-100 "
                                 (theme-modal-bg-class theme))}
+    ;; Inner section mirrors the JS port: `measure-narrow ml-auto mr-auto`
+    ;; ONLY — no `pa3` (would squeeze the text into a narrower column).
+    ;; `relative z-1` is kept so the inner section sits above the
+    ;; transparent close button below; without it, clicks would land on
+    ;; the close button instead of the modal content. The og has neither
+    ;; (no close button to stack against).
     (apply dom/section
-      {:className "measure-narrow ml-auto mr-auto relative z-1 pa3"}
+      {:className "measure-narrow ml-auto mr-auto relative z-1"}
       children)
     (when on-close
       (dom/button {:className "absolute z-0 top-0 left-0 w-100 o-0 min-h-100"
@@ -963,6 +969,34 @@
                    :session-id review-session-id})
   (scf/process-events! spa))
 
+#?(:cljs
+   (defn- sync-body-theme-class!
+     "Set `document.body.className` to `bg-black` in dark mode (or empty
+      in light) so the browser's canvas background propagates to fill
+      the area outside `<body>`'s box. Without this, the default white
+      canvas leaks through past `<main>`'s background when the list
+      overflows the viewport — visible in light/dark snapshots with 26
+      items. Matches the JS port's runtime body-class toggle."
+     [theme]
+     (set! (.-className js/document.body)
+       (if (= theme :theme/dark) "bg-black" ""))))
+
+#?(:cljs
+   (defn- install-body-theme-sync!
+     "Watch the Fulcro state-atom and keep `document.body.className` in
+      sync with `[:list/id 1 :ui/theme]`. Companion to
+      `storage/install-ui-prefs-persistence!` — same shape (watch +
+      change-detect), separate concern."
+     [fulcro-state-atom]
+     (let [theme-of (fn [s] (get-in s [:list/id 1 :ui/theme] :theme/light))]
+       (sync-body-theme-class! (theme-of @fulcro-state-atom))
+       (add-watch fulcro-state-atom ::body-theme
+         (fn [_k _ref old-state new-state]
+           (let [old-theme (theme-of old-state)
+                 new-theme (theme-of new-state)]
+             (when (not= old-theme new-theme)
+               (sync-body-theme-class! new-theme))))))))
+
 (defn- load-todos!
   "Initial load that populates `:list/todos` from the in-process Pathom
    parser. Same call shape on both platforms."
@@ -1034,6 +1068,11 @@
        ;; the UI-prefs slice into it. The early position keeps theme
        ;; correct from the very first frame the user sees.
        (storage/install-ui-prefs-persistence!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Same hook point: keep `document.body.className` in sync with
+       ;; the active theme so the browser's canvas bg matches the theme
+       ;; even when the list overflows the viewport.
+       (install-body-theme-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
        (load-todos! spa)
        spa)))
