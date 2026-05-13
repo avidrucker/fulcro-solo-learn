@@ -73,7 +73,16 @@ async function snapshot({ url = URL_DEFAULT, label, actions = [] } = {}) {
     // multi-step demos like "type X, click Add Item, reload, snap".
     for (const action of actions) {
       if (action.kind === 'click') {
-        await page.getByText(action.text, { exact: true }).first().click();
+        // Prefer accessible-name lookup (button :title becomes the
+        // accessible name) — this avoids clicking through a Tachyons
+        // `clip`-hidden screen-reader span on icon buttons. Falls back
+        // to visible-text matching for buttons that are text-labeled.
+        const byRole = page.getByRole('button', { name: action.text, exact: true });
+        if (await byRole.count() > 0) {
+          await byRole.first().click();
+        } else {
+          await page.getByText(action.text, { exact: true }).first().click();
+        }
         await page.waitForTimeout(200);
       } else if (action.kind === 'type') {
         // Hardcoded to the new-todo input — only one input in the app
