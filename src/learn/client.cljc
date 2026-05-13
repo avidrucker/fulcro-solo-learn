@@ -298,16 +298,30 @@
    testability tweak). Pass `:first? true` for the leftmost icon to
    match the JS port's `pl3`/`pl2` spacing.
 
+   Pass `:disabled? true` to hard-disable the button — used by Phase
+   7.14 (B-3 fix) to suppress menu opens while a review session is
+   active or the delete-confirm modal is up. The theme-toggle button
+   is rendered separately below and never receives this flag (always
+   enabled, matching the JS port).
+
    `:type \"button\"` is explicit (matches the JS port) so the button
    stays a no-op activation even if it ever ends up inside a `<form>`
    — HTML's default for a form-internal `<button>` is `type=\"submit\"`."
-  [this {:keys [icon label modal-id first?]}]
+  [this {:keys [icon label modal-id first? disabled?]}]
   (dom/div {:className (header-icon-wrapper-class {:first? first?})}
     (dom/button {:type      "button"
                  :className header-icon-btn-class
                  :title     label
-                 :onClick   #(comp/transact! this
-                               [(toggle-open-modal {:ui/open-modal modal-id})])}
+                 :disabled  (boolean disabled?)
+                 ;; Both the HTML `:disabled` attribute AND a nil
+                 ;; onClick are set when disabled. The attribute
+                 ;; covers real browsers (default click semantics
+                 ;; skip disabled buttons); the nil handler covers
+                 ;; the headless test framework, which invokes
+                 ;; onClick directly without checking `:disabled`.
+                 :onClick   (when-not disabled?
+                              #(comp/transact! this
+                                 [(toggle-open-modal {:ui/open-modal modal-id})]))}
       icon
       (dom/span {:className "clip"} label))))
 
@@ -734,7 +748,19 @@
   ;; form/list/footer. Theme (Phase 7.7) lives on TodoList's props;
   ;; Root reads it from `(:ui/theme list)` and applies the text-color
   ;; class. Other theme tokens cascade through TodoList's children.
-  (let [theme (or (:ui/theme list) :theme/light)]
+  (let [theme            (or (:ui/theme list) :theme/light)
+        ;; Phase 7.14 / B-3 fix: header menu icons (Save / About /
+        ;; Help) are hard-disabled while a review session is active
+        ;; OR a hard-choice modal is up (`:delete-confirm`,
+        ;; `:conflict`). Toggle Theme is rendered separately below
+        ;; and stays enabled. Matches the JS port's
+        ;; `isPrioritizing || showingDeleteModal || showingConflictModal`
+        ;; predicate (`docs/js_ui_reference.md` line 149).
+        config           (scf/current-configuration this review-session-id)
+        review-active?   (contains? config chart/active)
+        open-modal       (:ui/open-modal list)
+        menu-disabled?   (or review-active?
+                           (contains? #{:delete-confirm :conflict} open-modal))]
     (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
                                (theme-text-class theme)
                                " "
@@ -742,16 +768,19 @@
       (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
         (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
           s/app-name)
-        (header-icon-button this {:icon     icons/save-disk
-                                  :label    s/tooltip-import-export
-                                  :modal-id :save
-                                  :first?   true})
-        (header-icon-button this {:icon     icons/info-circle
-                                  :label    s/tooltip-about
-                                  :modal-id :about})
-        (header-icon-button this {:icon     icons/question-circle
-                                  :label    s/tooltip-help
-                                  :modal-id :help})
+        (header-icon-button this {:icon      icons/save-disk
+                                  :label     s/tooltip-import-export
+                                  :modal-id  :save
+                                  :first?    true
+                                  :disabled? menu-disabled?})
+        (header-icon-button this {:icon      icons/info-circle
+                                  :label     s/tooltip-about
+                                  :modal-id  :about
+                                  :disabled? menu-disabled?})
+        (header-icon-button this {:icon      icons/question-circle
+                                  :label     s/tooltip-help
+                                  :modal-id  :help
+                                  :disabled? menu-disabled?})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
         ;; flips to dark), lightbulb-regular when in dark mode. Same
         ;; wrapper-div pattern as the modal toggles; explicit

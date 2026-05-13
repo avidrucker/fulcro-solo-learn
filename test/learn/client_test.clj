@@ -1327,3 +1327,104 @@
         "review chart did not transition to :active"
         (contains? (scf/current-configuration spa sut/review-session-id) chart/active)
         => false))))
+
+;; ============================================================================
+;; Phase 7.14 — B-3 fix: header menu icons disable during review +
+;; delete-confirm modals.
+;;
+;; Per the JS port (`docs/js_ui_reference.md` line 149): all header
+;; buttons except Toggle Theme are disabled when isPrioritizing,
+;; showingDeleteModal, or showingConflictModal. Theme toggle is always
+;; enabled.
+;; ============================================================================
+
+(specification "Header menu icons disabled during review session"
+  (component "clicking Import/Export header icon during review is a no-op"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Prioritize")
+          _   (h/render-frame! spa)
+          ;; Confirm review actually started
+          active-before (contains? (scf/current-configuration spa sut/review-session-id)
+                          chart/active)
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "review session is active (sanity)"
+        active-before => true
+        ":ui/open-modal stayed at :none — the disabled click is a no-op"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "clicking About header icon during review is a no-op"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Prioritize")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "About")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        ":ui/open-modal stays :none"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "clicking Help header icon during review is a no-op"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Prioritize")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Help")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        ":ui/open-modal stays :none"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "clicking Toggle Theme during review IS allowed (always enabled)"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Prioritize")
+          _   (h/render-frame! spa)
+          theme-before (get-in (app/current-state spa) [:list/id 1 :ui/theme])
+          _   (h/click-on-text! spa "Toggle Theme")
+          _   (h/render-frame! spa)
+          theme-after  (get-in (app/current-state spa) [:list/id 1 :ui/theme])]
+      (assertions
+        "theme flipped from :theme/light to :theme/dark"
+        theme-before => :theme/light
+        theme-after  => :theme/dark
+        "review session is still active (theme toggle didn't disrupt)"
+        (contains? (scf/current-configuration spa sut/review-session-id) chart/active)
+        => true))))
+
+(specification "Header menu icons disabled during delete-confirm modal"
+  (component "clicking Import/Export with delete-confirm open is a no-op"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; Open the delete-confirm modal (list is non-empty after seed).
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          ;; Sanity: delete-confirm is open
+          before (app/current-state spa)
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "delete-confirm was open before the click (sanity)"
+        (get-in before [:list/id 1 :ui/open-modal]) => :delete-confirm
+        ":ui/open-modal stayed at :delete-confirm (Import/Export click suppressed)"
+        (get-in db [:list/id 1 :ui/open-modal]) => :delete-confirm)))
+
+  (component "clicking Toggle Theme with delete-confirm open IS allowed"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Toggle Theme")
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "theme flipped"
+        (get-in db [:list/id 1 :ui/theme]) => :theme/dark
+        "delete-confirm modal stayed open"
+        (get-in db [:list/id 1 :ui/open-modal]) => :delete-confirm))))

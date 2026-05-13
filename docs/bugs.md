@@ -141,7 +141,7 @@ it as a settings preference — is tracked in
 
 ## B-3 — Header menu icons clickable during review / delete-confirm modals
 
-**Status:** 🐛 Open
+**Status:** ✅ Fixed in Phase 7.14
 **Reported:** 2026-05-13 by user
 
 ### Symptom
@@ -161,20 +161,27 @@ From `docs/js_ui_reference.md` line 149:
 > `disabled={isPrioritizing || showingDeleteModal || showingConflictModal}`.
 > Toggle Theme is always enabled.
 
-We don't have a conflict modal yet, so the predicate simplifies to
-`active? || (open-modal = :delete-confirm)`.
+### Resolution
 
-### Fix sketch
+`header-icon-button` grew a `:disabled?` arg. When true, two
+mechanisms together cover both real browsers and the headless test
+framework:
+1. **HTML `:disabled` attribute** — real browsers suppress the click.
+2. **Nil onClick** — the headless test framework's `click!` invokes
+   `onClick` directly without checking `:disabled`, so we replace
+   the handler with `nil` instead.
 
-`header-icon-button` accepts an additional `:disabled?` arg (or the
-existing wrapper handles the logic). Three callsites in `Root`'s
-render pass it; the lightbulb toggle button does NOT. Predicate is
-the same one TodoList already computes — `active?` and
-`open-modal`. Easiest: thread both into Root via the TodoList query
-(or read `:ui/open-modal` directly in Root, which already reads
-`:ui/theme` from the same path).
+Root computes the predicate:
+```clojure
+(or review-active?
+    (contains? #{:delete-confirm :conflict} open-modal))
+```
 
-Tests: extend the existing About/Help/Save modal specs with a
-"during review session" / "during delete-confirm" case where the
-header click should be a no-op. Theme-toggle spec gets the opposite
-case — always works.
+`:conflict` is included pre-emptively for Move 2e (conflict modal
+landing in the same session). Theme-toggle button is rendered
+separately and never receives `:disabled?` — it stays enabled in
+all states.
+
+6 new specs / 11 new assertions (3 menu-icons × 1 review-active
+case; 1 theme-toggle-still-works during review; 1 menu-icon during
+delete-confirm; 1 theme-toggle during delete-confirm).
