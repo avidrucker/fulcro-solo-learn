@@ -30,6 +30,7 @@ The JS port encodes the list array as base64 of its JSON form:
 | File | URL | State |
 |---|---|---|
 | `empty-list-deployed.png` | `https://avidrucker.github.io/pwa-autofocus-app/?list=JTVCJTVE` | Empty list, dark theme (deployed default) |
+| `phase-7.12-og-delete-confirm-dark.png` | `https://avidrucker.github.io/pwa-autofocus-app/?list=JTVCJTdCJTIyaWQlMjIlM0EwJTJDJTIydGV4dCUyMiUzQSUyMmElMjIlMkMlMjJzdGF0dXMlMjIlM0ElMjJyZWFkeSUyMiU3RCU1RA==` then click Delete List | Delete-confirm modal over 1-item list, dark theme |
 
 ## How to diff against our local
 
@@ -86,6 +87,47 @@ Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-d
   one extra DOM element per icon button in exchange for headless-test
   ergonomics. Could be removed if we switch the tests to find by
   `:aria-label` or `:title`.
+
+## Diff log — delete-confirm modal (local 7.12 vs deployed)
+
+Reference: `docs/snapshots/reference/phase-7.12-og-delete-confirm-dark.png`
+Local (post-fix): `docs/snapshots/47d2cad-phase-7.12-delete-confirm-modal-dark.png`
+
+### Confirmed fixed (this pass)
+
+6. **Page background shade** — og uses `bg-black` on `<body>` (#000);
+   we were using `bg-near-black` on `<main>` (#111). Visible below
+   the modal where the page bg shows through. Swapped to `bg-black`
+   on `<main>` for dark mode. (`theme-page-bg-class` in `client.cljc`.)
+7. **Yes/No button width in delete-confirm modal** — JS UI reference
+   line 99 specifies `w4` for delete-confirm buttons; we'd reused
+   `review-btn-class` which uses `w3`. Added `delete-confirm-btn-class`
+   with `w4`.
+8. **Root-stack font smoothing + flex column** — og's `index.css`
+   sets `-webkit-font-smoothing: antialiased`,
+   `-moz-osx-font-smoothing: grayscale`, `display: flex; flex-direction:
+   column`, and `min-height: 100dvh` on `html, body, #root`. Ported
+   the same recipe (substituting `#app`) into our `app.css`. Text
+   renders thinner; the dark bg reliably fills the viewport on all
+   browsers.
+
+### Outstanding (deliberately not fixed)
+
+- **Modal inner padding** — og's inner section is bare
+  `measure-narrow ml-auto mr-auto`; our `modal-shell` wraps with
+  `relative z-1 pa3`. The extra `pa3` reduces usable text width and
+  pushes the body `<p>` to wrap to 3 lines instead of og's 2. Could
+  be lifted by making `pa3` opt-in on `modal-shell`, but the same
+  helper is shared by About/Help/Save modals which look fine today —
+  parking until we decide all modals should match exactly.
+- **Body `<p>` styling** — og uses bare `<p class="lh-135">`; we
+  add `ma0 pb3 lh-135 tc`. The `tc` is the only behavioural change
+  (center vs left-align); the others (`ma0`, `pb3`) just tighten
+  spacing. Left as-is for now.
+- **Background-close button** — og's delete-confirm has no
+  transparent overlay; we added one (clicking outside cancels).
+  This is a UX choice we kept; the original markup forces an
+  explicit Yes/No.
 
 ### Diffing methodology
 
