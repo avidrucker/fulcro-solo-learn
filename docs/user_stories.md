@@ -231,6 +231,21 @@ start a fresh list.
 
 ---
 
+## Tooling / dev affordances
+
+### S-deployed-reference-comparison — Snapshot the deployed JS port for diffing
+**Phase:** 7.8
+**Status:** 🟢 (workflow + initial reference; programmatic pixel-diff not implemented)
+**Tests:** none (visual / manual)
+
+`scripts/snapshot.mjs --url <https-url>` captures any URL into
+`docs/snapshots/reference/<label>.png`. The empty-list reference at
+`?list=JTVCJTVE` is committed. The running diff log lives in
+`docs/snapshots/reference/README.md` — add a row each time a visible
+divergence is spotted.
+
+---
+
 ## Out of scope (so far)
 
 These exist in the JS port but aren't on the current Fulcro roadmap.

@@ -248,19 +248,27 @@
                    :onClick   on-close}
         close-label))))
 
-(def ^:private header-icon-btn-class
+(defn- header-icon-btn-class
   "Tachyons class string for header icon buttons. `clip` is applied to
    the inner `<span>` so the screen-reader-only text label is invisible
-   visually but still in the DOM (a11y + h/click-on-text! findable)."
-  "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray pl2 inline-flex items-center")
+   visually but still in the DOM (a11y + h/click-on-text! findable).
+
+   Per `docs/js_ui_reference.md` §B, the JS port pads the FIRST header
+   icon with `pl3` and the others with `pl2`. The caller passes `:first?`
+   to opt into the larger left-pad."
+  [{:keys [first?]}]
+  (str "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray "
+       (if first? "pl3" "pl2")
+       " inline-flex items-center"))
 
 (defn- header-icon-button
   "A header icon button that toggles `modal-id` via
    `toggle-open-modal`. The label text is kept in the DOM via Tachyons'
    `clip` (visually hidden, screen-reader visible, h/click-on-text!
-   findable for tests)."
-  [this {:keys [icon label modal-id]}]
-  (dom/button {:className header-icon-btn-class
+   findable for tests). Pass `:first? true` for the leftmost icon to
+   match the JS port's `pl3`/`pl2` spacing."
+  [this {:keys [icon label modal-id first?]}]
+  (dom/button {:className (header-icon-btn-class {:first? first?})
                :title     label
                :onClick   #(comp/transact! this
                              [(toggle-open-modal {:ui/open-modal modal-id})])}
@@ -557,7 +565,8 @@
           s/app-name)
         (header-icon-button this {:icon     icons/save-disk
                                   :label    s/tooltip-import-export
-                                  :modal-id :save})
+                                  :modal-id :save
+                                  :first?   true})
         (header-icon-button this {:icon     icons/info-circle
                                   :label    s/tooltip-about
                                   :modal-id :about})
@@ -566,7 +575,7 @@
                                   :modal-id :help})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
         ;; flips to dark), lightbulb-regular when in dark mode.
-        (dom/button {:className header-icon-btn-class
+        (dom/button {:className (header-icon-btn-class {})
                      :title     s/tooltip-toggle-theme
                      :onClick   #(comp/transact! this [(toggle-theme)])}
           (if (dark? theme) icons/lightbulb-regular icons/lightbulb-solid)

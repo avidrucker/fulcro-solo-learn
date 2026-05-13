@@ -17,6 +17,16 @@
 //                                                   # click the Add Item button,
 //                                                   # reload the page (localStorage
 //                                                   # survives), then snapshot.
+//   npm run snapshot -- reference-empty-list \
+//     --url 'https://avidrucker.github.io/pwa-autofocus-app/?list=JTVCJTVE'
+//                                                   # snapshot any URL (not just
+//                                                   # the localhost dev server).
+//                                                   # When `--url` is given the
+//                                                   # filename DROPS the git hash —
+//                                                   # external screenshots aren't
+//                                                   # tied to our commits — and the
+//                                                   # PNG lands in
+//                                                   # docs/snapshots/reference/.
 //
 // Snapshots are full-page PNGs at 1280x800 viewport. Saved to
 // docs/snapshots/ which is committed (PNGs of a simple UI stay small;
@@ -49,10 +59,18 @@ function isDirty() {
 }
 
 async function snapshot({ url = URL_DEFAULT, label, actions = [] } = {}) {
-  const hash = shortHash();
-  const dirty = isDirty() ? '-dirty' : '';
-  const suffix = label ? `-${label}` : '';
-  const outPath = resolve(`docs/snapshots/${hash}${dirty}${suffix}.png`);
+  const usingCustomUrl = url !== URL_DEFAULT;
+  // Reference snapshots (any non-localhost URL) live under reference/
+  // and DROP the git hash + dirty suffix — they're tied to the external
+  // app's state, not our codebase. Label-only filename.
+  const outPath = usingCustomUrl
+    ? resolve(`docs/snapshots/reference/${label || 'snapshot'}.png`)
+    : (() => {
+        const hash = shortHash();
+        const dirty = isDirty() ? '-dirty' : '';
+        const suffix = label ? `-${label}` : '';
+        return resolve(`docs/snapshots/${hash}${dirty}${suffix}.png`);
+      })();
 
   mkdirSync(dirname(outPath), { recursive: true });
 
@@ -109,8 +127,11 @@ async function snapshot({ url = URL_DEFAULT, label, actions = [] } = {}) {
 //   --click <text> — click an element with the given visible text
 //   --type  <text> — type into the new-todo input (placeholder match)
 //   --reload       — reload the page (no value)
+//   --url <url>    — capture an arbitrary URL instead of localhost; the
+//                    output lands in docs/snapshots/reference/<label>.png
 const args = process.argv.slice(2);
 let label;
+let url;
 const actions = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -120,8 +141,10 @@ for (let i = 0; i < args.length; i++) {
     actions.push({ kind: 'type', text: args[++i] });
   } else if (a === '--reload') {
     actions.push({ kind: 'reload' });
+  } else if (a === '--url') {
+    url = args[++i];
   } else if (!label) {
     label = a;
   }
 }
-await snapshot({ label, actions });
+await snapshot({ label, actions, ...(url ? { url } : {}) });
