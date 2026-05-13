@@ -922,3 +922,45 @@
         (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :none
         "save heading gone"
         (h/text-exists? spa "You can import and export JSON lists") => false))))
+
+;; ============================================================================
+;; Phase 7.7 — Theme toggle (light / dark).
+;;
+;; State-helper round-trip + a click-through that verifies the
+;; `toggle-theme` mutation flips `:ui/theme` on `[:list/id 1]`. Visual
+;; class swap is browser-manual (snapshot pair).
+;; ============================================================================
+
+(specification "toggle-theme*"
+  (component "missing :ui/theme treated as :theme/light, first toggle → :dark"
+    (let [after (sut/toggle-theme* (fixture-state) [:list/id 1])]
+      (assertions
+        ":ui/theme = :theme/dark after first toggle"
+        (get-in after [:list/id 1 :ui/theme]) => :theme/dark)))
+
+  (component "second toggle returns to :theme/light"
+    (let [after (-> (fixture-state)
+                  (sut/toggle-theme* [:list/id 1])
+                  (sut/toggle-theme* [:list/id 1]))]
+      (assertions
+        ":ui/theme = :theme/light after two toggles"
+        (get-in after [:list/id 1 :ui/theme]) => :theme/light))))
+
+(specification "Toggle Theme button"
+  (component "clicking 'Toggle Theme' flips :ui/theme"
+    (server/seed!)
+    (let [spa (sut/init)
+          start-theme (get-in (app/current-state spa) [:list/id 1 :ui/theme])
+          _   (h/click-on-text! spa "Toggle Theme")
+          _   (h/render-frame! spa)
+          mid-theme   (get-in (app/current-state spa) [:list/id 1 :ui/theme])
+          _   (h/click-on-text! spa "Toggle Theme")
+          _   (h/render-frame! spa)
+          end-theme   (get-in (app/current-state spa) [:list/id 1 :ui/theme])]
+      (assertions
+        "initial theme is :theme/light (default from initial-state)"
+        start-theme => :theme/light
+        "first click → :theme/dark"
+        mid-theme => :theme/dark
+        "second click → back to :theme/light"
+        end-theme => :theme/light))))

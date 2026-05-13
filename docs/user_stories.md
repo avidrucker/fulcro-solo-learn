@@ -198,13 +198,15 @@ JSON round-trip, paste-text parsing) is deferred to a future phase.
 
 ### S-theme-toggle — Light / dark mode toggle
 **Phase:** 7.7
-**Status:** ⬜
+**Status:** ✅
+**Tests:** `client_test:toggle-theme*` (state-helper), `client_test:Toggle Theme button` (click round-trip)
 
 A lightbulb icon in the header flips `:ui/theme` between
 `:theme/light` (default) and `:theme/dark`. Root, buttons, input, and
 modal-shell apply matching class suffixes (`black`/`bg-moon-gray` vs
-`white`/`bg-dark-gray`, etc.). The toggle button is always enabled,
-even while reviewing or while a modal is open.
+`white`/`bg-dark-gray`, etc.) via the `theme-*-class` helpers in
+`learn.client`. The toggle button is always enabled, even while
+reviewing or while a modal is open.
 
 ---
 

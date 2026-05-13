@@ -44,7 +44,7 @@
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
 (declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item
-         set-open-modal toggle-open-modal)
+         set-open-modal toggle-open-modal toggle-theme)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -65,17 +65,48 @@
 ;; ============================================================================
 
 ;; ----------------------------------------------------------------------
-;; Tachyons class strings (Phase 6.5.3) — light theme only. Sourced
-;; verbatim from `docs/js_ui_reference.md` §B. Centralizing the strings
-;; here keeps the JSX of `defsc` bodies readable and makes a future
-;; theme-toggle change a one-place edit.
+;; Tachyons class strings + theme-aware helpers (Phase 6.5.3 / 7.7).
+;; Sourced verbatim from `docs/js_ui_reference.md` §B. The
+;; `theme-*-class` helpers return the JS port's light/dark suffix
+;; pair for each themed element. `:theme/light` is the default and
+;; what callers see if `:ui/theme` is missing.
 ;; ----------------------------------------------------------------------
 
-(def ^:private btn-icon-class
+(defn- dark? [theme] (= theme :theme/dark))
+
+(defn- theme-text-class
+  "Foreground text color class for the page root."
+  [theme] (if (dark? theme) "white" "black"))
+
+(defn- theme-modal-bg-class
+  "Modal overlay tint."
+  [theme] (if (dark? theme) "bg-black-90" "bg-white-90"))
+
+(defn- theme-input-class
+  "Theme-suffix for the new-todo input."
+  [theme]
+  (if (dark? theme)
+    "white bg-black hover-bg-dark-gray active-bg-black"
+    "black hover-bg-light-gray active-bg-white"))
+
+(defn- theme-primary-btn-suffix
+  "Theme-suffix for primary `<button>` text + bg (Add Item, Delete
+   List, Prioritize, Mark Done, modal action buttons)."
+  [theme]
+  (if (dark? theme) "bg-dark-gray white" "bg-moon-gray black"))
+
+(defn- theme-icon-btn-color
+  "Theme-suffix for per-row Cancel/Clone icon buttons."
+  [theme]
+  (if (dark? theme) "mid-gray" "moon-gray"))
+
+(defn- btn-icon-class
   "Cancel / clone icon buttons on each todo row. `hover-button` (custom
    class in `app.css`) hides the button until the row is hovered on
    pointer-capable devices and stays visible on touch."
-  "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn moon-gray")
+  [theme]
+  (str "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn "
+       (theme-icon-btn-color theme)))
 
 (def ^:private new-todo-input-id
   "DOM id of the new-todo input — also used by `focus-new-todo-input!`
@@ -93,7 +124,7 @@
   #?(:cljs (some-> (.getElementById js/document new-todo-input-id) .focus)
      :clj nil))
 
-(defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark?]}]
+(defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark? theme]}]
   {:query [:todo/id :todo/text :todo/status :todo/was]
    :ident :todo/id}
   ;; No :initial-state — TodoItems are populated by loads or by add-todo,
@@ -118,12 +149,12 @@
       (dom/span {:className text-class} text)
       (dom/div {:className "relative ml1 h-15 w3"}
         (if actionable?
-          (dom/button {:className btn-icon-class
+          (dom/button {:className (btn-icon-class theme)
                        :title     s/title-cancel-task
                        :aria-label s/title-cancel-task
                        :onClick   #(comp/transact! this [(cancel-todo {:todo/id id})])}
             icons/cancel-x)
-          (dom/button {:className btn-icon-class
+          (dom/button {:className (btn-icon-class theme)
                        :title     s/title-clone-task
                        :aria-label s/title-clone-task
                        :onClick   #(comp/transact! this [(clone-todo {:todo/id id})])}
@@ -150,22 +181,38 @@
     [:com.fulcrologic.statecharts/local-data review-session-id :cursor]))
 
 ;; ----------------------------------------------------------------------
-;; Tachyons class strings for the main list / form / button row. Sourced
-;; from `docs/js_ui_reference.md` §B. Light theme only — dark-theme
-;; suffixes are an explicit later-phase concern.
+;; Tachyons class strings for the main list / form / button row.
+;; Theme-aware via the `theme-*` helpers above (Phase 7.7).
 ;; ----------------------------------------------------------------------
 
-(def ^:private btn-primary-class
-  "br3 w4 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 ph1 pointer grow")
+(defn- btn-primary-class
+  "Theme-aware primary button class string (Add Item, Delete List,
+   Prioritize, Mark Done)."
+  [theme]
+  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 ph1 pointer grow"))
 
-(def ^:private btn-primary-dim-class
-  "br3 w4 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 ph1 o-50")
+(defn- btn-primary-dim-class
+  "Disabled/dimmed variant — same theme suffix, no `pointer grow`,
+   `o-50` opacity for the visual."
+  [theme]
+  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 ph1 o-50"))
 
-(def ^:private input-class
-  "todo-input pa2 w-100 input-reset br3 ba bw1 b--gray black hover-bg-light-gray active-bg-white")
+(defn- input-class
+  "Theme-aware new-todo input class string."
+  [theme]
+  (str "todo-input pa2 w-100 input-reset br3 ba bw1 b--gray "
+       (theme-input-class theme)))
 
-(def ^:private review-btn-class
-  "br3 w3 fw6 ba bw1 b--gray button-reset bg-moon-gray black pa2 pointer grow ma1 dib")
+(defn- review-btn-class
+  "Theme-aware review modal action button class (Quit/No/Yes)."
+  [theme]
+  (str "br3 w3 fw6 ba bw1 b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 pointer grow ma1 dib"))
 
 (defn- modal-shell
   "Tachyons-styled overlay used by all modals in the JS port (Phase 6.5.4).
@@ -179,10 +226,13 @@
                    is clicked. When nil, no close button is rendered —
                    used by the review modal (must use Quit to dismiss).
      :close-label — a11y text for that close button (e.g. \"Close Save Modal\").
+     :theme       — :theme/light (default) or :theme/dark; drives the
+                    `bg-white-90` / `bg-black-90` overlay tint.
 
    `children` are positional DOM nodes for the modal body."
-  [{:keys [on-close close-label]} & children]
-  (dom/section {:className "absolute f5 top-0 w-100 h-100 bg-white-90"}
+  [{:keys [on-close close-label theme] :or {theme :theme/light}} & children]
+  (dom/section {:className (str "absolute f5 top-0 w-100 h-100 "
+                                (theme-modal-bg-class theme))}
     (apply dom/section
       {:className "measure-narrow ml-auto mr-auto relative z-1 pa3"}
       children)
@@ -216,9 +266,10 @@
   (comp/transact! this [(set-open-modal {:ui/open-modal :none})]))
 
 (defn- about-modal
-  [this]
+  [this theme]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-info-modal}
+                :close-label s/close-info-modal
+                :theme       theme}
     (dom/h2 {:className "pb2 ma0"} s/heading-about)
     (dom/p {:className "pb3 ma0 lh-135"} s/info-string-1)
     (dom/p {:className "pb3 ma0 lh-135"} s/info-string-2)
@@ -227,9 +278,10 @@
     (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
 
 (defn- help-modal
-  [this]
+  [this theme]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-help-modal}
+                :close-label s/close-help-modal
+                :theme       theme}
     (dom/h2 {:className "pb2 ma0"} s/heading-help)
     (dom/p {:className "pb2 ma0 lh-135"} s/instructions)
     (dom/p {:className "pb2 ma0 lh-135"} s/instructions-2)
@@ -252,17 +304,28 @@
     #?(:cljs (js/console.log "[stub]" label)
        :clj  nil)))
 
-(def ^:private save-modal-btn-class
-  "br3 w4 f5 fw6 ba dib bw1 grow b--gray button-reset bg-moon-gray black pa2 pointer ma1")
+(defn- save-modal-btn-class
+  "Theme-aware Import/Export modal action-button class string."
+  [theme]
+  (str "br3 w4 f5 fw6 ba dib bw1 grow b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 pointer ma1"))
+
+(defn- save-modal-wide-btn-class
+  "Full-width variant — Copy URL + Submit."
+  [theme]
+  (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 pointer"))
 
 (defn- save-modal
-  [this]
+  [this theme]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-save-modal}
+                :close-label s/close-save-modal
+                :theme       theme}
     (dom/h2 {:className "pb2 ph3 ma0"} s/heading-import-export)
     (dom/div {:className "ph3 pb2"}
-      (dom/button {:className (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray "
-                                   "button-reset bg-moon-gray black pa2 pointer")
+      (dom/button {:className (save-modal-wide-btn-class theme)
                    :title     s/tooltip-copy-list-url
                    :onClick   (stub-onclick "copy-list-url")}
         s/btn-copy-list-url))
@@ -271,7 +334,9 @@
       ;; File-upload "button" is a styled <label> wrapping a hidden
       ;; <input type="file"> — same pattern the JS port uses.
       (dom/label {:className (str "br3 grow dib button-reset border-box w4 f5 fw6 "
-                                  "ba bw1 b--gray bg-moon-gray black pa2 pointer ma1")
+                                  "ba bw1 b--gray "
+                                  (theme-primary-btn-suffix theme)
+                                  " pa2 pointer ma1")
                   :htmlFor   "save-modal-file-upload"}
         s/btn-import)
       (dom/input {:id        "save-modal-file-upload"
@@ -279,25 +344,26 @@
                   :accept    ".json"
                   :className "dn input-reset"
                   :onChange  (stub-onclick "import-json-file")})
-      (dom/button {:className save-modal-btn-class
+      (dom/button {:className (save-modal-btn-class theme)
                    :title     s/tooltip-export-json
                    :onClick   (stub-onclick "export-json")}
         s/btn-export))
     (dom/p {:className "ph3 pt2 ma0 lh-135"} s/save-info-2)
     (dom/div {:className "ph3 pt1"}
       (dom/textarea {:className   (str "db input-reset pa2 w-100 resize-none lh-135 "
-                                       "br3 ba bw1 b--gray black")
+                                       "br3 ba bw1 b--gray "
+                                       (theme-text-class theme))
                      :placeholder s/textarea-placeholder
                      :rows        2
                      :onChange    (stub-onclick "textarea-change")})
-      (dom/button {:className (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray "
-                                   "button-reset bg-moon-gray black pa2 pointer")
+      (dom/button {:className (save-modal-wide-btn-class theme)
                    :onClick   (stub-onclick "submit-textarea-import")}
         s/btn-submit))
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
 
 (defsc TodoList [this {:list/keys [todos]
-                       :ui/keys   [new-todo-text open-modal]}]
+                       :ui/keys   [new-todo-text open-modal theme]
+                       :or        {theme :theme/light}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
                    :ui/new-todo-text
@@ -306,6 +372,8 @@
                    ;; TodoList because all modals are page-level — there
                    ;; isn't a Modal component with its own ident.
                    :ui/open-modal
+                   ;; Phase 7.7: `:theme/light` (default) or `:theme/dark`.
+                   :ui/theme
                    ;; Subscribe to the review chart's state. Without these
                    ;; ident-joins, the render reads from app state via
                    ;; `scf/current-configuration` (a side-channel Fulcro
@@ -326,7 +394,8 @@
                     {:list/id          1
                      :list/todos       []
                      :ui/new-todo-text ""
-                     :ui/open-modal    :none})}
+                     :ui/open-modal    :none
+                     :ui/theme         :theme/light})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
         cursor         (when active? (review-cursor this))
@@ -347,7 +416,9 @@
         prioritize-disabled? (or active? (not prioritizable?))
         mark-done-disabled?  (or active? (not actionable?))
         btn-cls            (fn [disabled?]
-                             (if disabled? btn-primary-dim-class btn-primary-class))
+                             (if disabled?
+                               (btn-primary-dim-class theme)
+                               (btn-primary-class theme)))
         ;; One canonical handler for "submit the Add Item action" so both
         ;; the form's onSubmit (Enter key) and the button's onClick
         ;; converge on the same code path. Trusts the model to refuse
@@ -376,7 +447,7 @@
           ;; hide pattern.
           (dom/label {:htmlFor new-todo-input-id :className "clip"} "New TODO:")
           (dom/input {:id          new-todo-input-id
-                      :className   input-class
+                      :className   (input-class theme)
                       :placeholder s/input-placeholder
                       :value       (or new-todo-text "")
                       :onChange    #(m/set-string! this :ui/new-todo-text :event %)})))
@@ -421,7 +492,8 @@
               (mapv (fn [item]
                       (ui-todo-item
                         (comp/computed item
-                          {:benchmark? (= (:todo/id item) benchmark-id)})))
+                          {:benchmark? (= (:todo/id item) benchmark-id)
+                           :theme      theme})))
                 todos)))))
       ;; List footer — count + next-actionable preview
       (dom/div {:className "ph3 pt2 pb3"}
@@ -433,28 +505,28 @@
       ;; Review modal — `on-close` is intentionally absent: the JS port
       ;; (and our chart) requires Quit to dismiss, no background click.
       (when active?
-        (modal-shell {}
+        (modal-shell {:theme theme}
           (when question
             (dom/p {:className "ma0 pb3 lh-135 tc"} question))
           (dom/div {:className "tc"}
-            (dom/button {:className review-btn-class
+            (dom/button {:className (review-btn-class theme)
                          :title     s/tooltip-quit-review
                          :tabIndex  0
                          :onClick   #(send-and-pump! this chart/event-quit)} s/btn-quit)
-            (dom/button {:className review-btn-class
+            (dom/button {:className (review-btn-class theme)
                          :title     s/tooltip-review-no
                          :tabIndex  1
                          :onClick   #(send-and-pump! this chart/event-no)}  s/btn-no)
-            (dom/button {:className review-btn-class
+            (dom/button {:className (review-btn-class theme)
                          :title     s/tooltip-review-yes
                          :tabIndex  2
                          :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes))))
       ;; Menu modals — driven by `:ui/open-modal`. Mutex by construction
       ;; (single keyword), so at most one is visible at a time.
       (case open-modal
-        :about (about-modal this)
-        :help  (help-modal this)
-        :save  (save-modal this)
+        :about (about-modal this theme)
+        :help  (help-modal this theme)
+        :save  (save-modal this theme)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -464,24 +536,34 @@
    :initial-state (fn [_]
                     {:list (comp/get-initial-state TodoList {})})}
   ;; Root markup mirrors the JS App.js shell: `<main>` > `<header>` (with
-  ;; the AutoFocus h1) + `<section>` containing the form/list/footer.
-  ;; Light-theme classes only for now; dark-mode tokens are noted in
-  ;; `docs/js_ui_reference.md` for the future theme-toggle phase.
-  (dom/main {:className "app h-100 flex flex-column f5 montserrat black"}
-    (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
-      (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
-        s/app-name)
-      (header-icon-button this {:icon     icons/save-disk
-                                :label    s/tooltip-import-export
-                                :modal-id :save})
-      (header-icon-button this {:icon     icons/info-circle
-                                :label    s/tooltip-about
-                                :modal-id :about})
-      (header-icon-button this {:icon     icons/question-circle
-                                :label    s/tooltip-help
-                                :modal-id :help}))
-    (dom/section {:className "app-container relative flex flex-column h-100"}
-      (when list (ui-todo-list list)))))
+  ;; the AutoFocus h1 + icon buttons) + `<section>` containing the
+  ;; form/list/footer. Theme (Phase 7.7) lives on TodoList's props;
+  ;; Root reads it from `(:ui/theme list)` and applies the text-color
+  ;; class. Other theme tokens cascade through TodoList's children.
+  (let [theme (or (:ui/theme list) :theme/light)]
+    (dom/main {:className (str "app h-100 flex flex-column f5 montserrat "
+                               (theme-text-class theme))}
+      (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
+        (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
+          s/app-name)
+        (header-icon-button this {:icon     icons/save-disk
+                                  :label    s/tooltip-import-export
+                                  :modal-id :save})
+        (header-icon-button this {:icon     icons/info-circle
+                                  :label    s/tooltip-about
+                                  :modal-id :about})
+        (header-icon-button this {:icon     icons/question-circle
+                                  :label    s/tooltip-help
+                                  :modal-id :help})
+        ;; Theme toggle — lightbulb-solid when in light mode (clicking
+        ;; flips to dark), lightbulb-regular when in dark mode.
+        (dom/button {:className header-icon-btn-class
+                     :title     s/tooltip-toggle-theme
+                     :onClick   #(comp/transact! this [(toggle-theme)])}
+          (if (dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
+          (dom/span {:className "clip"} s/tooltip-toggle-theme)))
+      (dom/section {:className "app-container relative flex flex-column h-100"}
+        (when list (ui-todo-list list))))))
 
 ;; ============================================================================
 ;; Pure state helpers — independently testable; mutations wrap them.
@@ -548,6 +630,21 @@
   (let [current (get-in state-map (conj list-ident :ui/open-modal))]
     (set-open-modal* state-map list-ident
       (if (= current modal-id) :none modal-id))))
+
+;; ============================================================================
+;; Theme toggle (Phase 7.7)
+;;
+;; `:ui/theme` at `[:list/id 1]` is one of `:theme/light` (default) or
+;; `:theme/dark`. The classes diff per theme matches the JS port's
+;; suffix-swap pattern documented in `docs/js_ui_reference.md` §B.
+;; ============================================================================
+
+(defn toggle-theme*
+  "Flip between :theme/light and :theme/dark. Defaults missing/unknown
+   values to :theme/light → :theme/dark on first toggle."
+  [state-map list-ident]
+  (update-in state-map (conj list-ident :ui/theme)
+    (fn [t] (if (= t :theme/dark) :theme/light :theme/dark))))
 
 ;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo*
@@ -665,6 +762,10 @@
 (defmutation toggle-open-modal [{:ui/keys [open-modal]}]
   (action [{:keys [state]}]
     (swap! state toggle-open-modal* [:list/id 1] open-modal)))
+
+(defmutation toggle-theme [_]
+  (action [{:keys [state]}]
+    (swap! state toggle-theme* [:list/id 1])))
 
 ;; Remote-only mutation fired from the review chart's :yes action. The
 ;; chart has already mutated the client state-map via `ops/assign`; this
