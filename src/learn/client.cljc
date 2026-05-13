@@ -81,11 +81,15 @@
   [theme] (if (dark? theme) "white" "black"))
 
 (defn- theme-page-bg-class
-  "Page background class for `<main>` — `bg-near-black` in dark mode so
-   the white-text content is readable. Light mode is the document's
-   default (no class needed). The JS port's CSS handles this at the
-   body level; we apply it on <main> here since that's our root."
-  [theme] (if (dark? theme) "bg-near-black" ""))
+  "Page background class for `<main>` — `bg-black` in dark mode so
+   the white-text content is readable AND the shade matches the JS
+   port's `<body class=\"bg-black\">` exactly (#000 rather than #111).
+   Light mode is the document's default (no class needed). The JS port
+   sets the class on `<body>`; we apply it on `<main>` because that's
+   the highest level our React component owns — paired with the
+   html/body/#app flex-column reset in app.css so `<main>` fills the
+   viewport."
+  [theme] (if (dark? theme) "bg-black" ""))
 
 (defn- theme-modal-bg-class
   "Modal overlay tint."
@@ -220,6 +224,15 @@
   "Theme-aware review modal action button class (Quit/No/Yes)."
   [theme]
   (str "br3 w3 fw6 ba bw1 b--gray button-reset "
+       (theme-primary-btn-suffix theme)
+       " pa2 pointer grow ma1 dib"))
+
+(defn- delete-confirm-btn-class
+  "Theme-aware Yes/No button class for the delete-confirm modal. Same
+   recipe as `review-btn-class` but `w4` instead of `w3` — the JS port
+   uses a wider button here (`docs/js_ui_reference.md` line 99)."
+  [theme]
+  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
        (theme-primary-btn-suffix theme)
        " pa2 pointer grow ma1 dib"))
 
@@ -433,12 +446,12 @@
     (dom/p {:className "ma0 pb3 lh-135 tc"} s/confirm-list-delete)
     (dom/div {:className "tc"}
       (dom/button {:type      "button"
-                   :className (review-btn-class theme)
+                   :className (delete-confirm-btn-class theme)
                    :title     s/tooltip-cancel-delete
                    :onClick   #(on-no)}
         s/btn-no)
       (dom/button {:type      "button"
-                   :className (review-btn-class theme)
+                   :className (delete-confirm-btn-class theme)
                    :title     s/tooltip-confirm-delete
                    :onClick   #(on-yes)}
         s/btn-yes))))
