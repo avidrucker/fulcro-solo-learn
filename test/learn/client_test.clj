@@ -964,3 +964,98 @@
         mid-theme => :theme/dark
         "second click → back to :theme/light"
         end-theme => :theme/light))))
+
+;; ============================================================================
+;; Phase 7.9 — Error surfacing.
+;;
+;; Clicking Add Item with blank text, Delete List on an empty list, or
+;; Mark Done with no actionable items now sets `:ui/err-msg` to the
+;; relevant string from `learn.ui.strings`. Successful actions clear
+;; the prior error.
+;; ============================================================================
+
+(specification "set-err-msg*"
+  (component "sets the message at the given list-ident"
+    (let [after (sut/set-err-msg* (fixture-state) [:list/id 1] "oh no")]
+      (assertions
+        ":ui/err-msg now 'oh no'"
+        (get-in after [:list/id 1 :ui/err-msg]) => "oh no")))
+
+  (component "nil clears the message"
+    (let [after (-> (fixture-state)
+                  (sut/set-err-msg* [:list/id 1] "oh no")
+                  (sut/set-err-msg* [:list/id 1] nil))]
+      (assertions
+        ":ui/err-msg back to nil"
+        (get-in after [:list/id 1 :ui/err-msg]) => nil))))
+
+(specification "Error surfacing — Add Item with blank text"
+  (component "clicking 'Add Item' with empty input shows the empty-input error"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Add Item")  ; default :ui/new-todo-text is ""
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/err-msg = empty-input-err"
+        (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
+        => "New items cannot be empty or only whitespace."
+        "error text visible in the DOM"
+        (h/text-exists? spa "New items cannot be empty or only whitespace.") => true
+        "no new todo was added"
+        (count (get-in (app/current-state spa) [:list/id 1 :list/todos])) => 2)))
+
+  (component "typing text and clicking Add Item clears any prior error"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Add Item")          ; set err
+          _   (h/render-frame! spa)
+          _   (h/type-into-labeled! spa "New TODO" "valid text")
+          _   (h/click-on-text! spa "Add Item")          ; clears err + adds
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/err-msg cleared after successful add"
+        (get-in (app/current-state spa) [:list/id 1 :ui/err-msg]) => nil
+        "list grew by one"
+        (count (get-in (app/current-state spa) [:list/id 1 :list/todos])) => 3))))
+
+(specification "Error surfacing — Delete List on empty list"
+  (component "clicking 'Delete List' on an empty list shows nothing-to-delete-err"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; First emptying the list ourselves, then clicking again to
+          ;; hit the "already empty" path.
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)
+          ;; Sanity: list is empty after first click and err is clear.
+          first-err (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
+          _   (h/click-on-text! spa "Delete List")
+          _   (h/render-frame! spa)]
+      (assertions
+        "after the first (valid) delete, err is nil"
+        first-err => nil
+        "second click (list already empty) sets the nothing-to-delete error"
+        (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
+        => "There is nothing to delete."
+        "error text visible in the DOM"
+        (h/text-exists? spa "There is nothing to delete.") => true))))
+
+(specification "Error surfacing — Mark Done with no actionable items"
+  (component "clicking 'Mark Done' with no :ready items shows cannot-take-action-err"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; First Mark Done flips id-1 :ready → :done and auto-marks
+          ;; id-2 :new → :ready. Second Mark Done makes id-2 :done. After
+          ;; that, no :ready items left.
+          _   (h/click-on-text! spa "Mark Done")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Mark Done")
+          _   (h/render-frame! spa)
+          ;; Third click — no actionable items remaining.
+          _   (h/click-on-text! spa "Mark Done")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/err-msg = cannot-take-action-err"
+        (get-in (app/current-state spa) [:list/id 1 :ui/err-msg])
+        => "There are no actionable tasks in your list."
+        "error text visible in the DOM"
+        (h/text-exists? spa "There are no actionable tasks in your list.") => true))))

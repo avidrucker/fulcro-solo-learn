@@ -14,6 +14,7 @@
                                      into the live app state atom
      - init / SPA                  : app construction + headless mount"
   (:require
+    [clojure.string :as str]
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
@@ -44,7 +45,7 @@
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
 (declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item
-         set-open-modal toggle-open-modal toggle-theme)
+         set-open-modal toggle-open-modal toggle-theme set-err-msg)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -377,7 +378,7 @@
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
 
 (defsc TodoList [this {:list/keys [todos]
-                       :ui/keys   [new-todo-text open-modal theme]
+                       :ui/keys   [new-todo-text open-modal theme err-msg]
                        :or        {theme :theme/light}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -389,6 +390,8 @@
                    :ui/open-modal
                    ;; Phase 7.7: `:theme/light` (default) or `:theme/dark`.
                    :ui/theme
+                   ;; Phase 7.9: page-level error message string, or nil.
+                   :ui/err-msg
                    ;; Subscribe to the review chart's state. Without these
                    ;; ident-joins, the render reads from app state via
                    ;; `scf/current-configuration` (a side-channel Fulcro
@@ -410,7 +413,8 @@
                      :list/todos       []
                      :ui/new-todo-text ""
                      :ui/open-modal    :none
-                     :ui/theme         :theme/light})}
+                     :ui/theme         :theme/light
+                     :ui/err-msg       nil})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
         cursor         (when active? (review-cursor this))
@@ -421,31 +425,45 @@
         actionable?    (some? benchmark)             ; benchmark exists iff at least one :ready
         no-todos?      (empty? todos)
         prioritizable? (review/prioritizable? todos)
-        ;; Disabled / dim conditions per JS port:
-        ;;   Add Item — dim/disabled while reviewing
-        ;;   Delete List — dim/disabled when the list is empty or reviewing
-        ;;   Prioritize — dim/disabled when not prioritizable or reviewing
-        ;;   Mark Done — dim/disabled when no actionable items or reviewing
-        add-disabled?       active?
-        delete-disabled?    (or active? no-todos?)
+        blank-input?   (str/blank? (or new-todo-text ""))
+        ;; Phase 7.9: per JS port, dim the buttons whose actions would
+        ;; refuse, but keep them clickable — the click surfaces an
+        ;; error message via `:ui/err-msg`. Prioritize still hard-
+        ;; disables when not prioritizable since the JS port has no
+        ;; matching error string for that case.
+        add-dim?            blank-input?
+        delete-dim?         no-todos?
         prioritize-disabled? (or active? (not prioritizable?))
-        mark-done-disabled?  (or active? (not actionable?))
-        btn-cls            (fn [disabled?]
-                             (if disabled?
+        mark-done-dim?      (not actionable?)
+        btn-cls            (fn [dim-or-disabled?]
+                             (if dim-or-disabled?
                                (btn-primary-dim-class theme)
                                (btn-primary-class theme)))
-        ;; One canonical handler for "submit the Add Item action" so both
-        ;; the form's onSubmit (Enter key) and the button's onClick
-        ;; converge on the same code path. Trusts the model to refuse
-        ;; blank text; refocuses regardless so the user can keep typing.
+        clear-err!         #(comp/transact! this [(set-err-msg {:ui/err-msg nil})])
+        set-err!           (fn [msg]
+                             (comp/transact! this [(set-err-msg {:ui/err-msg msg})]))
+        ;; Phase 7.9: each handler first checks the refusal condition
+        ;; locally and either surfaces the relevant error or runs the
+        ;; mutation and clears any prior error. The "successful action
+        ;; clears the prior error" path matches the JS port's behaviour.
         submit-add!        (fn []
-                             (comp/transact! this [(add-todo {:todo/text new-todo-text})])
-                             (focus-new-todo-input!))
+                             (if blank-input?
+                               (set-err! s/empty-input-err)
+                               (do (comp/transact! this
+                                     [(add-todo {:todo/text new-todo-text})])
+                                   (clear-err!)
+                                   (focus-new-todo-input!))))
         submit-delete!     (fn []
-                             (comp/transact! this [(delete-all)])
-                             (focus-new-todo-input!))
+                             (if no-todos?
+                               (set-err! s/nothing-to-delete-err)
+                               (do (comp/transact! this [(delete-all)])
+                                   (clear-err!)
+                                   (focus-new-todo-input!))))
         submit-mark-done!  (fn []
-                             (comp/transact! this [(complete-benchmark-item)]))]
+                             (if (not actionable?)
+                               (set-err! s/cannot-take-action-err)
+                               (do (comp/transact! this [(complete-benchmark-item)])
+                                   (clear-err!))))]
     (comp/fragment
       ;; Form wraps the input so the browser's default form-submit
       ;; (Enter key) routes through `submit-add!`. The action buttons
@@ -465,25 +483,37 @@
                       :className   (input-class theme)
                       :placeholder s/input-placeholder
                       :value       (or new-todo-text "")
-                      :onChange    #(m/set-string! this :ui/new-todo-text :event %)})))
+                      :onChange    #(m/set-string! this :ui/new-todo-text :event %)})
+          ;; Phase 7.9: page-level error message. Only rendered when
+          ;; `:ui/err-msg` is truthy; the JS port uses red copy for
+          ;; immediate visual cue.
+          (when err-msg
+            (dom/p {:className "lh-135 red ml-auto mr-auto measure-narrow ma0 pt2"}
+              err-msg))))
       (dom/section {:className "pt2 pb2 flex justify-center flex-wrap measure-wide ml-auto mr-auto"}
         ;; Group 1: list-mutation actions (Add Item, Delete List).
+        ;; Per 7.9: dim-when-invalid is purely visual; the click still
+        ;; fires `submit-*!` which sets `:ui/err-msg` instead of running
+        ;; the mutation. Hard `:disabled` only when reviewing.
         (dom/div {:className "dib"}
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
-                         :className (btn-cls add-disabled?)
+                         :className (btn-cls (or active? add-dim?))
                          :title     s/tooltip-add-item
-                         :disabled  add-disabled?
+                         :disabled  active?
                          :onClick   #(submit-add!)}
               s/btn-add-item))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
-                         :className (btn-cls delete-disabled?)
+                         :className (btn-cls (or active? delete-dim?))
                          :title     s/tooltip-delete-list
-                         :disabled  delete-disabled?
+                         :disabled  active?
                          :onClick   #(submit-delete!)}
               s/btn-delete-list)))
         ;; Group 2: review-flow actions (Prioritize, Mark Done).
+        ;; Prioritize stays hard-disabled when not prioritizable (no
+        ;; matching error string in the JS port); Mark Done follows the
+        ;; click-surfaces-error pattern.
         (dom/div {:className "dib"}
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
@@ -494,9 +524,9 @@
               s/btn-prioritize))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
-                         :className (btn-cls mark-done-disabled?)
+                         :className (btn-cls (or active? mark-done-dim?))
                          :title     s/tooltip-mark-done
-                         :disabled  mark-done-disabled?
+                         :disabled  active?
                          :onClick   #(submit-mark-done!)}
               s/btn-mark-done))))
       ;; Task list
@@ -665,6 +695,21 @@
     (fn [t] (if (= t :theme/dark) :theme/light :theme/dark))))
 
 ;; ============================================================================
+;; Error message surfacing (Phase 7.9)
+;;
+;; `:ui/err-msg` at `[:list/id 1]` holds either `nil` (no error showing)
+;; or a string ready to render. Set on invalid click attempts (blank
+;; Add Item, empty Delete List, non-actionable Mark Done); cleared on
+;; the next successful action of the same kind.
+;; ============================================================================
+
+(defn set-err-msg*
+  "Set or clear the page-level error message. `msg` may be `nil` to
+   clear; any string sets the visible error."
+  [state-map list-ident msg]
+  (assoc-in state-map (conj list-ident :ui/err-msg) msg))
+
+;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo*
 ;; Each helper denormalizes state → calls the corresponding model.list fn →
 ;; on :ok? reprojects via norm/sync-items, on refusal returns state unchanged.
@@ -784,6 +829,11 @@
 (defmutation toggle-theme [_]
   (action [{:keys [state]}]
     (swap! state toggle-theme* [:list/id 1])))
+
+;; Phase 7.9: page-level error setter. `nil` clears, string sets.
+(defmutation set-err-msg [{:ui/keys [err-msg]}]
+  (action [{:keys [state]}]
+    (swap! state set-err-msg* [:list/id 1] err-msg)))
 
 ;; Remote-only mutation fired from the review chart's :yes action. The
 ;; chart has already mutated the client state-map via `ops/assign`; this

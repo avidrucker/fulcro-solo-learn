@@ -231,6 +231,41 @@ start a fresh list.
 
 ---
 
+## Errors and feedback
+
+### S-error-add-blank — Adding with blank text shows error
+**Phase:** 7.9
+**Status:** ✅
+**Tests:** `client_test:Error surfacing — Add Item with blank text`
+
+Clicking Add Item (or pressing Enter) with empty or whitespace-only
+text in the input sets `:ui/err-msg` to `s/empty-input-err`
+("New items cannot be empty or only whitespace.") instead of silently
+no-opping. The error renders below the input. Typing valid text and
+re-submitting clears the error and adds the item.
+
+### S-error-delete-empty — Deleting an empty list shows error
+**Phase:** 7.9
+**Status:** ✅
+**Tests:** `client_test:Error surfacing — Delete List on empty list`
+
+Clicking Delete List on an empty list sets `:ui/err-msg` to
+`s/nothing-to-delete-err` ("There is nothing to delete."). On a
+non-empty list, Delete List clears the prior error and empties the
+list as before.
+
+### S-error-mark-done-no-actionable — Mark Done with no actionable items
+**Phase:** 7.9
+**Status:** ✅
+**Tests:** `client_test:Error surfacing — Mark Done with no actionable items`
+
+Clicking Mark Done when no `:status/ready` items exist sets
+`:ui/err-msg` to `s/cannot-take-action-err` ("There are no actionable
+tasks in your list."). On an actionable list, Mark Done clears the
+prior error and completes the benchmark as before.
+
+---
+
 ## Tooling / dev affordances
 
 ### S-deployed-reference-comparison — Snapshot the deployed JS port for diffing
