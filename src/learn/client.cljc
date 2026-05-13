@@ -46,7 +46,8 @@
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
 (declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item
-         set-open-modal toggle-open-modal toggle-theme set-err-msg)
+         import-from-text set-open-modal toggle-open-modal toggle-theme
+         set-err-msg)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -392,8 +393,13 @@
        (theme-primary-btn-suffix theme)
        " pa2 pointer"))
 
+(def textarea-import-id
+  "Stable id paired with the (clip-hidden) `<label htmlFor>` so headless
+   tests can target the textarea via `h/type-into-labeled!`."
+  "textarea-import")
+
 (defn- save-modal
-  [this theme todos]
+  [this theme todos textarea-import-text submit-import!]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-save-modal
                 :theme       theme}
@@ -426,7 +432,15 @@
         s/btn-export))
     (dom/p {:className "ph3 pt2 ma0 lh-135"} s/save-info-2)
     (dom/div {:className "ph3 pt1"}
-      (dom/textarea {:className   (str "db input-reset pa2 w-100 resize-none lh-135 "
+      ;; Hidden label paired with the textarea id so headless tests can
+      ;; find this control via `h/type-into-labeled!`. The JS port has
+      ;; no such label; this is our test-affordance ↔ DOM bridge
+      ;; (same pattern as the new-todo input).
+      (dom/label {:htmlFor   textarea-import-id
+                  :className "clip"}
+        "Paste import")
+      (dom/textarea {:id          textarea-import-id
+                     :className   (str "db input-reset pa2 w-100 resize-none lh-135 "
                                        "br3 ba bw1 b--gray "
                                        ;; Phase 7.12 followup: use the same theme suffix
                                        ;; as the new-todo input (text color + bg + hover
@@ -435,9 +449,12 @@
                                        (theme-input-class theme))
                      :placeholder s/textarea-placeholder
                      :rows        2
-                     :onChange    (stub-onclick "textarea-change")})
-      (dom/button {:className (save-modal-wide-btn-class theme)
-                   :onClick   (stub-onclick "submit-textarea-import")}
+                     :value       (or textarea-import-text "")
+                     :onChange    #(m/set-string! this :ui/textarea-import-text
+                                     :event %)})
+      (dom/button {:type      "button"
+                   :className (save-modal-wide-btn-class theme)
+                   :onClick   #(submit-import!)}
         s/btn-submit))
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
 
@@ -467,11 +484,17 @@
         s/btn-yes))))
 
 (defsc TodoList [this {:list/keys [todos]
-                       :ui/keys   [new-todo-text open-modal theme err-msg]
+                       :ui/keys   [new-todo-text textarea-import-text
+                                   open-modal theme err-msg]
                        :or        {theme :theme/light}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
                    :ui/new-todo-text
+                   ;; Phase 7.12: textarea content for batch import in
+                   ;; the save modal. Controlled component pattern —
+                   ;; `m/set-string!` on every keystroke; cleared after
+                   ;; a successful Submit.
+                   :ui/textarea-import-text
                    ;; Phase 7.4: which (if any) menu modal is currently
                    ;; open. Default `:none`. The query lives here on
                    ;; TodoList because all modals are page-level — there
@@ -498,12 +521,13 @@
                     [:cursor]}]
    :ident         :list/id
    :initial-state (fn [_]
-                    {:list/id          1
-                     :list/todos       []
-                     :ui/new-todo-text ""
-                     :ui/open-modal    :none
-                     :ui/theme         :theme/light
-                     :ui/err-msg       nil})}
+                    {:list/id                 1
+                     :list/todos              []
+                     :ui/new-todo-text        ""
+                     :ui/textarea-import-text ""
+                     :ui/open-modal           :none
+                     :ui/theme                :theme/light
+                     :ui/err-msg              nil})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
         cursor         (when active? (review-cursor this))
@@ -567,7 +591,25 @@
                              (if (not prioritizable?)
                                (set-err! s/not-prioritizable-err)
                                (do (send-and-pump! this chart/event-start)
-                                   (clear-err!))))]
+                                   (clear-err!))))
+        ;; Phase 7.12 batch import. The textarea content `textarea-import-text`
+        ;; is the controlled value. On Submit:
+        ;;   - blank → surface `empty-textarea-err` (modal stays open).
+        ;;   - non-blank → run the import-from-text mutation, clear the
+        ;;     textarea, close the modal, clear the prior error,
+        ;;     refocus the new-todo input so typing flows naturally.
+        textarea-blank?    (str/blank? (or textarea-import-text ""))
+        submit-import!     (fn []
+                             (if textarea-blank?
+                               (set-err! s/empty-textarea-err)
+                               (do (comp/transact! this
+                                     [(import-from-text
+                                        {:ui/textarea-import-text textarea-import-text})])
+                                   (m/set-string! this :ui/textarea-import-text
+                                     :value "")
+                                   (close-current-modal! this)
+                                   (clear-err!)
+                                   (focus-new-todo-input!))))]
     (comp/fragment
       ;; Form wraps the input so the browser's default form-submit
       ;; (Enter key) routes through `submit-add!`. The action buttons
@@ -674,7 +716,8 @@
       (case open-modal
         :about          (about-modal this theme)
         :help           (help-modal this theme)
-        :save           (save-modal this theme todos)
+        :save           (save-modal this theme todos
+                          textarea-import-text submit-import!)
         :delete-confirm (delete-confirm-modal this theme
                           confirm-delete! cancel-delete!)
         nil))))
@@ -751,6 +794,19 @@
           (merge/merge-component TodoItem new-todo
             :append (conj list-ident :list/todos))
           (assoc-in (conj list-ident :ui/new-todo-text) "")))
+      state-map)))
+
+(defn import-from-text*
+  "Phase 7.12 batch import: denormalize → model.list/import-from-string →
+   sync-items back into the normalized state-map. Blank-or-whitespace
+   text is a no-op (the model refuses with :error/empty-import; the UI
+   layer surfaces the error before calling here, so we just guard
+   defensively)."
+  [state-map list-ident text]
+  (let [items  (norm/denormalize-list-items state-map list-ident)
+        result (model.list/import-from-string items text)]
+    (if (:ok? result)
+      (norm/sync-items state-map list-ident (:items result))
       state-map)))
 
 (defn delete-all*
@@ -901,6 +957,16 @@
   ;; Phase 7.3: enable server sync so localStorage persistence reflects
   ;; the empty list after the user clicks Delete List. Server has a
   ;; matching `learn.client/delete-all` Pathom mutation.
+  (remote [env] (remote-list-items env)))
+
+(defmutation import-from-text
+  "Phase 7.12 — batch import from the save modal textarea. Splits the
+   given text on newlines, drops blank lines, and appends each as a
+   fresh todo following `add-todo`'s status rule. No-op when the model
+   refuses (all-blank input)."
+  [{:ui/keys [textarea-import-text]}]
+  (action [{:keys [state ref]}]
+    (swap! state import-from-text* ref textarea-import-text))
   (remote [env] (remote-list-items env)))
 
 (defmutation set-status [{:todo/keys [id status]}]

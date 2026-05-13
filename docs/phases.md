@@ -752,6 +752,41 @@ visual-regression gating.
 
 Implements **S-deployed-reference-comparison** (new story).
 
+### ✅ 7.12 (followup) — Batch import via the save modal textarea
+
+Closes the last stubbed action in the save modal alongside Copy List
+URL (Phase 7.11). The Submit button now wires through a full
+TDD-built stack:
+
+- `learn.model.list/import-from-string` — pure CLJC. Mirrors the JS
+  port's `importTasksFromString` (`tasksIO.js`): split on `\n`, drop
+  blank lines, reduce `add-todo` over the rest. Refuses with
+  `:error/empty-import` on all-blank input. Each new todo follows
+  `add-todo`'s status rule fresh per iteration — first non-blank line
+  into an empty list becomes `:ready`, subsequent lines become `:new`
+  (because :ready now exists).
+- `learn.client/import-from-text*` — state-helper. Denormalize →
+  model → `norm/sync-items` back. No-op on refusal.
+- `learn.client/import-from-text` defmutation with remote (server
+  side `learn.resolvers/import-from-text-mutation`, registered under
+  `'learn.client/import-from-text`).
+- UI wiring in `save-modal`: textarea is a controlled input bound to
+  `:ui/textarea-import-text` via `m/set-string!`; Submit handler
+  splits two ways (blank → `set-err! empty-textarea-err`; non-blank
+  → run the mutation, clear textarea, close modal, clear err,
+  refocus the new-todo input).
+- `:error/empty-import` added to the model schema enum so the
+  `>defn` contract on `import-from-string` accepts the new error
+  shape.
+
+**8 new specs / 36 new assertions** (Layer 1: 8 specs / 20 assertions
+in `model.list-test`; Layer 2-4: 3 specs / 16 assertions in
+`client_test`). **69 specs / 498 assertions, all green. CLJS: 327
+files, 0 warnings.**
+
+Implements **S-import-batch-text** (new story); partially closes
+**S-import-export**.
+
 ### ✅ 7.12 — Delete-list confirmation modal
 
 Phase 7.3 had Delete List empty the list immediately, with a footnote

@@ -141,6 +141,50 @@
          [:list/id 1 :list/todos]])
       => true)))
 
+(specification "import-from-text*"
+  ;; Wiring spec for the Phase 7.12 batch-import state-helper:
+  ;; denormalize → model.list/import-from-string → sync-items back.
+  ;; Domain rules are covered exhaustively in `model.list-test:import-from-string`.
+  (component "blank text — state unchanged"
+    (let [before (fixture-state)]
+      (assertions
+        "empty string is a no-op"
+        (sut/import-from-text* before [:list/id 1] "") => before
+        "whitespace-only string is a no-op"
+        (sut/import-from-text* before [:list/id 1] "  \n\t ") => before)))
+
+  (component "multi-line input — appends every non-blank line"
+    (let [before (fixture-state)
+          after  (sut/import-from-text* before [:list/id 1] "alpha\nbeta\ngamma")
+          new-idents (vec (drop 2 (get-in after [:list/id 1 :list/todos])))]
+      (assertions
+        ":list/todos length grew by 3 (two seed + three new)"
+        (count (get-in after [:list/id 1 :list/todos])) => 5
+        "first two idents preserved at the head (existing items unchanged)"
+        (vec (take 2 (get-in after [:list/id 1 :list/todos])))
+        => [[:todo/id fixture-id-1] [:todo/id fixture-id-2]]
+        "new entities are reachable via the appended idents"
+        (mapv #(get-in after [:todo/id (second %) :todo/text]) new-idents)
+        => ["alpha" "beta" "gamma"]
+        "all new todos are :status/new (fixture has a :ready already)"
+        (every? #{:status/new}
+          (mapv #(get-in after [:todo/id (second %) :todo/status]) new-idents))
+        => true)))
+
+  (component "blank lines mixed with content are skipped"
+    (let [before (empty-fixture-state)
+          after  (sut/import-from-text* before [:list/id 1] "a\n\nb\n   \nc")
+          idents (get-in after [:list/id 1 :list/todos])]
+      (assertions
+        "only the 3 non-blank lines became todos"
+        (count idents) => 3
+        "texts preserved in order"
+        (mapv #(get-in after [:todo/id (second %) :todo/text]) idents)
+        => ["a" "b" "c"]
+        "first into empty list gets :status/ready; rest :status/new"
+        (mapv #(get-in after [:todo/id (second %) :todo/status]) idents)
+        => [:status/ready :status/new :status/new]))))
+
 ;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo* — state-helpers that
 ;; delegate to learn.model.list for domain semantics. These specs verify the
@@ -478,6 +522,94 @@
         "no loaded entities remain in the :todo/id table"
         (contains? (:todo/id db) server-id-1) => false
         (contains? (:todo/id db) server-id-2) => false))))
+
+(specification "Save modal — batch import textarea flow"
+  ;; UI wiring spec for the Phase 7.12 save-modal textarea. The mutation
+  ;; spec below covers the data path; this one proves the click-to-mutation
+  ;; chain works through the open-modal state + the (clip-hidden) label
+  ;; wiring used by `h/type-into-labeled!`.
+  (component "type into textarea + click Submit imports the lines"
+    (server/seed!)
+    (let [spa (sut/init)
+          ;; Open the Save modal via the disk icon's accessible name.
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)
+          ;; `h/type-into-labeled!` only finds <input> tags — use the
+          ;; id-based `type-into!` for the textarea.
+          _   (h/type-into! spa sut/textarea-import-id "foo\nbar\nbaz")
+          ;; `s/save-info-2` contains the word "Submit" in its body, so the
+          ;; button is the SECOND match — pass index 1.
+          _   (h/click-on-text! spa "Submit" 1)
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)
+          new-ids (mapv second (drop 2 (get-in db [:list/id 1 :list/todos])))]
+      (assertions
+        "list grew by 3 (2 seeded + 3 imported)"
+        (count (get-in db [:list/id 1 :list/todos])) => 5
+        "imported texts in line order"
+        (mapv #(get-in db [:todo/id % :todo/text]) new-ids)
+        => ["foo" "bar" "baz"]
+        ":ui/textarea-import-text cleared after successful Submit"
+        (get-in db [:list/id 1 :ui/textarea-import-text]) => ""
+        "modal closed after successful Submit"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none
+        ":ui/err-msg cleared after successful Submit"
+        (get-in db [:list/id 1 :ui/err-msg]) => nil)))
+
+  (component "Submit on blank textarea surfaces empty-textarea-err"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)
+          ;; Don't type anything — Submit on the blank default.
+          ;; `s/save-info-2` contains the word "Submit" in its body, so the
+          ;; button is the SECOND match — pass index 1.
+          _   (h/click-on-text! spa "Submit" 1)
+          _   (h/render-frame! spa)
+          db  (app/current-state spa)]
+      (assertions
+        "list unchanged at 2 seeded items"
+        (count (get-in db [:list/id 1 :list/todos])) => 2
+        ":ui/err-msg surfaces the empty-textarea error string"
+        (get-in db [:list/id 1 :ui/err-msg])
+        => "New items cannot be empty or whitespace only."
+        "modal stays open so the user can correct"
+        (get-in db [:list/id 1 :ui/open-modal]) => :save))))
+
+(specification "import-from-text mutation"
+  ;; End-to-end: client transact runs the helper AND syncs to SERVER-DB
+  ;; via the remote. Two seeded items + three imported lines = 5 total.
+  (component "appends batch items on client AND SERVER-DB"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/import-from-text {:ui/textarea-import-text "x\ny\nz"})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)
+          client-idents (get-in db [:list/id 1 :list/todos])
+          new-client-ids (mapv second (drop 2 client-idents))]
+      (assertions
+        "client :list/todos length is 5 (2 seeded + 3 imported)"
+        (count client-idents) => 5
+        "client texts for the new idents in import order"
+        (mapv #(get-in db [:todo/id % :todo/text]) new-client-ids)
+        => ["x" "y" "z"]
+        "SERVER-DB :list/todos length is 5"
+        (count (get-in @server/SERVER-DB [:list/id 1 :list/todos])) => 5
+        "SERVER-DB and client share the same UUIDs for the new items"
+        (set (map second client-idents))
+        => (set (get-in @server/SERVER-DB [:list/id 1 :list/todos])))))
+
+  (component "blank input is a no-op (model refuses :error/empty-import)"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/import-from-text {:ui/textarea-import-text "\n  \t\n"})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)]
+      (assertions
+        "client :list/todos unchanged at 2 seeded items"
+        (count (get-in db [:list/id 1 :list/todos])) => 2))))
 
 ;; ============================================================================
 ;; Review chart wiring — init installs the statechart support, registers the

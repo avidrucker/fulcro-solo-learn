@@ -202,15 +202,43 @@ and a close-instruction footer.
 
 ### S-import-export — Import/Export modal
 **Phase:** 7.6 (stubbed)
-**Status:** 🟡 (markup tested; Copy List URL real as of 7.11; Import/Export/Submit still stubbed)
+**Status:** 🟡 (markup tested; Copy List URL real as of 7.11; batch-text Submit real as of 7.12; Import/Export JSON still stubbed)
 **Tests:** `client_test:Import/Export modal` (markup visible after click, bg-close works)
 
 UI present with Copy List URL, Import (file upload via styled
 `<label>` + hidden `<input type="file">`), Export, and a raw text
 textarea + Submit. **Copy List URL is real (Phase 7.11 — see
-[S-copy-list-url]); the other three log to console only via
-`stub-onclick`.** Real implementation of Import/Export/Submit (JSON
-round-trip, paste-text parsing) is deferred to a future phase.
+[S-copy-list-url]); batch-text Submit is real (Phase 7.12 — see
+[S-import-batch-text]); the remaining two (Import-JSON-file,
+Export-JSON-file) log to console only via `stub-onclick`.** Real
+JSON file round-trip is deferred to a future phase.
+
+### S-import-batch-text — Batch import via the modal textarea
+**Phase:** 7.12
+**Status:** ✅
+**Tests:** `model.list-test:import-from-string`, `client_test:import-from-text*`, `client_test:import-from-text mutation`, `client_test:Save modal — batch import textarea flow`
+
+As a user with a list of tasks in plain-text form, I want to paste
+them into the Import/Export modal's textarea (one per line) and click
+Submit to add them all to my list in one go.
+
+Behavior (mirrors `pwa-autofocus-app/src/core/tasksIO.js`
+`importTasksFromString`):
+- Split on `\n`, drop any line that's empty or whitespace-only, then
+  append the rest in order using the same status rule as Add Item
+  (`add-todo` — first new item gets `:status/ready` if the existing
+  list has no ready items; subsequent ones are `:status/new`).
+- Leading / trailing whitespace WITHIN a non-blank line is preserved
+  verbatim (matches the JS port — the filter only checks `trim`, it
+  doesn't mutate the line).
+- Submit on blank-or-whitespace-only textarea surfaces
+  `:ui/err-msg = empty-textarea-err` and leaves the modal open so
+  the user can correct.
+- Successful Submit: clears the textarea, closes the modal, clears
+  any prior error, and refocuses the top-level new-todo input so
+  typing flows naturally.
+- Persistence: the mutation has a remote so SERVER-DB stays in sync
+  (same wire pattern as `add-todo`, `delete-all`, etc.).
 
 ### S-copy-list-url — Copy share URL to clipboard
 **Phase:** 7.11

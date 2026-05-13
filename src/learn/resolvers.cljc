@@ -93,6 +93,14 @@
    ::pc/output [:list/id]}
   (record-list-items items))
 
+;; Phase 7.12 — batch import from the save modal textarea. Same wire
+;; shape as the other write mutations (client has already done the
+;; domain work; server just records the new items vector).
+(pc/defmutation import-from-text-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/import-from-text
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
 ;; ----------------------------------------------------------------------
 ;; Registry
 ;; ----------------------------------------------------------------------
@@ -105,7 +113,8 @@
    complete-benchmark-item-mutation
    clone-todo-mutation
    sync-list-mutation
-   delete-all-mutation])
+   delete-all-mutation
+   import-from-text-mutation])
 
 ;; REPL: to trace EQL traffic, enable parser debug:
 ;;   (require 'learn.parser :reload)

@@ -636,3 +636,97 @@
         "clone's id differs from the source's id"
         (= id-1 (-> (sut/clone-todo items id-1) :items second :todo/id))
         => false))))
+
+;; ============================================================================
+;; import-from-string — Phase 7.12 batch import via the save modal textarea.
+;;
+;; Mirrors the JS port's `importTasksFromString(oldTasks, importString)` from
+;; `tasksIO.js`: split on newline, drop lines that are empty or whitespace-only,
+;; then reduce `add-todo` over the remaining lines. Each new todo follows
+;; `add-todo`'s usual status rule (first becomes `:ready` iff no `:ready`
+;; exists already; subsequent ones become `:new` because the first promoted
+;; the list-has-ready predicate).
+;; ============================================================================
+
+(specification "import-from-string"
+  (component "refusals — nothing to import"
+    (assertions
+      "empty string — :error/empty-import, items unchanged"
+      (sut/import-from-string [] "")
+      => {:ok? false :error/type :error/empty-import}
+
+      "whitespace-only string — :error/empty-import"
+      (sut/import-from-string [] "   \n\t \n  ")
+      => {:ok? false :error/type :error/empty-import}
+
+      "blank input on a populated list — refusal AND items unchanged"
+      (sut/import-from-string [(todo id-1 "A" :status/ready)] "\n\n")
+      => {:ok? false :error/type :error/empty-import}))
+
+  (component "single non-blank line appended to empty list"
+    (let [result (sut/import-from-string [] "Hello world")]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "items has one todo"
+        (count (:items result)) => 1
+        "text matches the line verbatim"
+        (-> result :items first :todo/text) => "Hello world"
+        "status is :ready (empty start → first add gets :ready)"
+        (-> result :items first :todo/status) => :status/ready)))
+
+  (component "multi-line input — appends in order, status rule applies"
+    (let [result (sut/import-from-string [] "first\nsecond\nthird")]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "items count matches line count"
+        (count (:items result)) => 3
+        "text in line order"
+        (mapv :todo/text (:items result)) => ["first" "second" "third"]
+        "first new todo is :ready (no :ready existed); rest are :new"
+        (mapv :todo/status (:items result))
+        => [:status/ready :status/new :status/new])))
+
+  (component "appending to a list that already has a :ready item"
+    (let [start  [(todo id-1 "Existing" :status/ready)]
+          result (sut/import-from-string start "x\ny\nz")]
+      (assertions
+        ":ok? true"
+        (:ok? result) => true
+        "existing item preserved at index 0"
+        (-> result :items first) => (todo id-1 "Existing" :status/ready)
+        "all new todos are :new (because :ready already existed)"
+        (mapv :todo/status (rest (:items result))) => [:status/new :status/new :status/new]
+        "texts appended in order"
+        (mapv :todo/text (:items result)) => ["Existing" "x" "y" "z"])))
+
+  (component "blank lines mixed with content are skipped"
+    (let [result (sut/import-from-string [] "a\n\nb\n   \nc\n\t\nd")]
+      (assertions
+        "only the 4 non-blank lines are added"
+        (mapv :todo/text (:items result)) => ["a" "b" "c" "d"])))
+
+  (component "trailing/leading blank lines are skipped"
+    (let [result (sut/import-from-string [] "\n\na\nb\n\n")]
+      (assertions
+        "boundary blanks dropped, content preserved in order"
+        (mapv :todo/text (:items result)) => ["a" "b"])))
+
+  (component "leading/trailing whitespace WITHIN a non-blank line is preserved"
+    ;; Matches the JS port: `addTask` receives the line verbatim — the filter
+    ;; only checks `line.trim() !== ""`, it does NOT mutate the line itself.
+    (let [result (sut/import-from-string [] "  hello  ")]
+      (assertions
+        "text preserves the surrounding whitespace"
+        (-> result :items first :todo/text) => "  hello  ")))
+
+  (component "generated UUIDs are unique and well-typed"
+    (let [result (sut/import-from-string [] "a\nb\nc")
+          ids    (mapv :todo/id (:items result))]
+      (assertions
+        "each id is a UUID"
+        (every? uuid? ids) => true
+        "ids are pairwise distinct"
+        (count (set ids)) => 3))))
+

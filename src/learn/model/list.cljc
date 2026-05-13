@@ -149,3 +149,34 @@
    (if-let [source (some #(when (= id (:todo/id %)) %) items)]
      (add-todo items (:todo/text source) clone-id)
      {:ok? false :error/type :error/item-not-found})))
+
+;; ============================================================================
+;; import-from-string
+;;
+;; JS-port parity: `importTasksFromString(oldTasks, importString)` from
+;; `pwa-autofocus-app/src/core/tasksIO.js`. Split on `\n`, drop blank lines,
+;; reduce `add-todo` over the remainder. Each iteration's add-todo gets the
+;; CURRENT items vector — so the status rule applies fresh on each step
+;; (first non-blank line into an empty list becomes :ready; subsequent ones
+;; follow because :ready now exists).
+;;
+;; Refuses with `:error/empty-import` when no non-blank lines remain. Keeps
+;; line text VERBATIM (does not trim) — matches the JS source.
+;; ============================================================================
+
+(>defn import-from-string
+  "Split `text` on newlines, drop lines that are entirely whitespace, and
+   reduce `add-todo` over the rest. Returns `{:ok? false :error/type
+   :error/empty-import}` if no non-blank lines remain — caller surfaces
+   the modal error. On success, returns `{:ok? true :items <appended>}`."
+  [items text]
+  [:learn.model.schema/items :string => :learn.model.schema/result]
+  (let [lines (->> (str/split text #"\n")
+                (remove str/blank?))]
+    (if (empty? lines)
+      {:ok? false :error/type :error/empty-import}
+      {:ok? true
+       :items (reduce (fn [current line]
+                        (:items (add-todo current line)))
+                items
+                lines)})))

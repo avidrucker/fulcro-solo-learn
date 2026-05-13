@@ -123,7 +123,9 @@
    :error/cannot-cancel
    :error/no-actionable-items
    :error/not-prioritizable-list
-   :error/invalid-review-decision])
+   :error/invalid-review-decision
+   ;; Phase 7.12: batch-import textarea is empty or all-whitespace lines.
+   :error/empty-import])
 
 ;; Shape returned by a domain function on success.
 (>def ::success-result
