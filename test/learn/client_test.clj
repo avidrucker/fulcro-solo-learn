@@ -739,3 +739,61 @@
         "SERVER-DB matches (mutation has a remote)"
         (get-in @server/SERVER-DB [:todo/id server-id-1 :todo/status]) => :status/done
         (get-in @server/SERVER-DB [:todo/id server-id-2 :todo/status]) => :status/ready))))
+
+;; ============================================================================
+;; Phase 7.4 — Modal state foundation.
+;;
+;; Verifies the pure state-helpers + mutex behavior. UI wiring (icon buttons,
+;; modal-shell `:on-close`) is exercised by the per-modal specs in 7.5/7.6.
+;; ============================================================================
+
+(specification "set-open-modal*"
+  (component "sets :ui/open-modal at the given list-ident"
+    (let [after (sut/set-open-modal* (fixture-state) [:list/id 1] :about)]
+      (assertions
+        "stored at [:list/id 1 :ui/open-modal]"
+        (get-in after [:list/id 1 :ui/open-modal]) => :about
+        "no other keys mutated"
+        (affects-only? (fixture-state) after
+          [[:list/id 1 :ui/open-modal]]) => true)))
+
+  (component "is mutex by construction (single-value overwrite)"
+    (let [after (-> (fixture-state)
+                  (sut/set-open-modal* [:list/id 1] :about)
+                  (sut/set-open-modal* [:list/id 1] :help))]
+      (assertions
+        "second call replaces the first"
+        (get-in after [:list/id 1 :ui/open-modal]) => :help)))
+
+  (component "closes via :none"
+    (let [after (-> (fixture-state)
+                  (sut/set-open-modal* [:list/id 1] :about)
+                  (sut/set-open-modal* [:list/id 1] :none))]
+      (assertions
+        "set to :none clears whatever was open"
+        (get-in after [:list/id 1 :ui/open-modal]) => :none))))
+
+(specification "toggle-open-modal*"
+  (component "opens the modal when closed"
+    (let [after (-> (fixture-state)
+                  (sut/set-open-modal* [:list/id 1] :none)
+                  (sut/toggle-open-modal* [:list/id 1] :about))]
+      (assertions
+        "transition :none → :about"
+        (get-in after [:list/id 1 :ui/open-modal]) => :about)))
+
+  (component "closes the same modal when it's open"
+    (let [after (-> (fixture-state)
+                  (sut/set-open-modal* [:list/id 1] :about)
+                  (sut/toggle-open-modal* [:list/id 1] :about))]
+      (assertions
+        "transition :about → :none"
+        (get-in after [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "opens a different modal when one is already open (mutex)"
+    (let [after (-> (fixture-state)
+                  (sut/set-open-modal* [:list/id 1] :about)
+                  (sut/toggle-open-modal* [:list/id 1] :help))]
+      (assertions
+        ":about → :help (replaces, doesn't stack)"
+        (get-in after [:list/id 1 :ui/open-modal]) => :help))))

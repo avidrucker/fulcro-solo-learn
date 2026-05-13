@@ -130,31 +130,33 @@ falls back to seed silently.
 ## Modals — toggle behavior
 
 ### S-modal-mutex — Only one modal open at a time
-**Phase:** 7.4
-**Status:** ⬜
+**Phase:** 7.4 (state) / 7.5–7.6 (UI wiring)
+**Status:** ✅ (state-helpers); UI exercised in 7.5/7.6 specs
+**Tests:** `client_test:set-open-modal*`, `client_test:toggle-open-modal*`
 
-Opening any modal (About, Help, Import/Export, Delete-confirm) closes
-any other modal that was open. The review modal is special: it doesn't
-participate in the mutex from the *header* side (header buttons are
-disabled while reviewing), but Quit/Yes/No still dismiss it on its own.
+`:ui/open-modal` is a single keyword value at `[:list/id 1]`, so
+opening any modal mechanically overwrites whatever was previously open.
+The review modal doesn't participate (header buttons are disabled
+while reviewing), so Quit/Yes/No still own dismissal of that modal.
 
 ### S-modal-bg-close — Click outside the modal to close it
-**Phase:** 7.4
-**Status:** ⬜
+**Phase:** 7.4 (existing `modal-shell` supports it) / 7.5–7.6 (per-modal wiring)
+**Status:** ✅ (mechanism); per-modal tests in 7.5/7.6
+**Tests:** `client_test:About modal`, `client_test:Help modal`, `client_test:Import/Export modal` (added in 7.5/7.6)
 
-For About, Help, Import/Export, and the Debug modal, clicking the
-transparent area outside the modal content (left, right, below, above)
-dismisses the modal. The review modal does **not** have this affordance
-— it requires Quit.
+`modal-shell` renders an `absolute z-0 top-0 left-0 w-100 o-0 min-h-100`
+transparent button behind the content when `:on-close` is non-nil.
+Clicking anywhere outside the modal hits that button and dismisses.
+The review modal omits `:on-close` (must use Quit).
 
 ### S-modal-toggle-via-button — Same icon button toggles open ↔ closed
-**Phase:** 7.4
-**Status:** ⬜
+**Phase:** 7.4 (state-helper) / 7.5–7.6 (UI wiring)
+**Status:** ✅ (state-helper); UI exercised in 7.5/7.6
+**Tests:** `client_test:toggle-open-modal*`
 
-Each modal's header icon toggles its modal. Clicking the About icon
-opens About; clicking it again (while open) closes it. Clicking a
-different modal's icon while one is open closes the first and opens the
-new one (S-modal-mutex).
+`toggle-open-modal*` flips: if `modal-id` is currently open at
+`[:list/id 1]`, set to `:none`; otherwise open it (which by mutex
+closes any other open modal).
 
 ---
 

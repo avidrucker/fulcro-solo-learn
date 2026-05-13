@@ -190,10 +190,16 @@
                    :onClick   on-close}
         close-label))))
 
-(defsc TodoList [this {:list/keys [todos] :ui/keys [new-todo-text]}]
+(defsc TodoList [this {:list/keys [todos]
+                       :ui/keys   [new-todo-text open-modal]}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
                    :ui/new-todo-text
+                   ;; Phase 7.4: which (if any) menu modal is currently
+                   ;; open. Default `:none`. The query lives here on
+                   ;; TodoList because all modals are page-level — there
+                   ;; isn't a Modal component with its own ident.
+                   :ui/open-modal
                    ;; Subscribe to the review chart's state. Without these
                    ;; ident-joins, the render reads from app state via
                    ;; `scf/current-configuration` (a side-channel Fulcro
@@ -213,7 +219,8 @@
    :initial-state (fn [_]
                     {:list/id          1
                      :list/todos       []
-                     :ui/new-todo-text ""})}
+                     :ui/new-todo-text ""
+                     :ui/open-modal    :none})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
         cursor         (when active? (review-cursor this))
@@ -392,6 +399,35 @@
     (reduce nsh/remove-entity state-map todo-idents)))
 
 ;; ============================================================================
+;; Modal state foundation (Phase 7.4)
+;;
+;; `[:list/id 1 :ui/open-modal]` carries one of:
+;;   :none   — no modal open (default)
+;;   :about  — About modal
+;;   :help   — Help modal
+;;   :save   — Import/Export modal
+;;
+;; `set-open-modal*` is mutex-by-construction (single value), so opening
+;; any modal closes whatever else was open. `toggle-open-modal*` lets the
+;; header icon buttons toggle: click while closed → open; click again
+;; while open → close.
+;; ============================================================================
+
+(defn set-open-modal*
+  "Mutex setter — overwrites whatever modal is currently open."
+  [state-map list-ident modal-id]
+  (assoc-in state-map (conj list-ident :ui/open-modal) modal-id))
+
+(defn toggle-open-modal*
+  "If `modal-id` is currently open at `list-ident`, close it (set to
+   :none); otherwise open it. Used by the header icon buttons so the
+   same click both opens and dismisses."
+  [state-map list-ident modal-id]
+  (let [current (get-in state-map (conj list-ident :ui/open-modal))]
+    (set-open-modal* state-map list-ident
+      (if (= current modal-id) :none modal-id))))
+
+;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo*
 ;; Each helper denormalizes state → calls the corresponding model.list fn →
 ;; on :ok? reprojects via norm/sync-items, on refusal returns state unchanged.
@@ -496,6 +532,17 @@
   (action [{:keys [state]}]
     (swap! state clone-todo* [:list/id 1] id))
   (remote [env] (remote-list-items env)))
+
+;; Phase 7.4 — modal state mutations. Local-only (no server sync) since
+;; modal open/close is pure UI state. Hardcoded list-ident `[:list/id 1]`
+;; matches the singleton pattern used by the rest of the file.
+(defmutation set-open-modal [{:ui/keys [open-modal]}]
+  (action [{:keys [state]}]
+    (swap! state set-open-modal* [:list/id 1] open-modal)))
+
+(defmutation toggle-open-modal [{:ui/keys [open-modal]}]
+  (action [{:keys [state]}]
+    (swap! state toggle-open-modal* [:list/id 1] open-modal)))
 
 ;; Remote-only mutation fired from the review chart's :yes action. The
 ;; chart has already mutated the client state-map via `ops/assign`; this
