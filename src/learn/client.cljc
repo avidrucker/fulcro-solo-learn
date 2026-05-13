@@ -41,6 +41,7 @@
     [learn.util.normalized :as norm]
     [learn.util.remote :as remote]
     [learn.util.storage :as storage]
+    [learn.util.url-encoding :as url-encoding]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -334,6 +335,30 @@
     #?(:cljs (js/console.log "[stub]" label)
        :clj  nil)))
 
+#?(:cljs
+   (defn- current-share-url
+     "Build the `?list=...` share URL from the current browser location
+      and the items snapshot."
+     [items]
+     (let [loc js/window.location]
+       (url-encoding/list-share-url
+         (.-origin loc)
+         (.-pathname loc)
+         (url-encoding/items->base64-url-segment items)))))
+
+#?(:cljs
+   (defn- copy-list-url!
+     "Copy the share URL for `items` to the clipboard via
+      `navigator.clipboard.writeText`. Best-effort: silently no-ops if
+      the Clipboard API is missing (non-https context, very old
+      browsers). The promise's `.catch` keeps a copy failure from
+      surfacing as an uncaught rejection."
+     [items]
+     (let [clipboard (some-> js/navigator .-clipboard)]
+       (when clipboard
+         (-> (.writeText clipboard (current-share-url items))
+           (.catch (fn [err] (js/console.warn "[copy-list-url] failed:" err))))))))
+
 (defn- save-modal-btn-class
   "Theme-aware Import/Export modal action-button class string."
   [theme]
@@ -349,7 +374,7 @@
        " pa2 pointer"))
 
 (defn- save-modal
-  [this theme]
+  [this theme todos]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-save-modal
                 :theme       theme}
@@ -357,7 +382,9 @@
     (dom/div {:className "ph3 pb2"}
       (dom/button {:className (save-modal-wide-btn-class theme)
                    :title     s/tooltip-copy-list-url
-                   :onClick   (stub-onclick "copy-list-url")}
+                   :onClick   (fn [_]
+                                #?(:cljs (copy-list-url! todos)
+                                   :clj  nil))}
         s/btn-copy-list-url))
     (dom/p {:className "ph3 ma0 lh-135"} s/save-info-1)
     (dom/div {:className "ph3 pt2 tc"}
@@ -589,7 +616,7 @@
       (case open-modal
         :about (about-modal this theme)
         :help  (help-modal this theme)
-        :save  (save-modal this theme)
+        :save  (save-modal this theme todos)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))

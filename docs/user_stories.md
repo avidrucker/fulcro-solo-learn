@@ -183,14 +183,31 @@ and a close-instruction footer.
 
 ### S-import-export — Import/Export modal
 **Phase:** 7.6 (stubbed)
-**Status:** 🟡 (markup tested, actions stubbed)
+**Status:** 🟡 (markup tested; Copy List URL real as of 7.11; Import/Export/Submit still stubbed)
 **Tests:** `client_test:Import/Export modal` (markup visible after click, bg-close works)
 
 UI present with Copy List URL, Import (file upload via styled
 `<label>` + hidden `<input type="file">`), Export, and a raw text
-textarea + Submit. **All four interactive elements log to console
-only via `stub-onclick`.** Real implementation (base64-URL list,
-JSON round-trip, paste-text parsing) is deferred to a future phase.
+textarea + Submit. **Copy List URL is real (Phase 7.11 — see
+[S-copy-list-url]); the other three log to console only via
+`stub-onclick`.** Real implementation of Import/Export/Submit (JSON
+round-trip, paste-text parsing) is deferred to a future phase.
+
+### S-copy-list-url — Copy share URL to clipboard
+**Phase:** 7.11
+**Status:** ✅ (data layer); 🟢 (end-to-end is browser-manual — clipboard isn't reachable from JVM tests)
+**Tests:** `util.url-encoding-test:base64-encode`, `util.url-encoding-test:js-url-encode`, `util.url-encoding-test:items->json`, `util.url-encoding-test:items->base64-url-segment`, `util.url-encoding-test:list-share-url`
+
+As a user, when I click Copy List URL inside the Import/Export modal,
+the current page URL with a `?list=<encoded>` query string is written
+to my clipboard so I can share my list by pasting the link elsewhere.
+
+The encoder mirrors the JS port's three-step recipe
+(`btoa(encodeURIComponent(JSON.stringify(items)))`); the empty-list
+case round-trips to the deployed fixture `JTVCJTVE` (the same value
+seen at `?list=JTVCJTVE` in `docs/snapshots/reference/`). Best-effort
+clipboard write — silently no-ops on non-https/old browsers where
+`navigator.clipboard` is absent.
 
 ---
 
