@@ -1174,6 +1174,11 @@
        ;; even when the list overflows the viewport.
        (install-body-theme-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 7.16: URL sync — write the current list to
+       ;; ?list=<encoded> on every items change so the address bar can
+       ;; be copied directly (not just via the Copy List URL button).
+       (url-encoding/install-url-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        (load-todos! spa)
        spa)))
 

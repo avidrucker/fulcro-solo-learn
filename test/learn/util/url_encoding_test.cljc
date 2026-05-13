@@ -250,3 +250,73 @@
       (sut/url-segment->items "!!!not base64!!!") => nil
       "valid base64 but not JSON array of items"
       (sut/url-segment->items (sut/base64-encode "not json")) => nil)))
+
+;; ============================================================================
+;; URL-sync watch — Move 2c (S-url-sync-current-list).
+;;
+;; `install-url-sync!` watches a Fulcro state-atom and invokes
+;; `url-setter` with the new items vector whenever the denormalized
+;; items at `[:list/id 1]` change. In CLJS the default url-setter
+;; calls `history.replaceState`; in tests we inject a recording fn.
+;; ============================================================================
+
+(defn- state-with-items
+  "Build a minimal normalized state-map containing the given items
+   under [:list/id 1]."
+  [items]
+  (let [idents (mapv (fn [t] [:todo/id (:todo/id t)]) items)
+        ents   (into {} (map (juxt :todo/id identity)) items)]
+    {:list/id  {1 {:list/id 1 :list/todos idents :ui/theme :theme/light}}
+     :todo/id  ents}))
+
+(specification "extract-items"
+  (assertions
+    "empty state — empty items"
+    (sut/extract-items {}) => []
+    "denormalizes idents at [:list/id 1 :list/todos]"
+    (sut/extract-items (state-with-items
+                         [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}]))
+    => [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}]))
+
+(specification "install-url-sync!"
+  (component "fires url-setter with new items when items change"
+    (let [a       (atom (state-with-items []))
+          calls   (atom [])
+          setter  (fn [items] (swap! calls conj items))]
+      (sut/install-url-sync! a setter)
+      (reset! a (state-with-items
+                  [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}]))
+      (assertions
+        "setter called exactly once after the items change"
+        (count @calls) => 1
+        "setter received the new items vector"
+        (-> @calls first first :todo/text) => "a")))
+
+  (component "does NOT fire when items are unchanged"
+    (let [a       (atom (state-with-items
+                          [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}]))
+          calls   (atom [])
+          setter  (fn [items] (swap! calls conj items))]
+      (sut/install-url-sync! a setter)
+      ;; Change a non-items path — :ui/theme. Items vector is identical.
+      (swap! a assoc-in [:list/id 1 :ui/theme] :theme/dark)
+      (assertions
+        "setter NOT called (theme change is not an items change)"
+        (count @calls) => 0)))
+
+  (component "fires on every items-change, not just the first"
+    (let [a       (atom (state-with-items []))
+          calls   (atom [])
+          setter  (fn [items] (swap! calls conj items))]
+      (sut/install-url-sync! a setter)
+      (reset! a (state-with-items
+                  [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}]))
+      (reset! a (state-with-items
+                  [{:todo/id id-uuid :todo/text "a" :todo/status :status/ready}
+                   {:todo/id id-uuid-2 :todo/text "b" :todo/status :status/new}]))
+      (reset! a (state-with-items []))
+      (assertions
+        "three changes → three setter calls"
+        (count @calls) => 3
+        "last call's items vector is empty"
+        (last @calls) => []))))

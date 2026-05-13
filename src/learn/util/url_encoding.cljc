@@ -23,7 +23,8 @@
      `items->base64-url-segment` / `url-segment->items` — full round-trip
      `list-share-url`    — wrap a segment into a shareable URL"
   (:require
-    [clojure.string :as str])
+    [clojure.string :as str]
+    [learn.util.normalized :as norm])
   #?(:clj (:import (java.util Base64))))
 
 ;; ============================================================================
@@ -299,3 +300,55 @@
    stays testable on JVM (no `js/window` dependency)."
   [origin pathname segment]
   (str origin pathname "?list=" segment))
+
+;; ============================================================================
+;; URL-sync watch — Phase 7.16 / S-url-sync-current-list.
+;;
+;; Pushes the current items vector into the URL bar as `?list=<encoded>`
+;; on every items change so the address bar can be copied directly
+;; (not just the Copy URL modal action). Same shape as the existing
+;; `install-ui-prefs-persistence!` watch — state-atom watcher that
+;; change-detects a pure projection and acts only when it actually
+;; changes.
+;; ============================================================================
+
+(defn extract-items
+  "Pure: denormalize items at `[:list/id 1]` from a Fulcro state-map.
+   Returns an empty vector when the path is absent — used by the
+   url-sync watch as the projection to change-detect on."
+  [state-map]
+  (norm/denormalize-list-items state-map [:list/id 1]))
+
+#?(:cljs
+   (defn- replace-url-with-items!
+     "Default CLJS url-setter. Builds the share-URL for `items` using
+      the current `window.location` and calls `history.replaceState`
+      so the browser bar reflects the new state without a navigation."
+     [items]
+     (let [loc js/window.location
+           seg (items->base64-url-segment items)
+           url (list-share-url (.-origin loc) (.-pathname loc) seg)]
+       (.replaceState js/history nil "" url))))
+
+(defn install-url-sync!
+  "Watch `fulcro-state-atom`. When the denormalized items at
+   `[:list/id 1]` change, call `url-setter` with the new items
+   vector.
+
+   - 1-arity (production): defaults `url-setter` to
+     `replace-url-with-items!` in CLJS; no-op on JVM.
+   - 2-arity (tests): inject a recording setter to assert what would
+     have been written.
+
+   Returns the atom for fluent composition."
+  ([fulcro-state-atom]
+   #?(:cljs (install-url-sync! fulcro-state-atom replace-url-with-items!)
+      :clj  fulcro-state-atom))
+  ([fulcro-state-atom url-setter]
+   (add-watch fulcro-state-atom ::url-sync
+     (fn [_k _ref old-state new-state]
+       (let [old-items (extract-items old-state)
+             new-items (extract-items new-state)]
+         (when (not= old-items new-items)
+           (url-setter new-items)))))
+   fulcro-state-atom))
