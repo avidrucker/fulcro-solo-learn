@@ -797,3 +797,82 @@
       (assertions
         ":about → :help (replaces, doesn't stack)"
         (get-in after [:list/id 1 :ui/open-modal]) => :help))))
+
+;; ============================================================================
+;; Phase 7.5 — About + Help modals.
+;;
+;; The icon buttons in the header carry a screen-reader `<span class="clip">`
+;; with the tooltip text, so h/click-on-text! finds them by that text. The
+;; modals themselves render their content as DOM text, which h/text-exists?
+;; picks up. Background-click close is verified by clicking the transparent
+;; close button's hidden label text.
+;; ============================================================================
+
+(specification "About modal"
+  (component "closed by default"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (assertions
+        "About body text not present at startup"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false)))
+
+  (component "clicking the 'About' header icon opens the modal with expected content"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "About")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal flipped to :about"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :about
+        "About heading visible"
+        (h/text-exists? spa "About AutoFocus") => true
+        "info-string-1 paragraph visible"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => true
+        "version line visible"
+        (h/text-exists? spa "Version 0.1.4") => true
+        "close-instruction footer visible"
+        (h/text-exists? spa "Click on the 'i' icon above to close this window.") => true)))
+
+  (component "clicking the background close-overlay dismisses the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "About")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Close Info Modal")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal back to :none"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :none
+        "About content no longer visible"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false))))
+
+(specification "Help modal"
+  (component "clicking the 'Help' header icon opens the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Help")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal = :help"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :help
+        "Help heading visible"
+        (h/text-exists? spa "Instructions & Help") => true
+        "instructions paragraph visible"
+        (h/text-exists? spa "Add new items to your list by typing") => true
+        "issues link text visible"
+        (h/text-exists? spa "AutoFocus Issues") => true)))
+
+  (component "mutex — clicking About then Help replaces (single modal at a time)"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "About")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Help")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal = :help (was :about)"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :help
+        "About content gone"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false
+        "Help content present"
+        (h/text-exists? spa "Add new items to your list by typing") => true))))

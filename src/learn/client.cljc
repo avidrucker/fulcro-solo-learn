@@ -43,7 +43,8 @@
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
-(declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item)
+(declare cancel-todo add-todo clone-todo delete-all complete-benchmark-item
+         set-open-modal toggle-open-modal)
 
 ;; ============================================================================
 ;; Constants — kept at the top because ClojureScript flags forward
@@ -189,6 +190,57 @@
       (dom/button {:className "absolute z-0 top-0 left-0 w-100 o-0 min-h-100"
                    :onClick   on-close}
         close-label))))
+
+(def ^:private header-icon-btn-class
+  "Tachyons class string for header icon buttons. `clip` is applied to
+   the inner `<span>` so the screen-reader-only text label is invisible
+   visually but still in the DOM (a11y + h/click-on-text! findable)."
+  "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray pl2 inline-flex items-center")
+
+(defn- header-icon-button
+  "A header icon button that toggles `modal-id` via
+   `toggle-open-modal`. The label text is kept in the DOM via Tachyons'
+   `clip` (visually hidden, screen-reader visible, h/click-on-text!
+   findable for tests)."
+  [this {:keys [icon label modal-id]}]
+  (dom/button {:className header-icon-btn-class
+               :title     label
+               :onClick   #(comp/transact! this
+                             [(toggle-open-modal {:ui/open-modal modal-id})])}
+    icon
+    (dom/span {:className "clip"} label)))
+
+(defn- close-current-modal!
+  "Dispatch `set-open-modal :none`. Used by `modal-shell`'s :on-close."
+  [this]
+  (comp/transact! this [(set-open-modal {:ui/open-modal :none})]))
+
+(defn- about-modal
+  [this]
+  (modal-shell {:on-close    #(close-current-modal! this)
+                :close-label s/close-info-modal}
+    (dom/h2 {:className "pb2 ma0"} s/heading-about)
+    (dom/p {:className "pb3 ma0 lh-135"} s/info-string-1)
+    (dom/p {:className "pb3 ma0 lh-135"} s/info-string-2)
+    (dom/div {:className "pb3"}
+      (dom/h3 {:className "f5 fw6 ma0 mb2"} (s/version-line)))
+    (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
+
+(defn- help-modal
+  [this]
+  (modal-shell {:on-close    #(close-current-modal! this)
+                :close-label s/close-help-modal}
+    (dom/h2 {:className "pb2 ma0"} s/heading-help)
+    (dom/p {:className "pb2 ma0 lh-135"} s/instructions)
+    (dom/p {:className "pb2 ma0 lh-135"} s/instructions-2)
+    (dom/p {:className "pb3 ma0 lh-135"}
+      s/how-to-report-issues
+      (dom/a {:href   s/link-issues-href
+              :target "_blank"
+              :rel    "noopener noreferrer"
+              :className "link underline blue hover-orange"}
+        s/link-issues-text))
+    (dom/p {:className "pt2 ma0 lh-135"} s/click-question-circle-to-close)))
 
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text open-modal]}]
@@ -342,7 +394,13 @@
             (dom/button {:className review-btn-class
                          :title     s/tooltip-review-yes
                          :tabIndex  2
-                         :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes)))))))
+                         :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes))))
+      ;; Menu modals — driven by `:ui/open-modal`. Mutex by construction
+      ;; (single keyword), so at most one is visible at a time.
+      (case open-modal
+        :about (about-modal this)
+        :help  (help-modal this)
+        nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
 
@@ -357,7 +415,13 @@
   (dom/main {:className "app h-100 flex flex-column f5 montserrat black"}
     (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
       (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
-        s/app-name))
+        s/app-name)
+      (header-icon-button this {:icon     icons/info-circle
+                                :label    s/tooltip-about
+                                :modal-id :about})
+      (header-icon-button this {:icon     icons/question-circle
+                                :label    s/tooltip-help
+                                :modal-id :help}))
     (dom/section {:className "app-container relative flex flex-column h-100"}
       (when list (ui-todo-list list)))))
 

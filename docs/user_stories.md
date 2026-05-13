@@ -164,7 +164,8 @@ closes any other open modal).
 
 ### S-about — About modal
 **Phase:** 7.5
-**Status:** ⬜
+**Status:** ✅
+**Tests:** `client_test:About modal` (open via header icon, content visible, bg-close dismisses)
 
 Shows `appName` heading, two paragraphs of background (`infoString1` /
 `infoString2`), the current version, and a close-instruction footer.
@@ -173,7 +174,8 @@ ships with the PWA debug modal in a much later phase.
 
 ### S-help — Help modal
 **Phase:** 7.5
-**Status:** ⬜
+**Status:** ✅
+**Tests:** `client_test:Help modal` (open via header icon, content visible, About→Help mutex)
 
 Shows two paragraphs of usage instructions (`instructions` /
 `instructions2`), a "report issues" line with an external GitHub link,

@@ -648,14 +648,37 @@ Implements **S-modal-mutex**, **S-modal-bg-close** (via existing
 `modal-shell` `:on-close`), **S-modal-toggle-via-button** (via
 `toggle-open-modal*`).
 
-### ⬜ 7.5 — About + Help modals
+### ✅ 7.5 — About + Help modals
 
-Add `info-circle` and `question-circle` SVGs to `learn.ui.icons`.
-Header gets two new icon buttons. Modal bodies pull from
-`learn.ui.strings` (`info-string-1/2`, `version-line`, `instructions/2`,
-`how-to-report-issues`, link constants). Spec: open About → expected
-text visible; open Help → expected text visible. Implements
-**S-about**, **S-help**.
+`info-circle` and `question-circle` SVGs added to `learn.ui.icons`.
+Two header icon buttons rendered in Root via the new
+`header-icon-button` helper, which puts the tooltip label in a
+visually-hidden `<span class="clip">` so `h/click-on-text!` can find
+the button by its label text in headless mode. About + Help modals
+defined as small private fns (`about-modal`, `help-modal`) returning
+`modal-shell` with the appropriate strings from `learn.ui.strings`.
+
+The modals render inside TodoList's fragment via a `case` on
+`:ui/open-modal` (the value driven by 7.4's mutations). `:on-close`
+on each modal calls `(set-open-modal {:ui/open-modal :none})` —
+clicking the transparent background button dismisses.
+
+5 new specs cover: About content visible after click, About content
+gone after bg-close, Help content visible, About→Help mutex (only
+one open at a time).
+
+**Bonus runner fix:** the master test runner now uses `:reload-all`
+on each test namespace, which transitively reloads src namespaces in
+dependency order. This is the general fix for the
+client-references-icons / parser-references-resolvers cross-file
+ref-capture issue. There's some `BUG: Internal error validating ...`
+malli-registry noise during reload-all that doesn't affect test
+correctness.
+
+**46 specs / 368 assertions, all green. CLJS: 326 files, 0 warnings.**
+
+Implements **S-about**, **S-help**, and exercises **S-modal-mutex**
+/ **S-modal-bg-close** end-to-end.
 
 ### ⬜ 7.6 — Import/Export modal (stubbed)
 

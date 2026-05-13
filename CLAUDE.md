@@ -83,17 +83,16 @@ excluded:
                                         (str/replace "_" "-"))))))
                    sort vec)))]
     (let [t-start (System/nanoTime)
-          src-syms (ns-syms-in "src")
           test-syms (ns-syms-in "test")]
-      (doseq [ns-sym (concat src-syms test-syms)]
-        (require ns-sym :reload))
-      ;; learn.parser captures `learn.resolvers/all-resolvers` into the
-      ;; Pathom parser instance at load time. The alphabetical reload
-      ;; above hits parser BEFORE resolvers, so a freshly-added
-      ;; defresolver/defmutation isn't visible until parser reloads
-      ;; once more with the new resolvers vector in scope.
-      (when (some #{'learn.parser} src-syms)
-        (require 'learn.parser :reload))
+      ;; `:reload-all` on each test namespace transitively re-loads all
+      ;; required src namespaces in dependency order — so a fresh `def`
+      ;; in `learn.ui.icons` is visible by the time `learn.client`
+      ;; re-evaluates, and a fresh defmutation in `learn.resolvers` is
+      ;; captured by `learn.parser`. Generates some `BUG: Internal error
+      ;; validating ...` noise from malli's registry during reload; this
+      ;; is cosmetic and assertions still run correctly.
+      (doseq [ns-sym test-syms]
+        (require ns-sym :reload-all))
       (require 'fulcro-spec.reporters.repl)
       (let [results (mapv #(clojure.test/run-tests %) test-syms)
             totals (apply merge-with +
