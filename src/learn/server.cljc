@@ -15,7 +15,12 @@
   1)
 
 (def initial-state
-  "Seed data: two todos in a known order, exercising :ready + :new."
+  "Dev / JVM-test seed: two todos in a known order, exercising
+   `:ready` + `:new`. The spec suite refers to these UUIDs/texts
+   directly (search for `server-id-1` / `server-id-2` in
+   `client_test`), so this shape is load-bearing for tests. The
+   *deployed* CLJS app overrides this with `empty-state` (B-5)
+   before any user interaction."
   (let [id-1 #uuid "11111111-1111-1111-1111-111111111111"
         id-2 #uuid "22222222-2222-2222-2222-222222222222"]
     {:list/id {list-id {:list/id    list-id
@@ -26,6 +31,15 @@
                id-2 {:todo/id     id-2
                      :todo/text   "Try out remotes"
                      :todo/status :status/new}}}))
+
+(def empty-state
+  "Production initial state — an empty list. Used by CLJS `init`
+   (B-5 fix) so first-time visitors to the deployed app see an
+   empty list rather than the JVM-test dev seed. Shape matches
+   `initial-state`: a list entity with `:list/todos` `[]` and the
+   `:todo/id` table empty."
+  {:list/id {list-id {:list/id list-id :list/todos []}}
+   :todo/id {}})
 
 (defonce SERVER-DB
   (atom initial-state))

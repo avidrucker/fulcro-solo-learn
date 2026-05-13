@@ -252,3 +252,52 @@ visual treatment:
 
 3 new specs / 6 new assertions on `decide-initial-list`. Cancelled-
 visual fix is browser-manual.
+
+---
+
+## B-5 — Deployed app preloads the dev-seed (2 dummy todos) instead of an empty list
+
+**Status:** ✅ Fixed in Phase 7.22
+**Reported:** 2026-05-13 by user (visiting the deployed
+`https://avidrucker.github.io/fulcro-solo-learn/`)
+
+### Symptom
+
+First-time visitors to the deployed app see two pre-populated todos
+("Read the Fulcro book" and "Try out remotes") in their list before
+they've added anything. localStorage is empty, the URL has no
+`?list=`, but the list still has content. Expected behaviour: an
+empty list on first visit.
+
+### Root cause
+
+`learn.server/SERVER-DB` is a `defonce` atom initialized to
+`learn.server/initial-state`, which is the *dev seed* the JVM test
+suite relies on (two specific UUIDs + texts so spec assertions can
+reference them). In the browser, that seed has no business being
+the user's starting state — but the CLJS `init` never overrides it.
+Flow on first visit:
+1. `defonce SERVER-DB (atom initial-state)` — already has 2 todos.
+2. `install-persistence!` reads localStorage; nothing there;
+   `:hydrated? false`; SERVER-DB stays at the seed.
+3. `items-from-current-url` returns nil (no `?list=`).
+4. `decide-initial-list nil nil` → `{:source :seed}` → no override.
+5. Render: 2 dummy todos.
+
+The bug was latent until deploy because in dev (a) we usually had
+localStorage already populated from earlier sessions and (b) the
+two demo todos looked plausible enough that they read as a
+"default tour content" rather than an obvious problem.
+
+### Resolution
+
+Added `learn.server/empty-state` — same shape as `initial-state`
+but with `:list/todos` = `[]` and `:todo/id` = `{}`. The CLJS-only
+branch of `learn.client/init` resets SERVER-DB to `empty-state`
+BEFORE `install-persistence!` so that, on first-ever visit (no
+localStorage, no URL), the user sees an empty list.
+
+JVM `init` is unchanged. The dev seed remains in
+`learn.server/initial-state` and `learn.server/seed!` so the spec
+suite keeps running with the same fixture. The only difference is
+the first-paint state in a real browser.

@@ -1303,6 +1303,13 @@
        ;; `com.fulcrologic.devtools.chrome-preload` in shadow-cljs.edn.
        ;; Noop if Inspect is disabled by compiler flags (release builds).
        (inspect-tool/add-fulcro-inspect! spa)
+       ;; B-5 fix: SERVER-DB is `defonce`-initialized to `initial-state`,
+       ;; which is the JVM-test seed (2 demo todos). For the deployed
+       ;; CLJS app we want first-time visitors to see an empty list,
+       ;; not those demo items. Reset BEFORE install-persistence! —
+       ;; if localStorage has saved state, it'll overwrite this empty
+       ;; baseline; otherwise the user sees an empty list.
+       (reset! server/SERVER-DB server/empty-state)
        ;; Hydrate from localStorage and attach the persistence watch
        ;; BEFORE the initial load so any saved state is what we render.
        (let [{hydrated? :hydrated?} (storage/install-persistence! server/SERVER-DB)
