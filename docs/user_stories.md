@@ -208,6 +208,20 @@ modal-shell apply matching class suffixes (`black`/`bg-moon-gray` vs
 `learn.client`. The toggle button is always enabled, even while
 reviewing or while a modal is open.
 
+### S-theme-persist — Theme survives page reload
+**Phase:** 7.10
+**Status:** ✅ (data layer); 🟢 (end-to-end is browser-manual via snapshot)
+**Tests:** `util.storage-test:extract-ui-prefs`, `util.storage-test:apply-ui-prefs`, `util.storage-test:->edn / <-edn round-trip for ui-prefs slice`, `util.storage-test:ui-prefs-key constant`
+
+As a user, when I switch themes and refresh the page, the theme I
+picked should be preserved between reloads.
+
+The fix (Phase 7.10) adds a second localStorage key
+`"autofocus.ui-prefs"` and a parallel watch on the Fulcro state-atom
+that re-saves only the whitelisted UI-pref slice (currently just
+`:ui/theme`). `init` hydrates the slice after `mount!`. See
+`bugs.md` B-1 for the full diagnosis.
+
 ---
 
 ## Inputs and keyboard

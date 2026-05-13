@@ -24,6 +24,20 @@
    public API."
   "autofocus.server-db")
 
+(def ui-prefs-key
+  "Second localStorage key — holds the small slice of Fulcro app state
+   that should survive page reloads (currently just `:ui/theme`).
+   Kept distinct from `storage-key` so corruption of one doesn't
+   poison the other; either falls back to seed/default independently."
+  "autofocus.ui-prefs")
+
+(def ui-prefs-whitelist
+  "Keys at `[:list/id 1]` that get dehydrated to `ui-prefs-key`.
+   Explicit whitelist (not a blacklist) so adding state is opt-in:
+   transient UI like `:ui/open-modal` and `:ui/err-msg` SHOULD reset
+   on reload, so we want missing-by-default."
+  #{:ui/theme})
+
 ;; ============================================================================
 ;; Pure EDN adapter — same on JVM and CLJS.
 ;; ============================================================================
@@ -107,3 +121,73 @@
          (fn [_k _ref _old new-state] (save! new-state)))
        server-atom)
      :clj server-atom))
+
+;; ============================================================================
+;; UI preferences slice (Phase 7.10 / bugs.md B-1).
+;;
+;; Pure helpers live here so the JVM test suite can exercise them; the
+;; CLJS-only `save-ui-prefs!`/`load-ui-prefs!`/`install-ui-prefs-persistence!`
+;; below wrap them with `js/localStorage` access.
+;; ============================================================================
+
+(defn extract-ui-prefs
+  "Slice of `state-map` at `[:list/id 1]` containing only the
+   whitelisted UI preference keys. Empty map if no whitelisted keys
+   are present (or the list entity is missing)."
+  [state-map]
+  (-> (get-in state-map [:list/id 1] {})
+    (select-keys ui-prefs-whitelist)))
+
+(defn apply-ui-prefs
+  "Merge `slice` into `[:list/id 1]` of `state-map`, restricting to
+   whitelisted keys so a corrupted-or-old slice can't smuggle in
+   non-preference keys. `nil` slice is a no-op."
+  [state-map slice]
+  (if (nil? slice)
+    state-map
+    (let [safe-slice (select-keys slice ui-prefs-whitelist)]
+      (update-in state-map [:list/id 1] merge safe-slice))))
+
+;; ============================================================================
+;; CLJS-only — ui-prefs localStorage I/O + Fulcro-state-atom watch.
+;; ============================================================================
+
+#?(:cljs
+   (defn save-ui-prefs!
+     "Persist the UI-prefs `slice` to localStorage. Swallows storage
+      exceptions for the same reason `save!` does."
+     [slice]
+     (try
+       (.setItem js/localStorage ui-prefs-key (->edn slice))
+       (catch :default _ nil))))
+
+#?(:cljs
+   (defn load-ui-prefs!
+     "Read the saved UI-prefs slice from localStorage. Returns `nil`
+      on missing/blank/unparseable input."
+     []
+     (try
+       (<-edn (.getItem js/localStorage ui-prefs-key))
+       (catch :default _ nil))))
+
+(defn install-ui-prefs-persistence!
+  "Hydrate the whitelisted UI-prefs slice into `fulcro-state-atom` from
+   localStorage (if a saved slice is present), then attach a watch
+   that re-saves only when the extracted slice changes — avoids a
+   write storm on every unrelated state change.
+
+   JVM: no-op so the spec suite can call this without conditional
+   branches in `learn.client/init`."
+  [fulcro-state-atom]
+  #?(:cljs
+     (do
+       (when-let [slice (load-ui-prefs!)]
+         (swap! fulcro-state-atom apply-ui-prefs slice))
+       (add-watch fulcro-state-atom ::ui-prefs
+         (fn [_k _ref old-state new-state]
+           (let [old-slice (extract-ui-prefs old-state)
+                 new-slice (extract-ui-prefs new-state)]
+             (when (not= old-slice new-slice)
+               (save-ui-prefs! new-slice)))))
+       fulcro-state-atom)
+     :clj fulcro-state-atom))

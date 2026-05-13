@@ -932,6 +932,11 @@
       it attaches then re-saves on every subsequent change to
       `SERVER-DB` (Phase 7).
 
+      `install-ui-prefs-persistence!` (Phase 7.10 / B-1) runs AFTER
+      `mount!` because Fulcro's app state-atom only exists once the
+      app is mounted. It hydrates `:ui/theme` (and any future
+      whitelisted UI prefs) from a separate localStorage key.
+
       Returns the spa. Exported so shadow-cljs can call it as the
       module's `:init-fn`."
      []
@@ -947,6 +952,11 @@
        (storage/install-persistence! server/SERVER-DB)
        (start-chart! spa)
        (app/mount! spa Root "app")
+       ;; Mount populates the app state-atom; only now can we hydrate
+       ;; the UI-prefs slice into it. The early position keeps theme
+       ;; correct from the very first frame the user sees.
+       (storage/install-ui-prefs-persistence!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        (load-todos! spa)
        spa)))
 
