@@ -183,13 +183,14 @@ and a close-instruction footer.
 
 ### S-import-export — Import/Export modal
 **Phase:** 7.6 (stubbed)
-**Status:** 🟡
+**Status:** 🟡 (markup tested, actions stubbed)
+**Tests:** `client_test:Import/Export modal` (markup visible after click, bg-close works)
 
-UI present with Copy List URL, Import (file upload), Export, and a raw
-text Submit. **All four buttons log to console only.** Real
-implementation (base64-URL list, JSON round-trip, paste-text parsing) is
-deferred to a future phase. The textarea accepts paste but Submit is a
-no-op.
+UI present with Copy List URL, Import (file upload via styled
+`<label>` + hidden `<input type="file">`), Export, and a raw text
+textarea + Submit. **All four interactive elements log to console
+only via `stub-onclick`.** Real implementation (base64-URL list,
+JSON round-trip, paste-text parsing) is deferred to a future phase.
 
 ---
 

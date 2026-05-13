@@ -680,13 +680,22 @@ correctness.
 Implements **S-about**, **S-help**, and exercises **S-modal-mutex**
 / **S-modal-bg-close** end-to-end.
 
-### ⬜ 7.6 — Import/Export modal (stubbed)
+### ✅ 7.6 — Import/Export modal (stubbed)
 
-Add `save-disk` SVG. Header gets a save-disk button. Modal body has
-Copy URL / Import (file label) / Export / textarea + Submit per
-`docs/js_ui_reference.md` §C. All four onClicks just `(js/console.log
-...)` — real impl is a much later phase. Spec: open Save → markup
-visible. Implements **S-import-export** (stubbed).
+`save-disk` SVG added; third header icon button rendered before the
+About/Help pair. `save-modal` renders the full JS-port markup:
+Copy List URL button, Import (styled `<label>` wrapping a
+`type="file" accept=".json"` hidden input), Export button, textarea
++ Submit. All four interactive elements use the new `stub-onclick`
+helper — `(js/console.log "[stub]" label)` in CLJS, no-op on JVM.
+Real behaviour lands in a later phase.
+
+2 new specs cover: open via header icon → expected markup visible;
+bg-close dismisses.
+
+**47 specs / 378 assertions, all green. CLJS: 326 files, 0 warnings.**
+
+Implements **S-import-export** (stubbed status, markup verified).
 
 ### ⬜ 7.7 — Theme toggle (light/dark)
 

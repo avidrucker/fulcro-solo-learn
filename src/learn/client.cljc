@@ -242,6 +242,60 @@
         s/link-issues-text))
     (dom/p {:className "pt2 ma0 lh-135"} s/click-question-circle-to-close)))
 
+(defn- stub-onclick
+  "Returns a click handler that logs to the JS console and otherwise
+   no-ops. Used for the Phase 7.6 Import/Export modal buttons whose
+   real behaviour (URL serialization, JSON parse, etc.) lands in a
+   later phase."
+  [label]
+  (fn [& _]
+    #?(:cljs (js/console.log "[stub]" label)
+       :clj  nil)))
+
+(def ^:private save-modal-btn-class
+  "br3 w4 f5 fw6 ba dib bw1 grow b--gray button-reset bg-moon-gray black pa2 pointer ma1")
+
+(defn- save-modal
+  [this]
+  (modal-shell {:on-close    #(close-current-modal! this)
+                :close-label s/close-save-modal}
+    (dom/h2 {:className "pb2 ph3 ma0"} s/heading-import-export)
+    (dom/div {:className "ph3 pb2"}
+      (dom/button {:className (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray "
+                                   "button-reset bg-moon-gray black pa2 pointer")
+                   :title     s/tooltip-copy-list-url
+                   :onClick   (stub-onclick "copy-list-url")}
+        s/btn-copy-list-url))
+    (dom/p {:className "ph3 ma0 lh-135"} s/save-info-1)
+    (dom/div {:className "ph3 pt2 tc"}
+      ;; File-upload "button" is a styled <label> wrapping a hidden
+      ;; <input type="file"> — same pattern the JS port uses.
+      (dom/label {:className (str "br3 grow dib button-reset border-box w4 f5 fw6 "
+                                  "ba bw1 b--gray bg-moon-gray black pa2 pointer ma1")
+                  :htmlFor   "save-modal-file-upload"}
+        s/btn-import)
+      (dom/input {:id        "save-modal-file-upload"
+                  :type      "file"
+                  :accept    ".json"
+                  :className "dn input-reset"
+                  :onChange  (stub-onclick "import-json-file")})
+      (dom/button {:className save-modal-btn-class
+                   :title     s/tooltip-export-json
+                   :onClick   (stub-onclick "export-json")}
+        s/btn-export))
+    (dom/p {:className "ph3 pt2 ma0 lh-135"} s/save-info-2)
+    (dom/div {:className "ph3 pt1"}
+      (dom/textarea {:className   (str "db input-reset pa2 w-100 resize-none lh-135 "
+                                       "br3 ba bw1 b--gray black")
+                     :placeholder s/textarea-placeholder
+                     :rows        2
+                     :onChange    (stub-onclick "textarea-change")})
+      (dom/button {:className (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray "
+                                   "button-reset bg-moon-gray black pa2 pointer")
+                   :onClick   (stub-onclick "submit-textarea-import")}
+        s/btn-submit))
+    (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
+
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text open-modal]}]
   {:query         [:list/id
@@ -400,6 +454,7 @@
       (case open-modal
         :about (about-modal this)
         :help  (help-modal this)
+        :save  (save-modal this)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -416,6 +471,9 @@
     (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
       (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
         s/app-name)
+      (header-icon-button this {:icon     icons/save-disk
+                                :label    s/tooltip-import-export
+                                :modal-id :save})
       (header-icon-button this {:icon     icons/info-circle
                                 :label    s/tooltip-about
                                 :modal-id :about})

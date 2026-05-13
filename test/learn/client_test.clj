@@ -876,3 +876,49 @@
         (h/text-exists? spa "The AutoFocus algorithm was designed") => false
         "Help content present"
         (h/text-exists? spa "Add new items to your list by typing") => true))))
+
+;; ============================================================================
+;; Phase 7.6 — Import/Export modal (stubbed actions).
+;;
+;; The four buttons (Copy URL / Import / Export / Submit) currently
+;; `console.log` only; real behaviour lands in a later phase. These specs
+;; verify the markup is correctly wired to `:ui/open-modal :save` and that
+;; bg-close dismisses, but don't (yet) exercise the click→action path.
+;; ============================================================================
+
+(specification "Import/Export modal"
+  (component "clicking the 'Import/Export' header icon opens the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal = :save"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :save
+        "Import/Export heading visible"
+        (h/text-exists? spa "Import/Export") => true
+        "save-info-1 paragraph visible"
+        (h/text-exists? spa "You can import and export JSON lists") => true
+        "Copy List URL button visible"
+        (h/text-exists? spa "Copy List URL") => true
+        "Import button visible"
+        (h/text-exists? spa "Import") => true
+        "Export button visible"
+        (h/text-exists? spa "Export") => true
+        "Submit button visible"
+        (h/text-exists? spa "Submit") => true
+        "close-instruction footer visible"
+        (h/text-exists? spa "Click on the 'disk' icon above to close this window.") => true)))
+
+  (component "bg-close dismisses the Import/Export modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Import/Export")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Close Save Modal")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal back to :none"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :none
+        "save heading gone"
+        (h/text-exists? spa "You can import and export JSON lists") => false))))
