@@ -1187,13 +1187,29 @@ Implements **S-error-add-blank**, **S-error-delete-empty**,
 
 ---
 
-## ⬜ Phase 8 — Statecharts in depth
+## ✅ Phase 8 — Statecharts in depth (closed as a doc artifact)
 
-If we used statecharts lightly in 5K, this phase doubles down: more
-complex flows (e.g., import/export, conflict resolution). Swapped
-forward from its original Phase-11 slot — depth on a tech we
-already use beats teaching production-Pathom patterns in a
-front-end-only world.
+Originally scoped as "refactor the conflict modal into a chart" to
+demonstrate replacing ad-hoc state with a statechart. On honest
+analysis (readability vs ceremony, performance, testability,
+maintainability), the refactor would have been shoe-horning — the
+conflict flow is 2 states + 2 events + 1 implicit guard, which is
+a keyword flag with a payload, not a state machine.
+
+Closed instead as a **doc artifact**:
+[`docs/when-to-statechart.md`](./when-to-statechart.md) captures
+the decision criteria for *when* to reach for a chart, with our
+existing review chart (yes — 3+ states, guard, eventless
+transition) and the conflict modal (no — 2 states, flag with
+payload) as the worked examples.
+
+Filed a skill-gap note: the local `statechart` skill's
+`resources/patterns.md` covers *intra-chart* anti-patterns well
+but doesn't cover the "don't chart a flag" decision. The doc
+links the gap.
+
+No code changes. No new specs. Master runner: 87 specs / 599
+assertions, unchanged.
 
 ---
 
