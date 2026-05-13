@@ -18,6 +18,18 @@ html, body {
   margin: 0;
 }
 
+/* Force form controls to use border-box (Phase 7.8). Tachyons sets
+ * `* { box-sizing: inherit }` + `html { box-sizing: border-box }`,
+ * but several browser user-agent stylesheets override that for
+ * inputs/textareas with an explicit `box-sizing: content-box` — so
+ * the `pa2` + `bw1` on `#new-todo` was adding ~20px to the visible
+ * box and pushing the right edge past the buttons row's center axis.
+ * Forcing border-box here fixes the new-todo input AND the
+ * Import/Export modal textarea in one shot. */
+input, textarea, select {
+  box-sizing: border-box;
+}
+
 /* Montserrat hook — the Google Fonts `<link>` in index.html loads the
  * weights; this class opts an element into the family. Applied at the
  * <main> level so it cascades down. */

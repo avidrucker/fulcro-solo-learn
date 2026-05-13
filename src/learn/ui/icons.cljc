@@ -50,8 +50,12 @@
 ;; ----------------------------------------------------------------------
 
 ;; `info-circle` — solid circle with an "i" inside. Header "About" button.
+;; Phase 7.8: switched from `:width "1.25rem"` to `:height "1.5rem"` so
+;; all four header icons (save-disk, info-circle, question-circle,
+;; lightbulb-*) render at the same height — they were visibly
+;; inconsistent against the deployed reference.
 (def info-circle
-  (dom/svg (merge svg-attrs {:viewBox "0 0 512 512" :width "1.25rem"})
+  (dom/svg (merge svg-attrs {:viewBox "0 0 512 512" :height "1.5rem"})
     (dom/path {:d (str "M256 8C119.043 8 8 119.083 8 256c0 136.997 111.043 248 248 248s248-111.003 248-248C504 "
                        "119.083 392.957 8 256 8zm0 110c23.196 0 42 18.804 42 42s-18.804 42-42 42-42-18.804-42"
                        "-42 18.804-42 42-42zm56 254c0 6.627-5.373 12-12 12h-88c-6.627 0-12-5.373-12-12v-24c0-6.627 "
@@ -93,8 +97,9 @@
                        "111.48z")})))
 
 ;; `question-circle` — solid circle with "?" inside. Header "Help" button.
+;; Same `height: 1.5rem` normalization as info-circle for Phase 7.8.
 (def question-circle
-  (dom/svg (merge svg-attrs {:viewBox "0 0 512 512" :width "1.25rem"})
+  (dom/svg (merge svg-attrs {:viewBox "0 0 512 512" :height "1.5rem"})
     (dom/path {:d (str "M504 256c0 136.997-111.043 248-248 248S8 392.997 8 256C8 119.083 119.043 8 256 8s248 "
                        "111.083 248 248zM262.655 90c-54.497 0-89.255 22.957-116.549 63.758-3.536 5.286-2.353 "
                        "12.415 2.715 16.258l34.699 26.31c5.205 3.947 12.621 3.008 16.665-2.122 17.864-22.658 "

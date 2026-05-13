@@ -40,20 +40,45 @@ future addition (see Phase 7.8 in `phases.md`).
 
 ## Diff log — empty-list state (local 7.8 vs deployed)
 
-Local: `docs/snapshots/6f992c0-phase-7.8-local-empty-dark.png`
 Reference: `docs/snapshots/reference/empty-list-deployed.png`
+Local (latest, after 7.8 fixes): `docs/snapshots/af49c75-phase-7.8-local-empty-dark.png`
 
-Eyeball pass on the two PNGs:
+### Confirmed fixed (this phase)
 
-1. **Header icon spacing.** The JS port's reference shows the icons
-   spaced slightly differently from the title. Our port currently uses
-   `pl2` on every icon button; the JS source uses `pl3` on the FIRST
-   icon and `pl2` on the rest. Tiny visual offset.
-2. **Empty-state footer line.** The deployed shows
-   "You have 0 items in your list." with a clear gap to the button
-   row; our spacing is similar but the JS port's footer block uses
-   `pt2 pb3` on the wrapper, which our local already does — so this
-   may just be a rendering nuance from different browsers or fonts.
+1. **Header icon sizing** — `info-circle` and `question-circle` were
+   `width: 1.25rem` while `save-disk` and `lightbulb-*` used
+   `height: 1.5rem`, making the first two visually smaller.
+   Normalized to `height: 1.5rem` across all four header icons.
+2. **New-todo input width** — Tachyons sets `* { box-sizing: inherit
+   }` with `html { box-sizing: border-box }`, but a browser
+   user-agent stylesheet was overriding it to `content-box` on
+   `<input>`, so the `pa2` padding and `bw1` border were adding ~20px
+   to the visible box width (`Playwright getBoundingClientRect`
+   showed `340px` actual vs `320px` from `measure-narrow`). Forced
+   `box-sizing: border-box` on `input, textarea, select` in
+   `resources/public/css/app.css`. Input is now 320px exactly,
+   centered with the buttons row.
 
-> If you spot additional differences when eyeballing, add a row here.
-> Bullet-point style is fine; this doc is a log, not a spec.
+### Minor / unaddressed
+
+- **`pl3` on first header icon** vs `pl2` on the rest — already
+  applied earlier in 7.8 via the `:first?` flag.
+- **`save-disk` glyph density** — its viewBox is `0 24 448 472`, so
+  the glyph itself doesn't fill the full 1.5rem height; visually
+  smaller than the other circle icons. Matches the deployed (both
+  use the same source SVG), so we accept it.
+
+### Eyeball process
+
+1. `npm run shadow-cljs watch app` running, dev server on :8000.
+2. `npm run snapshot -- <local-label> [--click <action>]*` for the
+   local state matching the deployed's setup.
+3. `npm run snapshot -- <ref-label> --url '<deployed-url>'` for the
+   reference. Saves to `reference/<ref-label>.png` without a hash.
+4. Open both PNGs side by side. When a difference is spotted, add a
+   row above with the diagnosis. Use Playwright's
+   `boundingBox`/`evaluate(getComputedStyle)` to compare actual
+   computed values rather than eyeballing pixels.
+
+> If you spot additional differences, add a row above. This doc is a
+> log, not a spec.
