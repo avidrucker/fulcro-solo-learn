@@ -61,8 +61,8 @@
 
 ;; Help modal
 (def heading-help         "Instructions & Help")
-(def link-issues-text     "AutoFocus Issues")
-(def link-issues-href     "https://github.com/avidrucker/pwa-autofocus-app/issues")
+(def link-issues-text     "fulcro-solo-learn Issues")
+(def link-issues-href     "https://github.com/avidrucker/fulcro-solo-learn/issues")
 
 ;; Conflict-resolution modal
 (def label-link-list      "1. List from the link address:")
@@ -106,7 +106,10 @@
        "framework."))
 
 (def info-string-2
-  "This web app was built by Avi Drucker using ReactJS, Font Awesome, and Tachyons CSS.")
+  (str "This web app is a Fulcro port of Avi Drucker's original "
+       "ReactJS implementation. The port is built with Fulcro 3.9, "
+       "Pathom 2 (in-process), com.fulcrologic/statecharts, "
+       "shadow-cljs, Font Awesome (SVG), and Tachyons CSS."))
 
 ;; Save / Import-Export modal copy
 (def save-info-1

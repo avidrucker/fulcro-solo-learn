@@ -458,14 +458,52 @@ Adapted from the og JS port's `serviceWorker.js` (simpler — single
 JS bundle, no `static/` split). New-version-available reload banner
 is deferred to a follow-up if/when needed.
 
-### S-keyboard-shortcuts — Keyboard shortcuts beyond Enter
+### S-import-json-file — Import a JSON file from the save modal
+**Phase:** TBD
+**Status:** ⬜
+**Tests:** TBD (pure CLJC parser + state-helper testable; the file-upload `<input>` end-to-end is browser-manual)
+
+As a user with a previously-exported list, I want to upload the
+JSON file via the save modal's Import button and have its items
+appended to my current list. The JS port (`handleImportTasks` in
+`App.js`) does:
+1. Read the file via `FileReader.readAsText`.
+2. Parse + validate via `importTasksFromJSON` (`tasksIO.js` —
+   refuses non-arrays or items missing `id`/`text`).
+3. `addAll` to merge into current tasks (regenerates ids to avoid
+   collisions).
+4. Surface `bad-json-import-err` / `non-json-import-err` on
+   failures.
+
+Our port has `S-import-batch-text` (Phase 7.12) covering the
+paste-text path; this story covers the file-upload path. The pure
+`json-text → items` parser lives in `learn.model.list` (or a new
+`learn.util.tasks-io`); the FileReader + UI wiring goes in
+`learn.client`.
+
+### S-export-json-file — Export the current list as a JSON file
+**Phase:** TBD
+**Status:** ⬜
+**Tests:** TBD (pure encoder testable; download trigger is browser-manual)
+
+As a user, I want the Export button in the save modal to download
+my list as `tasks.json`. The JS port (`handleExportTasks`) does
+`JSON.stringify(tasks)` → `Blob` → `URL.createObjectURL` → triggers
+a hidden `<a download>` click. Companion to `S-import-json-file` —
+together they close the `S-import-export` story.
+
+### S-max-url-length — URL-length safeguard
 **Phase:** TBD
 **Status:** ⬜
 **Tests:** TBD
 
-The JS port has a commented-out shortcuts block in the Help modal
-documenting intent (e.g. `d` to delete, `p` to prioritize, etc.).
-Land these once the rest of the parity work is closed.
+As a user adding many items, when the encoded URL would exceed
+8000 characters (`MAX_URL_LENGTH` in the JS port), the URL-sync
+watch should silently skip the `history.replaceState` call AND
+surface `max-list-length-err` ("Maximum list length reached.
+Please create a new list to continue adding items.") — already in
+`strings.cljc`. localStorage persistence continues normally; only
+the URL is affected.
 
 ---
 
@@ -473,6 +511,18 @@ Land these once the rest of the parity work is closed.
 
 No commitment to build. If it surfaces organically (e.g. a user
 asks for the export) we revisit.
+
+### S-keyboard-shortcuts — Keyboard shortcuts beyond Enter
+**Phase:** —
+**Status:** 🆒
+**Tests:** TBD when promoted to ⬜
+
+The JS port has a commented-out shortcuts block in the Help modal
+documenting intent (e.g. `d` to delete, `p` to prioritize, etc.) —
+the og itself never shipped them. Demoted from Planned to 🆒
+because parity is achieved without them.
+
+---
 
 ### S-markdown-export — Export the list as a Markdown checklist
 **Phase:** —

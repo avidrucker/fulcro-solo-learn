@@ -11,6 +11,7 @@ disjoint avoids the "is this in phases or stories or bugs?" question.
 | [`user_stories.md`](./user_stories.md) | **What** the app does — current behavior, planned behavior, and acknowledged cuts | A user-visible behavior changes, or a new one is planned / promoted / cut |
 | [`bugs.md`](./bugs.md) | **Where intent ≠ reality** — discrepancies between the JS port (or stated UX) and our port | A defect is reported. Stays until fixed (then links to the fix commit) |
 | [`ideas.md`](./ideas.md) | **Maybe** — speculative tweaks with no clear decide-when | An idea comes up mid-conversation and we don't want to start building it yet |
+| [`changes.md`](./changes.md) | **Diverges from the og JS port** — intentional differences, not bug fixes | We deliberately do something the og doesn't (or vice versa) |
 | [`SCHEMA.md`](./SCHEMA.md) | **Invariants** — canonical domain reference | Domain shape, status enum, or operation contract changes |
 | [`learned_while_making_this.md`](./learned_while_making_this.md) | **Retrospective** — past mistakes, by category | A mistake worth not-repeating shows up |
 | [`js_source_reference.md`](./js_source_reference.md) | **JS port reference** — signatures + divergence notes for each fn in the original | A new model-layer function is being ported |

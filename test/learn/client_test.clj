@@ -1103,7 +1103,7 @@
         "instructions paragraph visible"
         (h/text-exists? spa "Add new items to your list by typing") => true
         "issues link text visible"
-        (h/text-exists? spa "AutoFocus Issues") => true)))
+        (h/text-exists? spa "fulcro-solo-learn Issues") => true)))
 
   (component "mutex — clicking About then Help replaces (single modal at a time)"
     (server/seed!)

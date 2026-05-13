@@ -752,6 +752,66 @@ visual-regression gating.
 
 Implements **S-deployed-reference-comparison** (new story).
 
+### ✅ 7.21 — Deploy pipeline + content polish
+
+User-driven housekeeping pass before moving on to Phase 8:
+
+- **GitHub Actions workflow** (`.github/workflows/main.yml`):
+  - Push to `main` builds + tests + deploys to GitHub Pages.
+  - Setup: Java 21 + Clojure CLI + Node 20, cached.
+  - `clojure -M:test:cljs -m test-runner` for tests (the
+    `:cljs` alias is needed on the JVM classpath because
+    fulcro-spec's macros pull in `cljs/test.cljc`, which
+    references closure-compiler classes — we exclude the
+    shaded closure-compiler jar in deps.edn for an unrelated
+    shadow-cljs reflect.js bug, so the unshaded jar from
+    shadow-cljs is the working dependency).
+  - `npx shadow-cljs release app` for the release build.
+  - `actions/upload-pages-artifact@v3` + `actions/deploy-
+    pages@v4` publish `resources/public/`.
+  - `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` so `npm install`
+    doesn't pull a 250MB headless Chromium for the snapshot
+    scripts that CI doesn't run.
+- **`test/test_runner.clj`** — mirror of the master runner with a
+  proper `(System/exit code)` so CI can fail the job on test
+  failure. Discovers every `*-test` namespace under `test/`.
+- **Relative asset paths in `index.html`**: `/css/app.css` →
+  `css/app.css`, `/js/main/main.js` → `js/main/main.js`. Works
+  both at the dev-server root and at the GH Pages subpath
+  (`https://avidrucker.github.io/fulcro-solo-learn/`).
+- **OG feature audit** (`/tmp/og-App.js` cross-referenced
+  against our impl): five gaps remain — Import JSON file,
+  Export JSON file, URL-length safeguard,
+  review-state-persistence, online-event listener. First three
+  promoted to ⬜ Planned stories; remaining two demoted to 🆒
+  Nice-to-have. `S-keyboard-shortcuts` moved to 🆒 (the og
+  never shipped keyboard shortcuts beyond Enter either).
+- **`docs/changes.md`** (new): catalogues intentional
+  divergences from the JS port (Add-Item dim-when-blank, header
+  icons hard-disable, batch-text Submit keeps modal open,
+  UUIDs vs integer ids, conflict-detection ignores UUIDs,
+  statechart for the review flow, dual-platform `<body>`+`<main>`
+  theming, shadow-cljs/clj-nrepl toolchain, deterministic
+  statechart tests). Cross-linked from `docs/README.md`.
+- **About-modal tech-stack copy**: ReactJS-flavored
+  `info-string-2` swapped for Fulcro 3.9 + Pathom 2 +
+  statecharts + shadow-cljs + Font Awesome + Tachyons.
+- **Help-modal GitHub link**: now points at
+  `github.com/avidrucker/fulcro-solo-learn/issues`.
+
+**Required repo settings** (user action, can't be automated by
+the workflow):
+1. Settings → Pages → Build and deployment → Source =
+   **"GitHub Actions"**.
+2. Settings → Actions → General → Workflow permissions =
+   **"Read and write permissions"** (or accept the per-job
+   `pages: write` permission already declared in the workflow).
+3. Push to `main` triggers deploy automatically;
+   `workflow_dispatch` enables manual runs from the Actions tab.
+
+Master runner: 87 specs / 599 assertions, all green. CLJS:
+327 files, 0 warnings.
+
 ### ✅ 7.19 — PWA service worker + manifest (S-pwa-offline)
 
 App is now installable as a PWA and runs offline once the shell has
@@ -1100,14 +1160,13 @@ Implements **S-error-add-blank**, **S-error-delete-empty**,
 
 ---
 
-## ⬜ Phase 8 — Production Pathom patterns
+## ⬜ Phase 8 — Statecharts in depth
 
-Per-request env, batch resolvers (N+1 prevention), `defmutation`
-return values for optimistic UI.
-
-Still useful in the front-end-only world — batching means fewer
-parser calls per render, and a per-request env teaches the pattern
-even when the "request" never leaves the JS runtime.
+If we used statecharts lightly in 5K, this phase doubles down: more
+complex flows (e.g., import/export, conflict resolution). Swapped
+forward from its original Phase-11 slot — depth on a tech we
+already use beats teaching production-Pathom patterns in a
+front-end-only world.
 
 ---
 
@@ -1129,10 +1188,13 @@ Use RAD's report and form components for the AutoFocus list UI.
 
 ---
 
-## ⬜ Phase 11 — Statecharts in depth
+## ⬜ Phase 11 — Production Pathom patterns
 
-If we used statecharts lightly in 5K, this phase doubles down: more
-complex flows (e.g., import/export, conflict resolution).
+Per-request env, batch resolvers (N+1 prevention), `defmutation`
+return values for optimistic UI. Swapped back from its original
+Phase-8 slot — lower practical payoff in our in-process / no-
+network Pathom setup, but worth touring once we've exhausted the
+higher-leverage work.
 
 ---
 

@@ -1,0 +1,105 @@
+# Deploy the Fulcro port to GitHub Pages on every push to main.
+#
+# This is NOT a fork of the og JS port's `main.yml` — the og uses
+# Create-React-App (`npm install / npm test / npm run build`,
+# publishing `./build`). Our build is shadow-cljs + Clojure tests,
+# so the steps look quite different.
+#
+# Required repo settings for this workflow:
+#   1. Settings → Pages → Build and deployment → Source = "GitHub Actions".
+#   2. Settings → Actions → General → Workflow permissions =
+#      "Read and write permissions" (or grant `pages: write` per-workflow,
+#      which is already declared in the `permissions:` block below).
+#   3. Push to `main` — the workflow runs automatically. Manual triggers
+#      via `workflow_dispatch` are also enabled.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Clojure CLI
+        uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.deps.clj
+            node_modules
+            .shadow-cljs
+          key: ${{ runner.os }}-deps-${{ hashFiles('deps.edn', 'package-lock.json', 'shadow-cljs.edn') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
+      - name: Install Node deps
+        # Skip playwright's chromium download — it's a dev-only
+        # dependency used by the local snapshot scripts; the CI build
+        # doesn't need it. Saves ~30s + ~250MB per run.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm install
+
+      - name: Run Clojure tests
+        # Use :test:cljs combined. The :cljs alias brings shadow-cljs
+        # onto the JVM classpath which transitively provides
+        # closure-compiler-unshaded — fulcro-spec's macros reference
+        # cljs/test.cljc, which won't load without it (we exclude the
+        # shaded closure-compiler jar in deps.edn to fix an unrelated
+        # shadow-cljs reflect.js bug).
+        run: clojure -M:test:cljs -m test-runner
+
+      - name: Build CLJS release
+        run: npx shadow-cljs release app
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # GitHub Pages reads from this directory. Includes index.html,
+          # the CLJS bundle under js/main/, app.css under css/, the
+          # service worker, manifest, icon, and offline page.
+          path: resources/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
