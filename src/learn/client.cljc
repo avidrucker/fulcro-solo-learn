@@ -27,9 +27,10 @@
     ;; `add-fulcro-inspect!` at app-build time. CLJS-only because the
     ;; Chrome extension is browser-side only.
     #?(:cljs [fulcro.inspect.tool :as inspect-tool])
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.parser :as parser]
+    [learn.client.mutations :as mutations]
     [learn.client.session :as session]
     [learn.client.state :as state]
     [learn.model.list :as model.list]
@@ -930,117 +931,33 @@
 (def toggle-theme*           state/toggle-theme*)
 
 ;; ============================================================================
-;; Mutations — thin wrappers that route helpers through swap!.
-;; Mutations that hit the server send the post-action items vector via
-;; `remote-list-items`; the server records it verbatim (no domain logic
-;; on the backend).
+;; Mutations — Phase 12.7 moved to `learn.client.mutations`.
+;;
+;; Each defmutation is registered under its full wire sym
+;; (`learn.client/add-todo` etc.) by passing a qualified symbol to the
+;; Fulcro macro; this preserves the server's `::pc/sym` dispatch
+;; without renaming the wire protocol. The macro skips creating a var
+;; in `learn.client.mutations` when it sees a qualified sym, so we
+;; declare callable Mutation records here via `m/declare-mutation` for
+;; the UI layer (`comp/transact! [(add-todo {…})]`) and for tests
+;; (`sut/add-todo` etc.). Requiring `mutations` above is what actually
+;; registers the multimethods.
 ;; ============================================================================
 
-(defn- remote-list-items
-  "Builds a remote AST whose params carry the current denormalized list
-   at [:list/id 1] as `:list/items`. Server mutations write this vector
-   straight to SERVER-DB."
-  [env]
-  (let [items (norm/denormalize-list-items @(:state env) [:list/id 1])]
-    (m/with-params env {:list/items items})))
-
-(defmutation add-todo [{:todo/keys [text]}]
-  (action [{:keys [state ref]}]
-    (swap! state add-todo* ref text))
-  (remote [env] (remote-list-items env)))
-
-(defmutation delete-all [_]
-  (action [{:keys [state ref]}]
-    (swap! state delete-all* ref))
-  ;; Phase 7.3: enable server sync so localStorage persistence reflects
-  ;; the empty list after the user clicks Delete List. Server has a
-  ;; matching `learn.client/delete-all` Pathom mutation.
-  (remote [env] (remote-list-items env)))
-
-(defmutation import-from-text
-  "Phase 7.12 — batch import from the save modal textarea. Splits the
-   given text on newlines, drops blank lines, and appends each as a
-   fresh todo following `add-todo`'s status rule. No-op when the model
-   refuses (all-blank input)."
-  [{:ui/keys [textarea-import-text]}]
-  (action [{:keys [state ref]}]
-    (swap! state import-from-text* ref textarea-import-text))
-  (remote [env] (remote-list-items env)))
-
-(defmutation keep-link-list
-  "Phase 7.18 — user resolved the conflict modal by picking the URL
-   list. Replace normalized state with the stashed URL items, then
-   close the modal. The URL bar already reflects URL items (the user
-   came via that URL); `install-url-sync!` will idempotently re-write
-   it on the items-change anyway."
-  [_]
-  (action [{:keys [state ref]}]
-    (swap! state keep-link-list* ref))
-  (remote [env] (remote-list-items env)))
-
-(defmutation keep-local-list
-  "Phase 7.18 — user resolved the conflict modal by keeping the
-   localStorage list. State already holds those items; this is just
-   close-the-modal + clear-the-stash + force the URL bar to reflect
-   the local items (without an items change, `install-url-sync!`'s
-   watch wouldn't fire — see its docstring)."
-  [_]
-  (action [{:keys [state ref]}]
-    (swap! state keep-local-list* ref)
-    #?(:cljs
-       (let [items (norm/denormalize-list-items @state ref)]
-         (url-encoding/replace-url-with-items! items)))))
-
-(defmutation set-status [{:todo/keys [id status]}]
-  (action [{:keys [state]}]
-    (swap! state set-status* id status))
-  #_(remote [_] true)               ; no server handler (admin/REPL-only)
-  )
-
-;; List-ident is hardcoded `[:list/id 1]` for the current singleton-list
-;; design; revisit when multi-list support arrives.
-(defmutation cancel-todo [{:todo/keys [id]}]
-  (action [{:keys [state]}]
-    (swap! state cancel-todo* [:list/id 1] id))
-  (remote [env] (remote-list-items env)))
-
-(defmutation complete-benchmark-item [_]
-  (action [{:keys [state]}]
-    (swap! state complete-benchmark-item* [:list/id 1]))
-  (remote [env] (remote-list-items env)))
-
-(defmutation clone-todo [{:todo/keys [id]}]
-  (action [{:keys [state]}]
-    (swap! state clone-todo* [:list/id 1] id))
-  (remote [env] (remote-list-items env)))
-
-;; Phase 7.4 — modal state mutations. Local-only (no server sync) since
-;; modal open/close is pure UI state. Hardcoded list-ident `[:list/id 1]`
-;; matches the singleton pattern used by the rest of the file.
-(defmutation set-open-modal [{:ui/keys [open-modal]}]
-  (action [{:keys [state]}]
-    (swap! state set-open-modal* [:list/id 1] open-modal)))
-
-(defmutation toggle-open-modal [{:ui/keys [open-modal]}]
-  (action [{:keys [state]}]
-    (swap! state toggle-open-modal* [:list/id 1] open-modal)))
-
-(defmutation toggle-theme [_]
-  (action [{:keys [state]}]
-    (swap! state toggle-theme* [:list/id 1])))
-
-;; Phase 7.9: page-level error setter. `nil` clears, string sets.
-(defmutation set-err-msg [{:ui/keys [err-msg]}]
-  (action [{:keys [state]}]
-    (swap! state set-err-msg* [:list/id 1] err-msg)))
-
-;; Remote-only mutation fired from the review chart's :yes action. The
-;; chart has already mutated the client state-map via `ops/assign`; this
-;; defmutation has no `(action ...)` body because there's no client work
-;; left to do. Its `(remote ...)` ships the post-action items vector to
-;; the server's `sync-list` mutation.
-(defmutation sync-list [_]
-  (remote [env] (remote-list-items env)))
+(m/declare-mutation add-todo                 learn.client/add-todo)
+(m/declare-mutation cancel-todo              learn.client/cancel-todo)
+(m/declare-mutation clone-todo               learn.client/clone-todo)
+(m/declare-mutation complete-benchmark-item  learn.client/complete-benchmark-item)
+(m/declare-mutation delete-all               learn.client/delete-all)
+(m/declare-mutation import-from-text         learn.client/import-from-text)
+(m/declare-mutation keep-link-list           learn.client/keep-link-list)
+(m/declare-mutation keep-local-list          learn.client/keep-local-list)
+(m/declare-mutation set-err-msg              learn.client/set-err-msg)
+(m/declare-mutation set-open-modal           learn.client/set-open-modal)
+(m/declare-mutation set-status               learn.client/set-status)
+(m/declare-mutation sync-list                learn.client/sync-list)
+(m/declare-mutation toggle-open-modal        learn.client/toggle-open-modal)
+(m/declare-mutation toggle-theme             learn.client/toggle-theme)
 
 ;; ============================================================================
 ;; App construction
