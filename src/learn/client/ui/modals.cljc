@@ -174,7 +174,7 @@
               :rel    "noopener noreferrer"
               :className "link underline blue hover-orange"}
         s/link-issues-text))
-    (dom/p {:className "pt2 ma0 lh-135"} (i18n/tr locale :info/click-i-circle))))
+    (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :info/click-i-circle))))
 
 (defn settings-modal
   "Phase 12.3 / 12.5 — Settings modal. Hosts the language dropdown
@@ -219,7 +219,7 @@
                                  :value (name loc)}
                           option-style (assoc :style option-style))
               (i18n/locale-label loc))))))
-    (dom/p {:className "pt2 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
+    (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
 
 ;; ============================================================================
 ;; Save (Import / Export) modal (Phase 7.6)

@@ -51,16 +51,18 @@
 
 (defn theme-modal-input-class
   "Theme-suffix for inputs/textareas/selects rendered INSIDE a modal.
-   Unlike `theme-input-class` (which fades to transparent on
-   hover/focus), this variant stays solid black/white in all states —
-   without it, the modal overlay's translucency stacks with the
-   input's hover-fade and the field becomes nearly invisible.
-   `focus-bg-*` (defined in app.css) handles browsers that
-   re-trigger a transparent bg on focus."
+   Default state matches the surrounding primary-button bg (dark-gray
+   in dark mode, moon-gray in light) so the field reads as a clear
+   tier of UI chrome at rest. Hover and focus snap to solid
+   black/white respectively — the JS port's `hover-bg-*-gray` rules
+   (app.css) fade to transparent, which inside a translucent modal
+   washes the field out. Tachyons' `hover-bg-black` / `hover-bg-white`
+   are NOT overridden in app.css so they stay solid, and the
+   `focus-bg-*` rules (app.css) cover the focus state."
   [theme]
   (if (dark? theme)
-    "white bg-black focus-bg-black"
-    "black bg-white focus-bg-white"))
+    "white bg-dark-gray hover-bg-black focus-bg-black"
+    "black bg-moon-gray hover-bg-white focus-bg-white"))
 
 (defn theme-primary-btn-suffix
   "Theme-suffix for primary `<button>` text + bg (Add Item, Delete
