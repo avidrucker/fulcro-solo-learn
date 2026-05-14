@@ -55,10 +55,18 @@
 
 (defn- try-parse-json
   "Parse `s` as JSON. Returns ::parse-failed sentinel if the parser
-   itself threw; otherwise returns whatever was parsed. Distinguishing
-   parse-failure from 'parsed something we don't want' is the whole
-   reason this helper exists — `parse-tasks-json` needs to map those
-   two cases to different error types."
+   itself threw; otherwise returns Clojure data (vector / map /
+   scalar). Distinguishing parse-failure from 'parsed something we
+   don't want' is the whole reason this helper exists —
+   `parse-tasks-json` needs to map those two cases to different
+   error types.
+
+   IMPORTANT: the CLJS branch does `js->clj :keywordize-keys true`
+   inline. Without it, `js/JSON.parse` returns a native JS array
+   (for valid OG-shape input), which is NOT `sequential?` in CLJS
+   and would slip into the `:error/bad-json` branch even though
+   the input was perfectly valid. The JVM branch already returns
+   Clojure data."
   [s]
   (cond
     (nil? s) ::parse-failed
@@ -66,7 +74,7 @@
     :else
     #?(:cljs
        (try
-         (js/JSON.parse s)
+         (js->clj (js/JSON.parse s) :keywordize-keys true)
          (catch :default _ ::parse-failed))
        :clj
        (try-parse-json-clj s))))
@@ -82,7 +90,12 @@
 
    The valid-shape contract delegates to
    `learn.util.url-encoding/og-shape->items` — it returns nil if any
-   item fails validation, so a nil result there maps to `:error/bad-json`."
+   item fails validation, so a nil result there maps to `:error/bad-json`.
+
+   On a successful import the parsed items get FRESH UUIDs (the
+   OG int-ids don't map to our UUID schema), so re-importing a
+   list you previously exported appends a copy with new ids — the
+   OG ReactJS port's `addAll` does the same."
   [s]
   (let [parsed (try-parse-json s)]
     (cond
@@ -93,13 +106,6 @@
       {:ok? false :error/type :error/bad-json}
 
       :else
-      (let [;; CLJS `js/JSON.parse` returns a JS object; convert to
-            ;; Clojure with keyword keys so `og-shape->items` sees the
-            ;; same shape as the JVM path. JVM path already returns
-            ;; Clojure data with keyword keys (the EDN-rewrite trick).
-            coll #?(:cljs (js->clj parsed :keywordize-keys true)
-                    :clj  parsed)
-            items (url-encoding/og-shape->items coll)]
-        (if items
-          {:ok? true :items items}
-          {:ok? false :error/type :error/bad-json})))))
+      (if-let [items (url-encoding/og-shape->items parsed)]
+        {:ok? true :items items}
+        {:ok? false :error/type :error/bad-json}))))

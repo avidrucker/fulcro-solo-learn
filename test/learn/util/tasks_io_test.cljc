@@ -74,6 +74,34 @@
         "no items"
         (:items result) => []))))
 
+(specification "parse-tasks-json — round-trips a Fulcro-port-exported JSON file"
+  ;; Regression guard for the bug where re-importing a list we just
+  ;; exported produced :error/bad-json. The exact JSON below is what
+  ;; the export path writes for a 10-item list with mixed statuses
+  ;; (matching what the user-reported case produced). Re-importing
+  ;; must succeed, must keep every text and status, and must
+  ;; regenerate UUIDs.
+  (let [exported "[{\"id\":0,\"text\":\"a\",\"status\":\"done\"},{\"id\":1,\"text\":\"b\",\"status\":\"cancelled\",\"was\":\"ready\"},{\"id\":2,\"text\":\"c\",\"status\":\"cancelled\",\"was\":\"new\"},{\"id\":3,\"text\":\"d\",\"status\":\"ready\"},{\"id\":4,\"text\":\"e\",\"status\":\"new\"},{\"id\":5,\"text\":\"f\",\"status\":\"new\"},{\"id\":6,\"text\":\"g\",\"status\":\"new\"},{\"id\":7,\"text\":\"h\",\"status\":\"new\"},{\"id\":8,\"text\":\"i\",\"status\":\"new\"},{\"id\":9,\"text\":\"j\",\"status\":\"new\"}]"
+        result (sut/parse-tasks-json exported)]
+    (assertions
+      "parse succeeds"
+      (:ok? result) => true
+      "all 10 items recovered"
+      (count (:items result)) => 10
+      "texts preserved in original order"
+      (mapv :todo/text (:items result))
+      => ["a" "b" "c" "d" "e" "f" "g" "h" "i" "j"]
+      "statuses preserved exactly"
+      (mapv :todo/status (:items result))
+      => [:status/done :status/cancelled :status/cancelled :status/ready
+          :status/new  :status/new       :status/new       :status/new
+          :status/new  :status/new]
+      ":todo/was preserved for both cancelled items (ready and new)"
+      (->> (:items result) (filter #(= :status/cancelled (:todo/status %))) (mapv :todo/was))
+      => [:status/ready :status/new]
+      "every imported item has a fresh UUID (not the OG int ids)"
+      (every? uuid? (mapv :todo/id (:items result))) => true)))
+
 (specification "parse-tasks-json — failure paths"
   (component ":error/non-json when JSON.parse fails"
     (assertions
