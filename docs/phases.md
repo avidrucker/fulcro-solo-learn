@@ -1320,13 +1320,123 @@ changes, no new specs.
 
 ---
 
-## ⬜ Phase 12 — i18n
+## ✅ Phase 12 — i18n + visual polish + facade refactor
 
-Internationalize via `fulcro-i18n`. The structured error keywords from
-Phase 5 already separate domain from display strings — i18n drops in
-cleanly.
+Originally scoped as "internationalize via `fulcro-i18n`". On
+analysis the third-party lib was overkill for three locales and a
+~30-key surface — see [`benefits-of-i18n-in-this-project.md`](./benefits-of-i18n-in-this-project.md)
+for the decision. Phase grew to include the visual-polish work
+(`i` + gear icon header restructure, modal padding fixes, dark-mode
+dropdown rendering, modal overlay extent) and a long-overdue
+`learn.client.cljc` namespace refactor as the work surfaced cross-
+namespace touchpoints.
 
-**New skill:** `fulcro-i18n`.
+- **12.1**: B-6 modal-bottom-padding fix. `pb4` on `<main>` so the
+  dark/light theme background extends past the last content line
+  on tall lists.
+- **12.2**: Gear icon SVG added (Font Awesome 7.x solid/gear, 640
+  viewBox) in `learn.ui.icons`. Sets up the Settings modal trigger.
+- **12.3**: Modal restructure. About + Help merged into one Info
+  modal under the existing `i` icon (the `?`-Help button dropped
+  from the header). New Settings modal under a new gear icon, body
+  intentionally empty in 12.3 — populated in 12.5. `:ui/open-modal`
+  enum gains `:info` and `:settings`, loses `:about` and `:help`.
+- **12.4**: Hand-rolled i18n integration. `learn.i18n.core` ships
+  the canonical `:en`/`:es`/`:ja` translation map, `tr` lookup with
+  fallback chain (requested → :en → key-as-string), and two
+  parameterised fns for the pluralised footer lines
+  (`tr-list-count`, `tr-next-actionable`). TodoList gains
+  `:ui/locale`, Root threads it to the modal bodies, components
+  swap curated `s/*` references for `(i18n/tr locale :…)`. Locale
+  persists via `storage/ui-prefs-whitelist` (joined `:ui/theme`).
+- **12.5**: Language dropdown in Settings. New `set-locale*` pure
+  state-helper + `learn.client/set-locale` mutation (client-only;
+  no remote). `<select>` populated from `i18n/supported-locales`
+  with `i18n/locale-label` driving option text in each language's
+  own script (English / Español / 日本語). onChange fires
+  set-locale; modal heading + language label re-render in the new
+  locale on the next frame.
+- **12.5b**: Extended translation coverage + dark-mode dropdown
+  fix. Info / Settings / Save modal body copy all go through
+  `i18n/tr` now (about copy, instructions, version label,
+  close-instruction footers, save button labels, textarea
+  placeholder). Dark-mode `<select>` options panel was rendering
+  white-on-white on Chromium/Windows where `color-scheme: dark`
+  alone isn't enough — fixed by inline `background-color` + `color`
+  on each `<option>` when the theme is dark.
+- **12.5c**: Three visual fixes:
+    1. **Modal textarea/select hover/focus**: introduced
+       `theme/theme-modal-input-class` — gray-at-rest matching the
+       primary-button bg, snap to solid black/white on hover/focus.
+       `theme-input-class` keeps the page-level new-todo input
+       verbatim with the JS port (transparent fade).
+    2. **Modal overlay extent**: dropped `height: 100%` from the
+       html/body/#app root chain in `app.css` (kept `min-height:
+       100% / 100dvh`) so the root grows with overflow content;
+       changed `.app-container` from `h-100` to `flex-1` so it
+       fills available space AND grows with content; changed the
+       overlay from `top-0 w-100 h-100` to `top-0 bottom-0 left-0
+       right-0` so it tracks `.app-container`'s full height.
+       Header stays visible (it's outside `.app-container`), so
+       icons remain reachable; Fulcro port now behaves better than
+       the OG on this specific case (the OG's overlay still stops
+       short at viewport height).
+    3. **Info + Settings modal bottom padding**: `pb3` on the
+       close-instruction paragraph so the bottom text has breathing
+       room. Save modal already had this; carried the same pattern.
+- **12.6**: Documentation sweep. This Phase 12 entry, the
+  `i18n` decision write-up, and `changes.md` updates.
+- **12.7**: `learn.client.cljc` namespace refactor. The original
+  ~1450-line file split into seven small focused namespaces
+  behind a thin `learn.client` facade preserving every public
+  wire symbol:
+    - `learn.client.session` — cross-namespace constants
+    - `learn.client.state` — pure state-map helpers
+    - `learn.client.mutations` — Fulcro defmutations (each
+      defmutation uses an explicit fully-qualified target symbol
+      so the multimethod registers under `'learn.client/<name>`;
+      preserves server `::pc/sym` dispatch unchanged)
+    - `learn.client.ui.theme` — Tachyons class strings + theme
+      helpers
+    - `learn.client.ui.modals` — modal-shell + body fns + header
+      icon button + Mutation-record aliases via
+      `m/declare-mutation` (avoids a cycle through
+      `learn.client`)
+    - `learn.client.ui.components` — TodoItem / TodoList / Root
+    - `learn.client.lifecycle` — SPA atom, chart bootstrap,
+      body-class theme sync, load-todos!
+  `learn.client` itself shrank to ~280 lines: requires + re-exports
+  preserving `learn.client/<state-helper*>`, `learn.client/<mutation>`,
+  `learn.client/Root`, `learn.client/TodoItem`, plus the `init` fn
+  (still here because `shadow-cljs.edn`'s `:init-fn` references it
+  by qualified symbol) and `snapshot`.
+
+**Numbers**: 99 specs / 675 assertions, all green (88 → 99 specs,
+614 → 675 assertions). New tests added: i18n core unit specs
+(4 specs / 21 assertions), TodoList locale propagation, set-locale
+helper + mutation, Settings dropdown rendering, modal body copy
+translations.
+
+**Infrastructure notes**:
+- `learn.util.storage/ui-prefs-whitelist` extended from
+  `#{:ui/theme}` to `#{:ui/theme :ui/locale}`.
+- New `scripts/compare-snapshots.mjs` (one-off diagnostic for the
+  OG-vs-Fulcro visual comparison at small viewport) and
+  `scripts/inspect-heights.mjs` (DOM-height probe used during the
+  overlay-extent debugging).
+- `resources/public/sw.js` localhost bypass for `/js/main/*`
+  added separately (paired with the SW diagnosis surfaced during
+  12.4); committed as a discrete dev-experience fix, documented in
+  [`dev_scripts.md`](./dev_scripts.md).
+- New [`dev_scripts.md`](./dev_scripts.md) cheat sheet for the two
+  REPLs (JVM :7888 / shadow-cljs CLJS) and common state-poke
+  recipes — most useful for locale switching before 12.5 landed
+  but reusable for any dev-time inspection.
+
+**Implements**: i18n architecture (decline `fulcro-i18n` in favor
+of the hand-rolled lookup), language switching UX, the namespace
+refactor that paid off the technical debt accumulated through
+Phase 11, and three drive-by visual polish items.
 
 ---
 

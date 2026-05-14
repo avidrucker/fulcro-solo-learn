@@ -27,22 +27,29 @@ clears the way for the user to see the imported items in the list.
 Cons: forces a re-open if the user wants to import a second batch
 or read the in-modal info-text again.
 
-### Option B — User preference via a settings modal
+### Option B — User preference via the Settings modal
 
-Add a fifth menu modal — `:settings` — toggled by a gear icon in
-the header. The first preference in it is "Close modals after
-action" (boolean, default false). Add more prefs as they come up
-(zoom, default theme override, etc.).
+The Settings modal landed in Phase 12.3 (gear icon, dedicated
+`:settings` open-modal value); Phase 12.5 populated it with the
+language dropdown. So the *modal infrastructure* part of this
+option is no longer speculative — what remains is the
+auto-close preference itself plus deciding what other prefs to
+slot in.
 
-This is the better answer if/when we have ≥3 user-tweakable
-preferences. Today's only candidate is auto-close, so the modal
-would be sparsely populated.
+Today's preference inventory:
+- Language (✅ landed, 12.5)
+- Auto-close-modal-after-action (⬜)
+- Default startup theme override (⬜ — currently last-used)
+- Larger-text / zoom (⬜)
+- PWA debug toggle (⬜ — see `S-pwa-debug-modal` in user_stories.md)
 
 ### Decide when
 
-When a third preference candidate appears (current candidates:
-auto-close, larger-text/zoom, default-startup-theme) — then build
-Option B and seed it with whatever's accumulated.
+Pick this back up the next time a second preference candidate
+becomes load-bearing (auto-close itself qualifies if a user
+asks for it; or whenever S-pwa-debug-modal gets prioritised).
+The Settings modal is no longer the blocker — the dropdown
+layout already shows how a preference renders.
 
 ---
 

@@ -172,6 +172,107 @@ docstring.
 **Where:** `learn.client/start-chart!`, `client_test:review UI
 affordances:*`.
 
+### Header has an `i`-Info modal + a gear-Settings modal (no `?`-Help)
+
+**Difference:** Phase 12.3 merged the JS port's two `i`-About and
+`?`-Help modals into one Info modal opened by the existing `i` icon.
+The `?` icon is gone from the header. A new gear icon opens a
+Settings modal (introduced in 12.3, populated with the language
+dropdown in 12.5).
+
+**Why:** Reduces header-icon visual noise; the About + Help bodies
+share a single overlay with two sections under one heading. Phase
+12's i18n work needs a Settings home, and a dedicated icon fits
+better than overloading About.
+
+**Where:** `learn.client.ui.modals/info-modal`,
+`learn.client.ui.modals/settings-modal`,
+`learn.client.ui.components/Root` header.
+
+### App is localised to Spanish + Japanese in addition to English
+
+**Difference:** A language dropdown in the Settings modal switches
+between `:en` / `:es` / `:ja`. Curated translation surface covers
+the four primary action buttons, three review-modal buttons, four
+header tooltips, three modal headings, the parameterised "You have
+N items" / "Next actionable" footer lines, the Info + Settings +
+Save modal bodies (about copy, instructions, version label,
+close-instruction footers), and the Save modal button labels.
+
+**Why:** Learning exercise for a cross-cutting concern. The JS port
+ships English-only.
+
+**Where:** `learn.i18n.core` (translation map + `tr` lookup),
+`:ui/locale` on `[:list/id 1]`, `learn.client/set-locale` mutation,
+`learn.client.ui.modals/settings-modal` `<select>`. Design rationale
+for hand-rolling vs `fulcro-i18n` in
+[`benefits-of-i18n-in-this-project.md`](./benefits-of-i18n-in-this-project.md).
+
+### Modal overlay covers the full document, not just the viewport
+
+**Difference:** When the todo list overflows the viewport (long
+list or zoomed-in browser), the semi-transparent overlay extends
+through the entire scrollable content area below the header. The
+JS port's overlay stops at viewport height, leaving the bottom of
+the list and the footer visible at full opacity beneath the modal.
+
+**Why:** Phase 12.5c. The OG's bug is observable at 200% zoom with
+10+ items. The fix is structural: drop `height: 100%` from the
+html/body/#app root chain (kept `min-height`), switch
+`.app-container` from `h-100` to `flex-1`, and anchor the overlay
+to all four edges (`top-0 bottom-0 left-0 right-0`) instead of
+relying on `h-100`. Header is excluded from the overlay zone (it
+lives outside `.app-container`) so its icons remain visible.
+
+**Where:** `resources/public/css/app.css` (root reset),
+`learn.client.ui.components/Root` (`.app-container` class),
+`learn.client.ui.modals/modal-shell` (overlay class).
+
+### Modal-internal inputs stay solid on hover/focus
+
+**Difference:** The save-modal textarea and the settings-modal
+language dropdown render with a gray bg at rest (matching the
+primary-button bg), and snap to solid white (light) or solid black
+(dark) on hover/focus. The JS port's hover/focus state fades to
+transparent (a button-style affordance that washes out on top of
+the modal's translucent overlay).
+
+**Why:** Phase 12.5c. The page-level new-todo input keeps the JS
+port's fade behavior (`theme-input-class`); only the in-modal
+fields use the new solid variant (`theme-modal-input-class`).
+
+**Where:** `learn.client.ui.theme/theme-modal-input-class`,
+applied in `learn.client.ui.modals/save-modal` (textarea) and
+`learn.client.ui.modals/settings-modal` (`<select>`).
+
+### Settings dropdown options stay themed in dark mode
+
+**Difference:** Each `<option>` in the language dropdown carries an
+inline `background-color`/`color` style when the theme is dark, so
+the OS-rendered dropdown panel paints dark instead of falling back
+to system light.
+
+**Why:** Chromium on Windows ignores CSS `color-scheme: dark` on
+form-control panels when the system is in light mode. The inline
+option style is the de-facto cross-browser fix.
+
+**Where:** `learn.client.ui.modals/settings-modal`.
+
+### Service worker bypasses cache for `/js/main/*` on localhost
+
+**Difference:** The SW's cache-first branch skips
+`/js/main/cljs-runtime/*.js` chunks when the hostname is
+`localhost`, so shadow-cljs hot-reload always serves fresh
+chunks during dev. Production hosts still get the full PWA cache.
+
+**Why:** Without the bypass, the SW pinned the dev browser to
+whichever JS shadow-cljs wrote on first visit, masking every
+subsequent code change. Not a JS-port divergence per se — the JS
+port has the same cache-first SW — but a Fulcro-port-only dev
+quality-of-life fix worth recording.
+
+**Where:** `resources/public/sw.js` fetch handler.
+
 ---
 
 ## Where things are **the same** (worth knowing)

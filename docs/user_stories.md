@@ -286,9 +286,50 @@ picked should be preserved between reloads.
 
 The fix (Phase 7.10) adds a second localStorage key
 `"autofocus.ui-prefs"` and a parallel watch on the Fulcro state-atom
-that re-saves only the whitelisted UI-pref slice (currently just
-`:ui/theme`). `init` hydrates the slice after `mount!`. See
-`bugs.md` B-1 for the full diagnosis.
+that re-saves only the whitelisted UI-pref slice. Currently
+whitelists `:ui/theme` (Phase 7.10) and `:ui/locale` (Phase 12.4).
+`init` hydrates the slice after `mount!`. See `bugs.md` B-1 for the
+full diagnosis.
+
+---
+
+## Localisation
+
+### S-i18n-locale-switch — Pick the app's language
+**Phase:** 12.4 / 12.5
+**Status:** ✅
+**Tests:** `client_test:TodoList — :ui/locale propagates to button text`, `client_test:set-locale*`, `client_test:set-locale mutation`, `client_test:Settings modal — language dropdown`
+
+As a user, when I open the Settings modal (gear icon) and pick a
+language from the dropdown, every translated UI string snaps to the
+chosen locale on the next render. Currently English (default),
+Spanish, and Japanese are supported, with each option rendered in
+its own script (`English` / `Español` / `日本語`).
+
+The curated translation surface covers the four primary action
+buttons, the three review-modal buttons, the four header tooltips,
+the three modal headings, the Info / Settings / Save modal body
+copy, the Save modal button labels, and the two parameterised
+footer lines (`tr-list-count`, `tr-next-actionable`). Strings that
+stay English are listed under "Out of scope" in
+`learn.i18n.core`'s docstring.
+
+Locale lives at `[:list/id 1 :ui/locale]`. The `set-locale`
+mutation (client-only, no remote) is the single write path; the
+storage watch persists the choice across reloads via
+`ui-prefs-whitelist`. See
+[`benefits-of-i18n-in-this-project.md`](./benefits-of-i18n-in-this-project.md)
+for the decision rationale (hand-rolled lookup vs `fulcro-i18n`).
+
+### S-i18n-persist — Locale survives page reload
+**Phase:** 12.4
+**Status:** ✅ (data layer)
+**Tests:** Same suite as `S-theme-persist` — `:ui/locale` rides the same `ui-prefs-whitelist` pipe as `:ui/theme`.
+
+As a user, when I pick a language and refresh the page, the
+language I picked should still be active. Implemented by joining
+`:ui/locale` to `learn.util.storage/ui-prefs-whitelist` so the same
+storage watch that persists theme also persists locale.
 
 ---
 
