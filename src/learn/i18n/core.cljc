@@ -58,6 +58,11 @@
         :btn/yes            "Yes"
         :btn/no             "No"
         :btn/quit           "Quit"
+        ;; Save modal buttons (12.5b)
+        :btn/copy-list-url  "Copy List URL"
+        :btn/import         "Import"
+        :btn/export         "Export"
+        :btn/submit         "Submit"
         ;; Header icon tooltips
         :tooltip/import-export "Import/Export"
         :tooltip/info          "Info"
@@ -67,8 +72,40 @@
         :modal/info           "Info"
         :modal/settings       "Settings"
         :modal/import-export  "Import/Export"
-        ;; Settings labels (added in 12.5)
-        :settings/language     "Language"}
+        ;; Info modal body (12.5b)
+        :info/heading-about         "About AutoFocus"
+        :info/heading-help          "Instructions & Help"
+        :info/about-1
+        (str "The AutoFocus algorithm was designed by Mark Forster as a pen and "
+             "paper method to help increase productivity. It does so by limiting "
+             "list interaction and providing a simple (binary) decision-making "
+             "framework.")
+        :info/about-2
+        (str "This web app is a Fulcro port of Avi Drucker's original "
+             "ReactJS implementation. The port is built with Fulcro 3.9, "
+             "Pathom 2 (in-process), com.fulcrologic/statecharts, "
+             "shadow-cljs, Font Awesome (SVG), and Tachyons CSS.")
+        :info/version-label         "Version"
+        :info/instructions
+        (str "Add new items to your list by typing into the input box and clicking "
+             "'Add Item'. To prioritize your list, click 'Prioritize'. To mark the "
+             "next actionable item as complete, click 'Mark Done'. To delete all "
+             "items from your list, click 'Delete List'.")
+        :info/instructions-2
+        (str "Click the 'disk' icon to see options for list import/export. Click "
+             "the 'i' icon for info about AutoFocus and these instructions. Click "
+             "the 'gear' icon to change settings (including language). Click the "
+             "'lightbulb' icon to toggle light/dark mode.")
+        :info/report-issues         "To report any issues/bugs, please leave a ticket on the GitHub repo 'Issues' page here: "
+        :info/click-i-circle        "Click on the 'i' icon above to close this window."
+        ;; Settings modal footer (12.5b)
+        :settings/language          "Language"
+        :settings/click-gear        "Click on the 'gear' icon above to close this window."
+        ;; Save modal body (12.5b)
+        :save/info-1                "You can import and export JSON lists into and out of AutoFocus."
+        :save/info-2                "You can also import a list by pasting in raw text below, and then clicking the 'Submit' button."
+        :save/textarea-placeholder  "Paste your list here, with each item on a new line"
+        :save/click-disk            "Click on the 'disk' icon above to close this window."}
 
    :es {:btn/add-item       "Añadir Tarea"
         :btn/delete-list    "Eliminar Lista"
@@ -77,6 +114,10 @@
         :btn/yes            "Sí"
         :btn/no             "No"
         :btn/quit           "Salir"
+        :btn/copy-list-url  "Copiar URL de la Lista"
+        :btn/import         "Importar"
+        :btn/export         "Exportar"
+        :btn/submit         "Enviar"
         :tooltip/import-export "Importar/Exportar"
         :tooltip/info          "Información"
         :tooltip/settings      "Ajustes"
@@ -84,7 +125,42 @@
         :modal/info           "Información"
         :modal/settings       "Ajustes"
         :modal/import-export  "Importar/Exportar"
-        :settings/language     "Idioma"}
+        :info/heading-about         "Acerca de AutoFocus"
+        :info/heading-help          "Instrucciones y Ayuda"
+        :info/about-1
+        (str "El algoritmo AutoFocus fue diseñado por Mark Forster como un "
+             "método con papel y lápiz para ayudar a aumentar la productividad. "
+             "Lo hace limitando la interacción con la lista y proporcionando un "
+             "marco simple (binario) para la toma de decisiones.")
+        :info/about-2
+        (str "Esta aplicación web es una adaptación a Fulcro de la "
+             "implementación original en ReactJS de Avi Drucker. La adaptación "
+             "está construida con Fulcro 3.9, Pathom 2 (en proceso), "
+             "com.fulcrologic/statecharts, shadow-cljs, Font Awesome (SVG) y "
+             "Tachyons CSS.")
+        :info/version-label         "Versión"
+        :info/instructions
+        (str "Añade nuevos elementos a tu lista escribiéndolos en el cuadro de "
+             "texto y haciendo clic en 'Añadir Tarea'. Para priorizar tu lista, "
+             "haz clic en 'Priorizar'. Para marcar el siguiente elemento "
+             "accionable como completado, haz clic en 'Marcar Hecha'. Para "
+             "eliminar todos los elementos de tu lista, haz clic en 'Eliminar "
+             "Lista'.")
+        :info/instructions-2
+        (str "Haz clic en el icono de 'disco' para ver las opciones de "
+             "importación/exportación de la lista. Haz clic en el icono de 'i' "
+             "para información sobre AutoFocus y estas instrucciones. Haz clic "
+             "en el icono de 'engranaje' para cambiar los ajustes (incluido el "
+             "idioma). Haz clic en el icono de 'bombilla' para alternar entre "
+             "modo claro y oscuro.")
+        :info/report-issues         "Para informar de cualquier problema/error, deja un ticket en la página 'Issues' del repositorio de GitHub aquí: "
+        :info/click-i-circle        "Haz clic en el icono de 'i' arriba para cerrar esta ventana."
+        :settings/language          "Idioma"
+        :settings/click-gear        "Haz clic en el icono de 'engranaje' arriba para cerrar esta ventana."
+        :save/info-1                "Puedes importar y exportar listas JSON dentro y fuera de AutoFocus."
+        :save/info-2                "También puedes importar una lista pegando texto sin formato a continuación y haciendo clic en el botón 'Enviar'."
+        :save/textarea-placeholder  "Pega tu lista aquí, con cada elemento en una nueva línea"
+        :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."}
 
    :ja {:btn/add-item       "項目を追加"
         :btn/delete-list    "リストを削除"
@@ -93,6 +169,10 @@
         :btn/yes            "はい"
         :btn/no             "いいえ"
         :btn/quit           "終了"
+        :btn/copy-list-url  "リストURLをコピー"
+        :btn/import         "インポート"
+        :btn/export         "エクスポート"
+        :btn/submit         "送信"
         :tooltip/import-export "インポート／エクスポート"
         :tooltip/info          "情報"
         :tooltip/settings      "設定"
@@ -100,7 +180,38 @@
         :modal/info           "情報"
         :modal/settings       "設定"
         :modal/import-export  "インポート／エクスポート"
-        :settings/language     "言語"}})
+        :info/heading-about         "AutoFocusについて"
+        :info/heading-help          "使い方とヘルプ"
+        :info/about-1
+        (str "AutoFocusアルゴリズムは、生産性向上のための紙とペンの方法として "
+             "Mark Forster によって考案されました。リストとの操作を制限し、"
+             "シンプルな（二者択一の）意思決定の枠組みを提供することで実現します。")
+        :info/about-2
+        (str "このウェブアプリは、Avi Drucker のオリジナルの ReactJS 実装を "
+             "Fulcro に移植したものです。Fulcro 3.9、Pathom 2（インプロセス）、"
+             "com.fulcrologic/statecharts、shadow-cljs、Font Awesome (SVG)、"
+             "および Tachyons CSS で構築されています。")
+        :info/version-label         "バージョン"
+        :info/instructions
+        (str "入力欄に入力して「項目を追加」をクリックすると、リストに新しい項目を"
+             "追加できます。リストの優先順位を付けるには「優先順位を付ける」を"
+             "クリックします。次の実行可能な項目を完了にするには「完了にする」を"
+             "クリックします。リストからすべての項目を削除するには「リストを削除」"
+             "をクリックします。")
+        :info/instructions-2
+        (str "「ディスク」アイコンをクリックすると、リストのインポート／エクスポート"
+             "オプションが表示されます。「i」アイコンをクリックすると、AutoFocus と"
+             "この使い方の情報が表示されます。「歯車」アイコンをクリックすると、"
+             "設定（言語を含む）を変更できます。「電球」アイコンをクリックすると、"
+             "ライト／ダークモードを切り替えます。")
+        :info/report-issues         "問題やバグを報告するには、GitHub リポジトリの「Issues」ページにチケットを残してください: "
+        :info/click-i-circle        "上の「i」アイコンをクリックすると、このウィンドウを閉じます。"
+        :settings/language          "言語"
+        :settings/click-gear        "上の「歯車」アイコンをクリックすると、このウィンドウを閉じます。"
+        :save/info-1                "AutoFocus に JSON リストをインポート／エクスポートできます。"
+        :save/info-2                "下のテキストエリアに生のテキストを貼り付けて「送信」ボタンをクリックすることでも、リストをインポートできます。"
+        :save/textarea-placeholder  "リストをここに貼り付けてください。1 行につき 1 項目です。"
+        :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:

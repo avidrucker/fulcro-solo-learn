@@ -146,29 +146,30 @@
    `i`-icon trigger. Two sections under the parent `Info` heading;
    the `?`-icon Help button is gone from the header.
 
-   `locale` (Phase 12.4) controls the h2 heading translation. Section
-   sub-headings and body copy stay English-only in the curated 12.4
-   scope; full coverage is a follow-up."
+   Phase 12.5b — all body copy now goes through `i18n/tr`. The link
+   text (`fulcro-solo-learn Issues`) stays as a proper noun across
+   locales; only the surrounding sentence is translated."
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-info-modal
                 :theme       theme}
     (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/info))
-    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-about)
-    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-1)
-    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-2)
-    (dom/p {:className "pb3 ma0 lh-135 fw6"} (s/version-line))
-    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-help)
-    (dom/p {:className "pb2 ma0 lh-135"} s/instructions)
-    (dom/p {:className "pb2 ma0 lh-135"} s/instructions-2)
+    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} (i18n/tr locale :info/heading-about))
+    (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/about-1))
+    (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/about-2))
+    (dom/p {:className "pb3 ma0 lh-135 fw6"}
+      (str (i18n/tr locale :info/version-label) " " s/app-version))
+    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} (i18n/tr locale :info/heading-help))
+    (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/instructions))
+    (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/instructions-2))
     (dom/p {:className "pb3 ma0 lh-135"}
-      s/how-to-report-issues
+      (i18n/tr locale :info/report-issues)
       (dom/a {:href   s/link-issues-href
               :target "_blank"
               :rel    "noopener noreferrer"
               :className "link underline blue hover-orange"}
         s/link-issues-text))
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
+    (dom/p {:className "pt2 ma0 lh-135"} (i18n/tr locale :info/click-i-circle))))
 
 (defn settings-modal
   "Phase 12.3 / 12.5 — Settings modal. Hosts the language dropdown
@@ -188,9 +189,15 @@
       (dom/label {:htmlFor   "settings-locale"
                   :className "fw6 mr2"}
         (i18n/tr locale :settings/language))
+      ;; `color-scheme` on the <select> tells the browser to render
+      ;; the native dropdown panel with the matching system palette —
+      ;; without this, dark-mode would show white-on-white options
+      ;; (the panel chrome is OS-rendered and Tachyons classes don't
+      ;; reach it).
       (dom/select {:id        "settings-locale"
                    :className (str "pa1 br3 ba bw1 b--gray "
                                    (theme/theme-input-class theme))
+                   :style     {:colorScheme (if (theme/dark? theme) "dark" "light")}
                    :value     (name locale)
                    :onChange  (fn [e]
                                 (let [v (-> e .-target .-value)]
@@ -200,7 +207,7 @@
           (dom/option {:key   (name loc)
                        :value (name loc)}
             (i18n/locale-label loc)))))
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-gear-to-close)))
+    (dom/p {:className "pt2 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
 
 ;; ============================================================================
 ;; Save (Import / Export) modal (Phase 7.6)
@@ -257,8 +264,8 @@
                    :onClick   (fn [_]
                                 #?(:cljs (copy-list-url! todos)
                                    :clj  nil))}
-        s/btn-copy-list-url))
-    (dom/p {:className "ph3 ma0 lh-135"} s/save-info-1)
+        (i18n/tr locale :btn/copy-list-url)))
+    (dom/p {:className "ph3 ma0 lh-135"} (i18n/tr locale :save/info-1))
     (dom/div {:className "ph3 pt2 tc"}
       ;; File-upload "button" is a styled <label> wrapping a hidden
       ;; <input type="file"> — same pattern the JS port uses.
@@ -267,7 +274,7 @@
                                   (theme/theme-primary-btn-suffix theme)
                                   " pa2 pointer ma1")
                   :htmlFor   "save-modal-file-upload"}
-        s/btn-import)
+        (i18n/tr locale :btn/import))
       (dom/input {:id        "save-modal-file-upload"
                   :type      "file"
                   :accept    ".json"
@@ -276,8 +283,8 @@
       (dom/button {:className (theme/save-modal-btn-class theme)
                    :title     s/tooltip-export-json
                    :onClick   (stub-onclick "export-json")}
-        s/btn-export))
-    (dom/p {:className "ph3 pt2 ma0 lh-135"} s/save-info-2)
+        (i18n/tr locale :btn/export)))
+    (dom/p {:className "ph3 pt2 ma0 lh-135"} (i18n/tr locale :save/info-2))
     (dom/div {:className "ph3 pt1"}
       ;; Hidden label paired with the textarea id so headless tests can
       ;; find this control via `h/type-into-labeled!`. The JS port has
@@ -294,7 +301,7 @@
                                        ;; states). The JS port's textarea uses the same
                                        ;; theme suffix as its top-level input.
                                        (theme/theme-input-class theme))
-                     :placeholder s/textarea-placeholder
+                     :placeholder (i18n/tr locale :save/textarea-placeholder)
                      :rows        2
                      :value       (or textarea-import-text "")
                      :onChange    #(m/set-string! this :ui/textarea-import-text
@@ -302,8 +309,8 @@
       (dom/button {:type      "button"
                    :className (theme/save-modal-wide-btn-class theme)
                    :onClick   #(submit-import!)}
-        s/btn-submit))
-    (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
+        (i18n/tr locale :btn/submit)))
+    (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} (i18n/tr locale :save/click-disk))))
 
 ;; ============================================================================
 ;; Conflict resolution modal (Phase 7.18)

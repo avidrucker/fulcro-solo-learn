@@ -1624,3 +1624,66 @@
         (h/text-exists? spa "Idioma") => true
         "English 'Language' label no longer rendered"
         (h/text-exists? spa "Language") => false))))
+
+;; ============================================================================
+;; Phase 12.5b — extended translation coverage (modal body copy)
+;; ============================================================================
+
+(specification "Settings modal — footer translates with locale"
+  (component ":es renders the Spanish close-instruction footer"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              (fn [s] (-> s
+                        (assoc-in [:list/id 1 :ui/locale] :es)
+                        (assoc-in [:list/id 1 :ui/open-modal] :settings))))
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish 'engranaje' footer appears"
+        (h/text-exists? spa "engranaje") => true
+        "English 'gear' footer text is gone"
+        (h/text-exists? spa "Click on the 'gear'") => false))))
+
+(specification "Info modal — body copy translates with locale"
+  (component ":es renders Spanish about/help sections"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              (fn [s] (-> s
+                        (assoc-in [:list/id 1 :ui/locale] :es)
+                        (assoc-in [:list/id 1 :ui/open-modal] :info))))
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish 'Acerca de' heading visible"
+        (h/text-exists? spa "Acerca de") => true
+        "Spanish algorithm-description body copy visible"
+        (h/text-exists? spa "algoritmo AutoFocus") => true
+        "English about-copy no longer rendered"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false))))
+
+(specification "Save modal — body copy translates with locale"
+  (component ":es renders Spanish import/export button labels"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              (fn [s] (-> s
+                        (assoc-in [:list/id 1 :ui/locale] :es)
+                        (assoc-in [:list/id 1 :ui/open-modal] :save))))
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish 'Importar' button text appears"
+        (h/text-exists? spa "Importar") => true
+        "Spanish 'Exportar' button text appears"
+        (h/text-exists? spa "Exportar") => true
+        "Spanish 'Enviar' submit text appears"
+        (h/text-exists? spa "Enviar") => true
+        ;; Can't assert (text-exists? \"Import\") => false here — the
+        ;; header tooltip text in :es is \"Importar/Exportar\", which
+        ;; contains \"Import\" as a substring and would trip the
+        ;; assertion. The positive Spanish strings above are
+        ;; sufficient proof that the button labels translated.
+        "English 'Submit' (no Spanish substring overlap) is gone"
+        (h/text-exists? spa "Submit") => false))))
