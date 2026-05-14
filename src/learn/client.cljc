@@ -24,7 +24,6 @@
   (:require
     [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     ;; The Fulcro headless library is JVM-only — used by the spec suite
     ;; via `init`. The browser build doesn't need it; see `learn.util.remote`
     ;; for the CLJC `sync-remote` shim used in the CLJS init branch.
@@ -35,13 +34,12 @@
     ;; Chrome extension is browser-side only.
     #?(:cljs [fulcro.inspect.tool :as inspect-tool])
     [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.statecharts.integration.fulcro :as scf]
+    [learn.client.lifecycle :as lifecycle]
     [learn.client.mutations :as mutations]
     [learn.client.session :as session]
     [learn.client.state :as state]
     [learn.client.ui.components :as components]
     [learn.parser :as parser]
-    [learn.review.chart :as chart]
     [learn.server :as server]
     [learn.util.remote :as remote]
     [learn.util.storage :as storage]
@@ -117,57 +115,16 @@
 
 ;; ============================================================================
 ;; App construction
+;;
+;; The helpers below — start-chart!, sync-body-theme-class!,
+;; install-body-theme-sync!, load-todos!, and the SPA atom — live in
+;; `learn.client.lifecycle`. `init` and `snapshot` stay here because
+;; shadow-cljs's `:init-fn learn.client/init` config references the
+;; qualified symbol, and tests import `learn.client/init` via the
+;; sut alias.
 ;; ============================================================================
 
-(defonce SPA
-  ;; Holds the live app instance. defonce so reloading the namespace
-  ;; doesn't blow away an in-progress app you've been driving from REPL.
-  (atom nil))
-
-(defn- start-chart!
-  "Install + register + start the review chart on `spa`. Shared between
-   the JVM and CLJS init branches."
-  [spa]
-  (scf/install-fulcro-statecharts! spa {:event-loop? false})
-  (scf/register-statechart! spa review-chart-key chart/chart)
-  (scf/start! spa {:machine    review-chart-key
-                   :session-id review-session-id})
-  (scf/process-events! spa))
-
-#?(:cljs
-   (defn- sync-body-theme-class!
-     "Set `document.body.className` to `bg-black` in dark mode (or empty
-      in light) so the browser's canvas background propagates to fill
-      the area outside `<body>`'s box. Without this, the default white
-      canvas leaks through past `<main>`'s background when the list
-      overflows the viewport — visible in light/dark snapshots with 26
-      items. Matches the JS port's runtime body-class toggle."
-     [theme]
-     (set! (.-className js/document.body)
-       (if (= theme :theme/dark) "bg-black" ""))))
-
-#?(:cljs
-   (defn- install-body-theme-sync!
-     "Watch the Fulcro state-atom and keep `document.body.className` in
-      sync with `[:list/id 1 :ui/theme]`. Companion to
-      `storage/install-ui-prefs-persistence!` — same shape (watch +
-      change-detect), separate concern."
-     [fulcro-state-atom]
-     (let [theme-of (fn [s] (get-in s [:list/id 1 :ui/theme] :theme/light))]
-       (sync-body-theme-class! (theme-of @fulcro-state-atom))
-       (add-watch fulcro-state-atom ::body-theme
-         (fn [_k _ref old-state new-state]
-           (let [old-theme (theme-of old-state)
-                 new-theme (theme-of new-state)]
-             (when (not= old-theme new-theme)
-               (sync-body-theme-class! new-theme))))))))
-
-(defn- load-todos!
-  "Initial load that populates `:list/todos` from the in-process Pathom
-   parser. Same call shape on both platforms."
-  [spa]
-  (df/load! spa :all-todos TodoItem
-    {:target [:list/id 1 :list/todos]}))
+(def SPA lifecycle/SPA)
 
 #?(:clj
    (defn init
@@ -189,10 +146,10 @@
      (let [spa (h/build-test-app
                  {:root-class Root
                   :remotes    {:remote (lr/sync-remote parser/handler)}})]
-       (reset! SPA spa)
-       (start-chart! spa)
+       (reset! lifecycle/SPA spa)
+       (lifecycle/start-chart! spa)
        (app/mount! spa Root :app)
-       (load-todos! spa)
+       (lifecycle/load-todos! spa TodoItem)
        (h/render-frame! spa)
        spa)))
 
@@ -219,7 +176,7 @@
      []
      (let [spa (app/fulcro-app
                  {:remotes {:remote (remote/sync-remote parser/handler)}})]
-       (reset! SPA spa)
+       (reset! lifecycle/SPA spa)
        ;; Register the app with Fulcro Inspect 1.x. Paired with the
        ;; `com.fulcrologic.devtools.chrome-preload` in shadow-cljs.edn.
        ;; Noop if Inspect is disabled by compiler flags (release builds).
@@ -250,7 +207,7 @@
            :conflict nil  ; defer to post-mount
            ;; :local / :seed — no-op (SERVER-DB already correct)
            nil)
-         (start-chart! spa)
+         (lifecycle/start-chart! spa)
          (app/mount! spa Root "app")
          (when (= :conflict (:source decision))
            ;; The state-atom only exists after mount! — write the
@@ -271,14 +228,14 @@
        ;; Same hook point: keep `document.body.className` in sync with
        ;; the active theme so the browser's canvas bg matches the theme
        ;; even when the list overflows the viewport.
-       (install-body-theme-sync!
+       (lifecycle/install-body-theme-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Phase 7.16: URL sync — write the current list to
        ;; ?list=<encoded> on every items change so the address bar can
        ;; be copied directly (not just via the Copy List URL button).
        (url-encoding/install-url-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
-       (load-todos! spa)
+       (lifecycle/load-todos! spa TodoItem)
        spa))))
 
 (defn snapshot
