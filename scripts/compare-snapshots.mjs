@@ -22,10 +22,11 @@ const FULCRO_URL = 'http://localhost:8000/?list=JTVCJTdCJTIyaWQlMjIlM0EwJTJDJTIy
 const OUT_DIR = resolve('docs/snapshots/comparison');
 mkdirSync(OUT_DIR, { recursive: true });
 
-// 200% zoom simulated by halving the viewport width while keeping the
-// CSS-pixel layout intact. Playwright's `deviceScaleFactor` doesn't
-// affect layout; setting `document.body.style.zoom` does.
-const VIEWPORT = { width: 640, height: 800 };
+// Simulate browser-level 200% zoom by halving viewport dimensions —
+// real Ctrl-+ in a browser tells the page it has a smaller layout
+// viewport, which is what triggers content overflow. `body.style.zoom`
+// only scales visual rendering without reflowing content.
+const VIEWPORT = { width: 640, height: 400 };
 
 async function capture({ url, label, dark }) {
   const browser = await chromium.launch();
@@ -47,10 +48,8 @@ async function capture({ url, label, dark }) {
       }
     }
 
-    // Set zoom to 200%. `document.body.style.zoom` is a Chromium-only
-    // CSS extension but works for our visual-diagnosis purpose.
-    await page.evaluate(() => { document.body.style.zoom = '2.0'; });
-    await page.waitForTimeout(300);
+    // No `body.style.zoom` — the small viewport above already
+    // simulates the layout effect of 200% browser zoom.
 
     // Open the Import/Export modal.
     const importBtn = page.getByRole('button', { name: /import\/?export/i });

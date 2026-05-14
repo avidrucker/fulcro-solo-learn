@@ -469,5 +469,5 @@
                        :onClick   #(comp/transact! this [(toggle-theme)])}
             (if (theme/dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
             (dom/span {:className "clip"} toggle-theme-lbl))))
-      (dom/section {:className "app-container relative flex flex-column h-100"}
+      (dom/section {:className "app-container relative flex flex-column flex-1"}
         (when list (ui-todo-list list))))))

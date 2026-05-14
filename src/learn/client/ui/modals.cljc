@@ -66,14 +66,12 @@
 
    `children` are positional DOM nodes for the modal body."
   [{:keys [on-close close-label theme] :or {theme :theme/light}} & children]
-  ;; 12.5c divergence from JS port: the JS source uses `absolute h-100`
-  ;; here, which only stretches the overlay to the nearest positioned
-  ;; ancestor's visible height. When the todo list overflows the
-  ;; viewport, the overlay stops at the fold and the underlying list
-  ;; shows through unmasked. `fixed` pins the overlay to the viewport
-  ;; so it covers everything regardless of scroll position — the
-  ;; standard modal UX.
-  (dom/section {:className (str "fixed f5 top-0 w-100 h-100 "
+  ;; Anchor the overlay to all four edges of `.app-container` (its
+  ;; nearest positioned ancestor) so it stretches to whatever height
+  ;; the containing block actually has. `top-0 bottom-0` does this
+  ;; without relying on `h-100`, which resolves to 100% of an
+  ;; ill-defined parent height when `<main>` uses min-height + flex.
+  (dom/section {:className (str "absolute f5 top-0 bottom-0 left-0 right-0 "
                                 (theme/theme-modal-bg-class theme))}
     ;; Inner section mirrors the JS port: `measure-narrow ml-auto mr-auto`
     ;; ONLY — no `pa3` (would squeeze the text into a narrower column).

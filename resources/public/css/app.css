@@ -8,21 +8,30 @@
  * any same-specificity collisions resolve in favor of these rules.
  */
 
-/* Root reset — verbatim port of the JS port's index.css (Phase 7.12).
+/* Root reset — verbatim port of the JS port's index.css (Phase 7.12),
+ * with one 12.5c divergence: `height: 100%` removed in favor of
+ * `min-height` only.
+ *
  * Three jobs:
  *   1. Zero margins on the root stack so the dark-theme background
  *      reaches every viewport edge.
- *   2. `display: flex; flex-direction: column` + `height: 100%` +
- *      `min-height: 100dvh` make the root stack fill the viewport
- *      reliably on every browser, including mobile where 100vh
- *      includes the URL bar.
- *   3. Font smoothing for sharper text on macOS/Chrome — visually
- *      thinner glyphs match the JS port's rendering. */
+ *   2. `display: flex; flex-direction: column` + `min-height: 100dvh`
+ *      keep the root stack at least viewport-tall on every browser,
+ *      including mobile where 100vh includes the URL bar.
+ *   3. Font smoothing for sharper text on macOS/Chrome.
+ *
+ * Why drop `height: 100%`: with it, html/body/#app stayed pinned to
+ * the viewport even when content overflowed, which constrained
+ * <main> and `.app-container` to viewport height. The modal overlay
+ * (absolute inside `.app-container`) then only extended as far as
+ * the viewport, leaving overflow content uncovered. `min-height`
+ * alone gives us the "fill viewport on short content" guarantee
+ * without locking the root stack to that size when content is
+ * taller. */
 html, body, #app {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  height: 100%;
   min-height: 100%;
   min-height: 100dvh;
   display: flex;
