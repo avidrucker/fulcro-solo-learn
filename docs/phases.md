@@ -1256,21 +1256,67 @@ assertions). CLJS: 334 files, 0 warnings (was 327 — RAD pulls in
 
 ---
 
-## ⬜ Phase 10 — RAD reports and forms
+## ✅ Phase 10 — RAD reports and forms (closed as a doc artifact)
 
-Use RAD's report and form components for the AutoFocus list UI.
+Scoped to "use `defsc-form` and `defsc-report` for the AutoFocus
+UI". On analysis, both would be net-negative refactors for this
+project:
 
-**New skill:** `fulcro-rad-reports`.
+- **`defsc-form`** for our Add Item input: ~200+ lines of render-
+  plugin + state-machine wiring + tempid-handling-vs-our-UUID-
+  flow override, replacing the ~60-line `rad-input/text-input`
+  from Phase 9. Our custom save (UUID server-side + AutoFocus
+  add-rule for status) doesn't fit RAD's delta-based save flow.
+- **`defsc-report`** for our list: almost every existing visual
+  feature (status SVG icons, dim-when-cancelled, strike-when-
+  cancelled, hover-to-show buttons, benchmark bold, no column
+  headers, footer count line, modal siblings) requires an
+  override of `defsc-report`'s defaults. The result would be more
+  code than the current `TodoList + TodoItem`.
+
+Closed as a doc artifact:
+[`docs/when-to-use-RAD-forms-and-reports.md`](./when-to-use-RAD-forms-and-reports.md)
+captures the criteria for when each pays off, with our app's
+shape as the worked counter-example. Companion to
+`when-to-statechart.md` and `benefits-of-RAD-in-this-project.md`.
+
+Notes the "RAD-lite" middle ground (attribute-driven custom
+rendering without `defsc-form`/`defsc-report` machinery) as the
+right shape for our scale — which is what
+`learn.rad.input/text-input` from Phase 9 already is.
+
+No code changes. No new specs. Master runner: 88 specs / 614
+assertions, unchanged.
 
 ---
 
-## ⬜ Phase 11 — Production Pathom patterns
+## ✅ Phase 11 — Production Pathom patterns (closed as a doc artifact)
 
-Per-request env, batch resolvers (N+1 prevention), `defmutation`
-return values for optimistic UI. Swapped back from its original
-Phase-8 slot — lower practical payoff in our in-process / no-
-network Pathom setup, but worth touring once we've exhausted the
-higher-leverage work.
+Scoped to "introduce per-request env, batch resolvers, and
+mutation return values for optimistic UI". Honest analysis: our
+in-process / no-HTTP / single-user / atom-as-DB Pathom setup has
+zero load-bearing use for any of these patterns.
+
+- **Per-request env**: no DB connection to inject, no auth, no
+  multi-tenancy. Adding `{:server-db ...}` to env would be a
+  stylistic choice that doesn't change behaviour.
+- **Batch resolvers**: `all-todos-resolver` returns the full
+  denormalized list in one constant-time map lookup. No I/O, no
+  N+1 surface.
+- **Mutation return values**: client allocates UUIDs, server
+  stores them verbatim, no remap needed; server doesn't compute
+  any fields the client needs back; no cascading writes.
+
+Closed as a doc artifact:
+[`docs/when-to-use-pathom-prod-patterns.md`](./when-to-use-pathom-prod-patterns.md)
+explains each pattern, when it pays off, and why our app shape
+doesn't exercise them. Notes that we DO ship two "production-
+shape" plugins (`error-handling-plugin`, `logging-plugin` with
+opt-in `*debug?*`) — those are the parts of "production Pathom"
+where we genuinely benefit.
+
+Closes out the original Phase-8-then-swapped-to-11 slot. No code
+changes, no new specs.
 
 ---
 
