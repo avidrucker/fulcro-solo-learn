@@ -189,24 +189,31 @@
       (dom/label {:htmlFor   "settings-locale"
                   :className "fw6 mr2"}
         (i18n/tr locale :settings/language))
-      ;; `color-scheme` on the <select> tells the browser to render
-      ;; the native dropdown panel with the matching system palette —
-      ;; without this, dark-mode would show white-on-white options
-      ;; (the panel chrome is OS-rendered and Tachyons classes don't
-      ;; reach it).
-      (dom/select {:id        "settings-locale"
-                   :className (str "pa1 br3 ba bw1 b--gray "
-                                   (theme/theme-input-class theme))
-                   :style     {:colorScheme (if (theme/dark? theme) "dark" "light")}
-                   :value     (name locale)
-                   :onChange  (fn [e]
-                                (let [v (-> e .-target .-value)]
-                                  (comp/transact! this
-                                    [(set-locale {:ui/locale (keyword v)})])))}
-        (for [loc (sort i18n/supported-locales)]
-          (dom/option {:key   (name loc)
-                       :value (name loc)}
-            (i18n/locale-label loc)))))
+      ;; Dropdown options panel is OS-rendered. `color-scheme` is the
+      ;; CSS-standard hint but Chromium on Windows often ignores it
+      ;; for form controls when the system is in light mode, leaving
+      ;; the panel white-on-white. So we ALSO set explicit
+      ;; background-color + color on each <option> in dark mode —
+      ;; that inline style is the de facto cross-browser way to make
+      ;; the option list themable.
+      (let [dark?       (theme/dark? theme)
+            option-style (when dark?
+                           {:backgroundColor "#1a1a1a"
+                            :color           "#ffffff"})]
+        (dom/select {:id        "settings-locale"
+                     :className (str "pa1 br3 ba bw1 b--gray "
+                                     (theme/theme-input-class theme))
+                     :style     {:colorScheme (if dark? "dark" "light")}
+                     :value     (name locale)
+                     :onChange  (fn [e]
+                                  (let [v (-> e .-target .-value)]
+                                    (comp/transact! this
+                                      [(set-locale {:ui/locale (keyword v)})])))}
+          (for [loc (sort i18n/supported-locales)]
+            (dom/option (cond-> {:key   (name loc)
+                                 :value (name loc)}
+                          option-style (assoc :style option-style))
+              (i18n/locale-label loc))))))
     (dom/p {:className "pt2 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
 
 ;; ============================================================================
