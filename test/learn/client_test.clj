@@ -9,7 +9,8 @@
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.client :as sut]
     [learn.review.chart :as chart]
-    [learn.server :as server]))
+    [learn.server :as server]
+    [learn.ui.strings :as sut-strings]))
 
 ;; ============================================================================
 ;; Test fixtures
@@ -1075,8 +1076,8 @@
         (h/text-exists? spa "About AutoFocus") => true
         "info-string-1 (About body) visible"
         (h/text-exists? spa "The AutoFocus algorithm was designed") => true
-        "version line visible"
-        (h/text-exists? spa "Version 0.1.4") => true
+        "version line visible (concatenated label + Fulcro port version from package.json)"
+        (h/text-exists? spa (str "Version " sut-strings/app-version)) => true
         "Instructions sub-heading visible"
         (h/text-exists? spa "Instructions & Help") => true
         "instructions (Help body) visible"

@@ -202,6 +202,23 @@ Shows two paragraphs of usage instructions (`instructions` /
 `instructions2`), a "report issues" line with an external GitHub link,
 and a close-instruction footer.
 
+### S-info-version — Fulcro port version visible in the Info modal
+**Phase:** 7.5 (display) / 12.6 (single-source-of-truth wiring)
+**Status:** ✅
+**Tests:** `client_test:Info modal — Phase 12.3 combines About + Help` (asserts the version line renders)
+
+**As a user**, when I click the Info modal button (`i` icon in the
+header), I can see in its display contents the version number of
+the app.
+
+The version is the Fulcro port's own (`0.0.1` at time of writing),
+distinct from the JS port's. The single source of truth is
+`package.json`'s `version` field; `learn.version-macros/fulcro-version`
+is a compile-time macro that reads that file and inlines the
+string into `learn.ui.strings/app-version`, which the Info modal
+renders alongside the translated "Version" / "Versión" /
+"バージョン" label.
+
 ### S-import-export — Import/Export modal
 **Phase:** 7.6 (stubbed)
 **Status:** 🟡 (markup tested; Copy List URL real as of 7.11; batch-text Submit real as of 7.12; Import/Export JSON still stubbed)

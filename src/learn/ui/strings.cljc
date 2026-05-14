@@ -11,20 +11,30 @@
    confirmation, import/export, conflict resolution, debug modal, theme
    toggle). They live here anyway so future phases don't reinvent them.
 
-   Phase 12 will turn this namespace into the i18n attachment point
-   (`fulcro-i18n` registers translations by string identity). Keeping
-   one canonical name per string now means the migration is mechanical.
+   Phase 12 turned this namespace into the i18n attachment point — but
+   we ended up with a small hand-rolled translation map in
+   `learn.i18n.core` rather than a `fulcro-i18n`-driven rewrite; this
+   namespace stays the canonical English-source store, and i18n keys
+   reference the same strings by namespaced keyword.
 
    Templated strings (count-with-pluralization, next-actionable preview)
    are exposed as 1-arg functions rather than format-template constants
-   so the call site stays a single readable expression.")
+   so the call site stays a single readable expression."
+  #?(:cljs (:require-macros [learn.version-macros :refer [fulcro-version]]))
+  #?(:clj (:require [learn.version-macros :refer [fulcro-version]])))
 
 ;; ============================================================================
 ;; App-level
 ;; ============================================================================
 
 (def app-name           "AutoFocus")
-(def app-version        "0.1.4")    ; sem-ver from JS App.js — tracks upstream
+(def app-version
+  "Single-source-of-truth: read from `package.json`'s `version`
+   field at compile time via `learn.version-macros/fulcro-version`.
+   The Fulcro port has its own version (`0.0.1` at time of writing),
+   distinct from the JS port's `0.1.4` — both apps evolve
+   independently."
+  (fulcro-version))
 
 ;; ============================================================================
 ;; Inline labels — input/button text, placeholders. Sourced from JSX literals

@@ -301,3 +301,72 @@ JVM `init` is unchanged. The dev seed remains in
 `learn.server/initial-state` and `learn.server/seed!` so the spec
 suite keeps running with the same fixture. The only difference is
 the first-paint state in a real browser.
+
+---
+
+## B-6 — No bottom padding on `<main>`; theme bg cuts off at last line
+
+**Status:** ✅ Fixed in Phase 12.1
+**Reported:** 2026-05-12 by user (visual snapshot inspection vs the OG)
+
+### Symptom
+
+When the todo list overflows the viewport (lots of items, or
+zoomed-in browser) and the user scrolls to the bottom, the last
+line of content sits right at the bottom edge of `<main>` with no
+breathing room. In dark mode this is especially noticeable because
+the theme background also stops there, exposing a hint of the
+canvas background past `<main>`'s edge.
+
+### Root cause
+
+`<main>` had no bottom padding. The flex column laid out the
+header + `.app-container` flush, with nothing trailing.
+
+### Resolution
+
+Added `pb4` (Tachyons `padding-bottom: 2rem`) to `<main>`'s class
+string in `learn.client.ui.components/Root`. Goes on `<main>` (not
+on `.app-container`) so the theme background carries through the
+padding zone — the canvas-bg-leak issue stays fixed.
+
+---
+
+## B-7 — Modal-internal textarea hover transition is instant, not smooth
+
+**Status:** 🐛 Open — minor visual regression
+**Reported:** 2026-05-14 by user
+
+### Symptom
+
+In the OG ReactJS app, hovering the import/export modal's textarea
+fades the background color smoothly between rest and hover states
+(visible as a `.2s` ease-in transition).
+
+In the Fulcro port (since Phase 12.5c introduced
+`theme-modal-input-class`), the hover transition snaps instantly —
+no fade. Functionally identical, visually less polished.
+
+**As a user**, when I hover over the textarea in the import/export
+modal, I should see that the background color of the textarea
+transitions smoothly.
+
+### Likely root cause
+
+`app.css`'s `.hover-bg-light-gray` and `.hover-bg-dark-gray` rules
+declare `transition: all .2s ease-in` on the base class. Tachyons'
+`hover-bg-black` and `hover-bg-white` (which the new
+`theme-modal-input-class` uses) do not carry a transition rule, so
+the bg switch is instantaneous.
+
+### Likely fix
+
+Add a small custom class — `transition-bg` or similar — to
+`app.css` that declares `transition: background-color .2s ease-in`,
+and apply it alongside `hover-bg-black` / `hover-bg-white` in
+`theme-modal-input-class`. Avoid adding `transition: all` because
+the JS port's `.2s` fade on the page-level new-todo input
+(`.hover-bg-light-gray` / `.hover-bg-dark-gray`) uses `all`
+deliberately — it animates the background AND the bg-color of the
+focus ring together. The modal-input variant doesn't need that
+breadth.
