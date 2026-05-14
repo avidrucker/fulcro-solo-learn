@@ -145,7 +145,7 @@
         (last (get-in @server/SERVER-DB [:list/id server/list-id :list/todos]))
         => new-id)))
 
-  (component "all four list-recording mutations are registered"
+  (component "list-recording mutations are registered"
     (let [symbols (set (map ::pc/sym sut/all-resolvers))]
       (assertions
         "add-todo wired"
@@ -155,7 +155,11 @@
         "complete-benchmark-item wired"
         (contains? symbols 'learn.client/complete-benchmark-item) => true
         "clone-todo wired"
-        (contains? symbols 'learn.client/clone-todo) => true))))
+        (contains? symbols 'learn.client/clone-todo) => true
+        "import-from-text wired (Phase 7.12)"
+        (contains? symbols 'learn.client/import-from-text) => true
+        "import-from-json wired (Phase 13)"
+        (contains? symbols 'learn.client/import-from-json) => true))))
 
 ;; ============================================================================
 ;; Error handling specifications

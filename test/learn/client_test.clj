@@ -186,6 +186,54 @@
         (mapv #(get-in after [:todo/id (second %) :todo/status]) idents)
         => [:status/ready :status/new :status/new]))))
 
+(specification "import-from-json* (Phase 13)"
+  ;; Wiring spec for the JSON import state-helper: takes already-
+  ;; parsed items (from tasks-io/parse-tasks-json) and appends them
+  ;; to the list. UUID generation and status preservation are the
+  ;; tasks-io / og-shape->items layer's job — this helper just
+  ;; merges. Empty input is a no-op.
+  (def new-id-a #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1")
+  (def new-id-b #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")
+
+  (component "appends parsed items to the existing list"
+    (let [before (fixture-state)
+          new-items [{:todo/id new-id-a :todo/text "imported-A" :todo/status :status/new}
+                     {:todo/id new-id-b :todo/text "imported-B" :todo/status :status/done}]
+          after  (sut/import-from-json* before [:list/id 1] new-items)]
+      (assertions
+        ":list/todos grew by 2 (two seed + two imported)"
+        (count (get-in after [:list/id 1 :list/todos])) => 4
+        "existing idents preserved at the head"
+        (vec (take 2 (get-in after [:list/id 1 :list/todos])))
+        => [[:todo/id fixture-id-1] [:todo/id fixture-id-2]]
+        "imported idents appended at the tail"
+        (vec (drop 2 (get-in after [:list/id 1 :list/todos])))
+        => [[:todo/id new-id-a] [:todo/id new-id-b]]
+        "imported entities reachable in :todo/id table"
+        (get-in after [:todo/id new-id-a :todo/text]) => "imported-A"
+        (get-in after [:todo/id new-id-b :todo/text]) => "imported-B"
+        "statuses preserved verbatim (no auto-mark)"
+        (get-in after [:todo/id new-id-a :todo/status]) => :status/new
+        (get-in after [:todo/id new-id-b :todo/status]) => :status/done)))
+
+  (component "empty items input is a no-op"
+    (let [before (fixture-state)]
+      (assertions
+        "passing [] leaves state-map unchanged"
+        (sut/import-from-json* before [:list/id 1] []) => before
+        "passing nil leaves state-map unchanged"
+        (sut/import-from-json* before [:list/id 1] nil) => before)))
+
+  (component "imports into an empty list"
+    (let [before (empty-fixture-state)
+          new-items [{:todo/id new-id-a :todo/text "first" :todo/status :status/ready}]
+          after  (sut/import-from-json* before [:list/id 1] new-items)]
+      (assertions
+        "single item lands in :list/todos"
+        (get-in after [:list/id 1 :list/todos]) => [[:todo/id new-id-a]]
+        ":todo/id table has the entity"
+        (get-in after [:todo/id new-id-a :todo/text]) => "first"))))
+
 ;; ============================================================================
 ;; cancel-todo* / complete-benchmark-item* / clone-todo* — state-helpers that
 ;; delegate to learn.model.list for domain semantics. These specs verify the
@@ -609,6 +657,48 @@
     (let [spa (sut/init)
           _   (comp/transact! spa
                 [(sut/import-from-text {:ui/textarea-import-text "\n  \t\n"})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)]
+      (assertions
+        "client :list/todos unchanged at 2 seeded items"
+        (count (get-in db [:list/id 1 :list/todos])) => 2))))
+
+(specification "import-from-json mutation (Phase 13)"
+  ;; End-to-end: client transact runs the helper AND syncs to SERVER-DB
+  ;; via the remote. Two seeded items + two imported items = 4 total.
+  (def import-id-x #uuid "cccccccc-cccc-cccc-cccc-ccccccccccc1")
+  (def import-id-y #uuid "cccccccc-cccc-cccc-cccc-ccccccccccc2")
+
+  (component "appends parsed items on client AND SERVER-DB"
+    (server/seed!)
+    (let [spa (sut/init)
+          new-items [{:todo/id import-id-x :todo/text "imp-x" :todo/status :status/ready}
+                     {:todo/id import-id-y :todo/text "imp-y" :todo/status :status/done}]
+          _   (comp/transact! spa
+                [(sut/import-from-json {:items new-items})]
+                {:ref [:list/id 1]})
+          db  (app/current-state spa)
+          client-idents (get-in db [:list/id 1 :list/todos])]
+      (assertions
+        "client :list/todos length is 4 (2 seeded + 2 imported)"
+        (count client-idents) => 4
+        "imported texts present on the client"
+        (get-in db [:todo/id import-id-x :todo/text]) => "imp-x"
+        (get-in db [:todo/id import-id-y :todo/text]) => "imp-y"
+        "imported statuses preserved verbatim (no auto-mark)"
+        (get-in db [:todo/id import-id-x :todo/status]) => :status/ready
+        (get-in db [:todo/id import-id-y :todo/status]) => :status/done
+        "SERVER-DB :list/todos length is 4"
+        (count (get-in @server/SERVER-DB [:list/id 1 :list/todos])) => 4
+        "SERVER-DB and client share the same UUIDs for the new items"
+        (set (map second client-idents))
+        => (set (get-in @server/SERVER-DB [:list/id 1 :list/todos])))))
+
+  (component "empty items is a no-op"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa
+                [(sut/import-from-json {:items []})]
                 {:ref [:list/id 1]})
           db  (app/current-state spa)]
       (assertions

@@ -29,6 +29,7 @@
     [learn.i18n.core :as i18n]
     [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
+    [learn.util.tasks-io :as tasks-io]
     [learn.util.url-encoding :as url-encoding]
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
@@ -44,6 +45,8 @@
 (m/declare-mutation keep-link-list     learn.client/keep-link-list)
 (m/declare-mutation keep-local-list    learn.client/keep-local-list)
 (m/declare-mutation set-locale         learn.client/set-locale)
+(m/declare-mutation set-err-msg        learn.client/set-err-msg)
+(m/declare-mutation import-from-json   learn.client/import-from-json)
 
 ;; ============================================================================
 ;; Modal overlay shell
@@ -225,16 +228,6 @@
 ;; Save (Import / Export) modal (Phase 7.6)
 ;; ============================================================================
 
-(defn- stub-onclick
-  "Returns a click handler that logs to the JS console and otherwise
-   no-ops. Used for the Phase 7.6 Import/Export modal buttons whose
-   real behaviour (URL serialization, JSON parse, etc.) lands in a
-   later phase."
-  [label]
-  (fn [& _]
-    #?(:cljs (js/console.log "[stub]" label)
-       :clj  nil)))
-
 #?(:cljs
    (defn- current-share-url
      "Build the `?list=...` share URL from the current browser location
@@ -258,6 +251,63 @@
        (when clipboard
          (-> (.writeText clipboard (current-share-url items))
            (.catch (fn [err] (js/console.warn "[copy-list-url] failed:" err))))))))
+
+#?(:cljs
+   (defn- import-json-file!
+     "Phase 13 — file-upload handler for the Save modal's Import
+      button. Reads the selected file via FileReader, runs the
+      result through `tasks-io/parse-tasks-json`, and either
+      dispatches the import-from-json mutation (success) or sets
+      `:ui/err-msg` to the matching error string (failure). Stays
+      a thin wrapper — all validation logic lives in tasks-io."
+     [this evt]
+     (let [files  (-> evt .-target .-files)
+           file   (when files (aget files 0))]
+       (when file
+         (let [reader (js/FileReader.)]
+           (set! (.-onload reader)
+             (fn [_]
+               (let [text   (.-result reader)
+                     result (tasks-io/parse-tasks-json text)]
+                 (if (:ok? result)
+                   (comp/transact! this
+                     [(import-from-json {:items (:items result)})])
+                   (comp/transact! this
+                     [(set-err-msg
+                        {:ui/err-msg
+                         (case (:error/type result)
+                           :error/non-json s/non-json-import-err
+                           s/bad-json-import-err)})])))))
+           (set! (.-onerror reader)
+             (fn [_]
+               (comp/transact! this
+                 [(set-err-msg {:ui/err-msg s/bad-json-import-err})])))
+           (.readAsText reader file)))
+       ;; Clear the input's value so the user can re-select the SAME
+       ;; file after a parse error (browsers suppress onChange when the
+       ;; selected file is identical to the previous selection).
+       (set! (.-value (.-target evt)) ""))))
+
+#?(:cljs
+   (defn- export-items-json!
+     "Phase 13 — Export button handler. Serializes `items` to a JSON
+      string in OG-compatible shape, wraps in a Blob, and triggers a
+      download via a synthetic anchor click. `tasks.json` matches the
+      OG ReactJS port's filename so the round-trip (export this app,
+      import in the OG, or vice versa) stays straightforward."
+     [items]
+     (let [json (url-encoding/items->json items)
+           blob (js/Blob. #js [json] #js {:type "application/json"})
+           url  (.createObjectURL js/URL blob)
+           a    (.createElement js/document "a")]
+       (set! (.-href a) url)
+       (set! (.-download a) "tasks.json")
+       ;; Append-to-body before click is required by some browsers
+       ;; (Firefox in particular ignores the click on detached nodes).
+       (.appendChild (.-body js/document) a)
+       (.click a)
+       (.removeChild (.-body js/document) a)
+       (.revokeObjectURL js/URL url))))
 
 (def textarea-import-id
   "Stable id paired with the (clip-hidden) `<label htmlFor>` so headless
@@ -291,10 +341,14 @@
                   :type      "file"
                   :accept    ".json"
                   :className "dn input-reset"
-                  :onChange  (stub-onclick "import-json-file")})
+                  :onChange  (fn [e]
+                               #?(:cljs (import-json-file! this e)
+                                  :clj  nil))})
       (dom/button {:className (theme/save-modal-btn-class theme)
                    :title     s/tooltip-export-json
-                   :onClick   (stub-onclick "export-json")}
+                   :onClick   (fn [_]
+                                #?(:cljs (export-items-json! todos)
+                                   :clj  nil))}
         (i18n/tr locale :btn/export)))
     (dom/p {:className "ph3 pt2 ma0 lh-135"} (i18n/tr locale :save/info-2))
     (dom/div {:className "ph3 pt1"}

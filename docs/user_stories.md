@@ -220,8 +220,8 @@ renders alongside the translated "Version" / "Versión" /
 "バージョン" label.
 
 ### S-import-export — Import/Export modal
-**Phase:** 7.6 (stubbed)
-**Status:** 🟡 (markup tested; Copy List URL real as of 7.11; batch-text Submit real as of 7.12; Import/Export JSON still stubbed)
+**Phase:** 7.6 (stubbed) / 7.11 (Copy URL) / 7.12 (batch-text Submit) / 13 (Import + Export JSON)
+**Status:** ✅
 **Tests:** `client_test:Import/Export modal` (markup visible after click, bg-close works)
 
 UI present with Copy List URL, Import (file upload via styled
@@ -517,9 +517,9 @@ JS bundle, no `static/` split). New-version-available reload banner
 is deferred to a follow-up if/when needed.
 
 ### S-import-json-file — Import a JSON file from the save modal
-**Phase:** TBD
-**Status:** ⬜
-**Tests:** TBD (pure CLJC parser + state-helper testable; the file-upload `<input>` end-to-end is browser-manual)
+**Phase:** 13
+**Status:** ✅ (parser + state-helper + mutation tested); 🟢 (file-upload `<input>` + FileReader is browser-manual)
+**Tests:** `util.tasks-io-test:parse-tasks-json` (happy paths + failure-type discrimination), `client_test:import-from-json*`, `client_test:import-from-json mutation`, `resolvers_test:import-from-json wired`
 
 As a user with a previously-exported list, I want to upload the
 JSON file via the save modal's Import button and have its items
@@ -540,9 +540,9 @@ paste-text path; this story covers the file-upload path. The pure
 `learn.client`.
 
 ### S-export-json-file — Export the current list as a JSON file
-**Phase:** TBD
-**Status:** ⬜
-**Tests:** TBD (pure encoder testable; download trigger is browser-manual)
+**Phase:** 13
+**Status:** ✅ (encoder reused from `url-encoding/items->json`, already tested); 🟢 (Blob + download click is browser-manual)
+**Tests:** `url-encoding-test:items->json` covers the encoder; the Blob/anchor-click trigger in `learn.client.ui.modals/export-items-json!` is CLJS-only and browser-manual.
 
 As a user, I want the Export button in the save modal to download
 my list as `tasks.json`. The JS port (`handleExportTasks`) does

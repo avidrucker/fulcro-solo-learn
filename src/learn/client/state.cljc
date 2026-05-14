@@ -57,6 +57,21 @@
       (norm/sync-items state-map list-ident (:items result))
       state-map)))
 
+(defn import-from-json*
+  "Phase 13 — JSON-file batch import: append already-parsed items
+   to the list. Unlike `import-from-text*`, no domain-layer rule
+   application happens here: the imported items keep their UUIDs and
+   statuses verbatim (the OG behaviour). Validation and shape
+   translation are the parse layer's job (`learn.util.tasks-io/parse-tasks-json`).
+
+   Empty / nil `new-items` is a no-op so the UI layer can blanket-pass
+   a parsed-empty result without a precondition check."
+  [state-map list-ident new-items]
+  (if (seq new-items)
+    (let [existing (norm/denormalize-list-items state-map list-ident)]
+      (norm/sync-items state-map list-ident (vec (concat existing new-items))))
+    state-map))
+
 (defn delete-all*
   "Removes every todo referenced by the given list-ident's :list/todos.
    Used by the 'Delete List' operation in the AutoFocus model."

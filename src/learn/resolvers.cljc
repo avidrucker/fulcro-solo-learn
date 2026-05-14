@@ -101,6 +101,14 @@
    ::pc/output [:list/id]}
   (record-list-items items))
 
+;; Phase 13 — JSON-file batch import. Same wire shape: client parsed
+;; + merged + handed us the full post-import items vector; server
+;; records it verbatim.
+(pc/defmutation import-from-json-mutation [_env {:list/keys [items]}]
+  {::pc/sym    'learn.client/import-from-json
+   ::pc/output [:list/id]}
+  (record-list-items items))
+
 ;; ----------------------------------------------------------------------
 ;; Registry
 ;; ----------------------------------------------------------------------
@@ -114,7 +122,8 @@
    clone-todo-mutation
    sync-list-mutation
    delete-all-mutation
-   import-from-text-mutation])
+   import-from-text-mutation
+   import-from-json-mutation])
 
 ;; REPL: to trace EQL traffic, enable parser debug:
 ;;   (require 'learn.parser :reload)
