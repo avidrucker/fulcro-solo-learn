@@ -202,7 +202,7 @@
                             :color           "#ffffff"})]
         (dom/select {:id        "settings-locale"
                      :className (str "pa1 br3 ba bw1 b--gray "
-                                     (theme/theme-input-class theme))
+                                     (theme/theme-modal-input-class theme))
                      :style     {:colorScheme (if dark? "dark" "light")}
                      :value     (name locale)
                      :onChange  (fn [e]
@@ -303,11 +303,14 @@
       (dom/textarea {:id          textarea-import-id
                      :className   (str "db input-reset pa2 w-100 resize-none lh-135 "
                                        "br3 ba bw1 b--gray "
-                                       ;; Phase 7.12 followup: use the same theme suffix
-                                       ;; as the new-todo input (text color + bg + hover
-                                       ;; states). The JS port's textarea uses the same
-                                       ;; theme suffix as its top-level input.
-                                       (theme/theme-input-class theme))
+                                       ;; 12.5c divergence from JS port: the JS source
+                                       ;; uses `theme-input-class` here, which fades the
+                                       ;; bg to transparent on hover/focus. That fade is
+                                       ;; designed for a page-level input on a solid
+                                       ;; page bg; in a modal (where the overlay is
+                                       ;; already translucent) the stacked transparency
+                                       ;; washes the textarea out. Solid bg here.
+                                       (theme/theme-modal-input-class theme))
                      :placeholder (i18n/tr locale :save/textarea-placeholder)
                      :rows        2
                      :value       (or textarea-import-text "")

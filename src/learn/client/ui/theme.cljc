@@ -35,11 +35,32 @@
   [theme] (if (dark? theme) "bg-black-90" "bg-white-90"))
 
 (defn theme-input-class
-  "Theme-suffix for the new-todo input."
+  "Theme-suffix for the page-level new-todo input. Verbatim port of
+   the JS source: `hover-bg-*-gray` fades the bg to transparent on
+   hover/focus so the page background shows through (the JS port's
+   button-style affordance applied to the input). Matches the OG's
+   visual exactly.
+
+   For inputs INSIDE modals, use `theme-modal-input-class` instead —
+   modals already provide a translucent overlay, so doubling up the
+   transparency washes out the field."
   [theme]
   (if (dark? theme)
     "white bg-black hover-bg-dark-gray active-bg-black"
     "black hover-bg-light-gray active-bg-white"))
+
+(defn theme-modal-input-class
+  "Theme-suffix for inputs/textareas/selects rendered INSIDE a modal.
+   Unlike `theme-input-class` (which fades to transparent on
+   hover/focus), this variant stays solid black/white in all states —
+   without it, the modal overlay's translucency stacks with the
+   input's hover-fade and the field becomes nearly invisible.
+   `focus-bg-*` (defined in app.css) handles browsers that
+   re-trigger a transparent bg on focus."
+  [theme]
+  (if (dark? theme)
+    "white bg-black focus-bg-black"
+    "black bg-white focus-bg-white"))
 
 (defn theme-primary-btn-suffix
   "Theme-suffix for primary `<button>` text + bg (Add Item, Delete
