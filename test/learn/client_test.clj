@@ -1499,3 +1499,54 @@
         (get-in after [:list/id 1 :ui/conflict-url-items]) => nil
         ":ui/open-modal set to :none"
         (get-in after [:list/id 1 :ui/open-modal]) => :none))))
+
+;; ============================================================================
+;; Phase 12.4 — i18n integration
+;; ============================================================================
+
+(specification "TodoList — :ui/locale propagates to button text (Phase 12.4)"
+  (component ":en is the default and renders English button labels"
+    (server/seed!)
+    (let [spa (sut/init)]
+      (h/render-frame! spa)
+      (assertions
+        ":ui/locale defaults to :en in initial-state"
+        (get-in (app/current-state spa) [:list/id 1 :ui/locale]) => :en
+        "Add Item button text is English"
+        (h/text-exists? spa "Add Item") => true
+        "Delete List button text is English"
+        (h/text-exists? spa "Delete List") => true
+        "Prioritize button text is English"
+        (h/text-exists? spa "Prioritize") => true
+        "Mark Done button text is English"
+        (h/text-exists? spa "Mark Done") => true)))
+
+  (component ":es renders Spanish translations"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/locale] :es)
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish button labels appear"
+        (h/text-exists? spa "Añadir Tarea")   => true
+        (h/text-exists? spa "Eliminar Lista") => true
+        (h/text-exists? spa "Priorizar")      => true
+        (h/text-exists? spa "Marcar Hecha")   => true
+        "English button labels no longer rendered"
+        (h/text-exists? spa "Add Item")    => false
+        (h/text-exists? spa "Delete List") => false
+        (h/text-exists? spa "Mark Done")   => false)))
+
+  (component ":ja renders Japanese translations"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/locale] :ja)
+          _ (h/render-frame! spa)]
+      (assertions
+        "Japanese button labels appear"
+        (h/text-exists? spa "項目を追加")      => true
+        (h/text-exists? spa "リストを削除")    => true
+        (h/text-exists? spa "優先順位を付ける") => true
+        (h/text-exists? spa "完了にする")      => true))))

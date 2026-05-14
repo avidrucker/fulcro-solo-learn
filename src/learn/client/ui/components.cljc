@@ -23,6 +23,7 @@
     [learn.client.session :refer [review-session-id]]
     [learn.client.ui.modals :as modals]
     [learn.client.ui.theme :as theme]
+    [learn.i18n.core :as i18n]
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.rad.attributes :as rad-attrs]
@@ -138,9 +139,9 @@
 
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text textarea-import-text
-                                   open-modal theme err-msg
+                                   open-modal theme locale err-msg
                                    conflict-url-items]
-                       :or        {theme :theme/light}}]
+                       :or        {theme :theme/light locale :en}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
                    :ui/new-todo-text
@@ -162,6 +163,10 @@
                    :ui/open-modal
                    ;; Phase 7.7: `:theme/light` (default) or `:theme/dark`.
                    :ui/theme
+                   ;; Phase 12.4: i18n locale. One of
+                   ;; `learn.i18n.core/supported-locales`. Persisted via
+                   ;; `learn.util.storage/ui-prefs-whitelist`.
+                   :ui/locale
                    ;; Phase 7.9: page-level error message string, or nil.
                    :ui/err-msg
                    ;; Subscribe to the review chart's state. Without these
@@ -188,6 +193,7 @@
                      :ui/conflict-url-items   nil
                      :ui/open-modal           :none
                      :ui/theme                :theme/light
+                     :ui/locale               :en
                      :ui/err-msg              nil})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
@@ -314,14 +320,14 @@
                          :title     s/tooltip-add-item
                          :disabled  active?
                          :onClick   #(submit-add!)}
-              s/btn-add-item))
+              (i18n/tr locale :btn/add-item)))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? delete-dim?))
                          :title     s/tooltip-delete-list
                          :disabled  active?
                          :onClick   #(submit-delete!)}
-              s/btn-delete-list)))
+              (i18n/tr locale :btn/delete-list))))
         ;; Group 2: review-flow actions (Prioritize, Mark Done). Both
         ;; follow the click-surfaces-error pattern now; only the
         ;; active-review case still hard-disables them.
@@ -332,14 +338,14 @@
                          :title     s/tooltip-prioritize
                          :disabled  active?
                          :onClick   #(submit-prioritize!)}
-              s/btn-prioritize))
+              (i18n/tr locale :btn/prioritize)))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? mark-done-dim?))
                          :title     s/tooltip-mark-done
                          :disabled  active?
                          :onClick   #(submit-mark-done!)}
-              s/btn-mark-done))))
+              (i18n/tr locale :btn/mark-done)))))
       ;; Task list
       (when (seq todos)
         (dom/section {:className "task-list"}
@@ -354,10 +360,10 @@
       ;; List footer — count + next-actionable preview
       (dom/div {:className "ph3 pt2 pb3"}
         (dom/p {:className "ma0 o-70 measure-narrow ml-auto mr-auto lh-135"}
-          (s/list-count-line (count todos)))
+          (i18n/tr-list-count locale (count todos)))
         (when benchmark
           (dom/p {:className "ma0 o-70 measure-narrow ml-auto mr-auto lh-135 line-clamp-3 overflow-hidden"}
-            (s/next-actionable-line (:todo/text benchmark)))))
+            (i18n/tr-next-actionable locale (:todo/text benchmark)))))
       ;; Review modal — `on-close` is intentionally absent: the JS port
       ;; (and our chart) requires Quit to dismiss, no background click.
       (when active?
@@ -368,25 +374,28 @@
             (dom/button {:className (theme/review-btn-class theme)
                          :title     s/tooltip-quit-review
                          :tabIndex  0
-                         :onClick   #(send-and-pump! this chart/event-quit)} s/btn-quit)
+                         :onClick   #(send-and-pump! this chart/event-quit)}
+              (i18n/tr locale :btn/quit))
             (dom/button {:className (theme/review-btn-class theme)
                          :title     s/tooltip-review-no
                          :tabIndex  1
-                         :onClick   #(send-and-pump! this chart/event-no)}  s/btn-no)
+                         :onClick   #(send-and-pump! this chart/event-no)}
+              (i18n/tr locale :btn/no))
             (dom/button {:className (theme/review-btn-class theme)
                          :title     s/tooltip-review-yes
                          :tabIndex  2
-                         :onClick   #(send-and-pump! this chart/event-yes)} s/btn-yes))))
+                         :onClick   #(send-and-pump! this chart/event-yes)}
+              (i18n/tr locale :btn/yes)))))
       ;; Menu modals — driven by `:ui/open-modal`. Mutex by construction
       ;; (single keyword), so at most one is visible at a time.
       (case open-modal
-        :info           (modals/info-modal this theme)
-        :settings       (modals/settings-modal this theme)
-        :save           (modals/save-modal this theme todos
+        :info           (modals/info-modal this theme locale)
+        :settings       (modals/settings-modal this theme locale)
+        :save           (modals/save-modal this theme locale todos
                           textarea-import-text submit-import!)
-        :delete-confirm (modals/delete-confirm-modal this theme
+        :delete-confirm (modals/delete-confirm-modal this theme locale
                           confirm-delete! cancel-delete!)
-        :conflict       (modals/conflict-modal this theme todos conflict-url-items)
+        :conflict       (modals/conflict-modal this theme locale todos conflict-url-items)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -405,6 +414,7 @@
   ;; Root reads it from `(:ui/theme list)` and applies the text-color
   ;; class. Other theme tokens cascade through TodoList's children.
   (let [theme            (or (:ui/theme list) :theme/light)
+        locale           (or (:ui/locale list) :en)
         ;; Phase 7.14 / B-3 fix: header menu icons (Save / About /
         ;; Help) are hard-disabled while a review session is active
         ;; OR a hard-choice modal is up (`:delete-confirm`,
@@ -416,7 +426,8 @@
         review-active?   (contains? config chart/active)
         open-modal       (:ui/open-modal list)
         menu-disabled?   (or review-active?
-                           (contains? #{:delete-confirm :conflict} open-modal))]
+                           (contains? #{:delete-confirm :conflict} open-modal))
+        toggle-theme-lbl (i18n/tr locale :tooltip/toggle-theme)]
     (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
                                ;; Phase 12.1 (B-6 fix): bottom padding so the
                                ;; user can tell they've scrolled to the end of
@@ -431,7 +442,7 @@
         (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
           s/app-name)
         (modals/header-icon-button this {:icon      icons/save-disk
-                                         :label     s/tooltip-import-export
+                                         :label     (i18n/tr locale :tooltip/import-export)
                                          :modal-id  :save
                                          :first?    true
                                          :disabled? menu-disabled?})
@@ -439,11 +450,11 @@
         ;; `?` icon is gone from the header; clicking the `i` icon
         ;; shows both About and Instructions content under one modal.
         (modals/header-icon-button this {:icon      icons/info-circle
-                                         :label     s/tooltip-info
+                                         :label     (i18n/tr locale :tooltip/info)
                                          :modal-id  :info
                                          :disabled? menu-disabled?})
         (modals/header-icon-button this {:icon      icons/gear
-                                         :label     s/tooltip-settings
+                                         :label     (i18n/tr locale :tooltip/settings)
                                          :modal-id  :settings
                                          :disabled? menu-disabled?})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
@@ -454,9 +465,9 @@
         (dom/div {:className (theme/header-icon-wrapper-class {})}
           (dom/button {:type      "button"
                        :className theme/header-icon-btn-class
-                       :title     s/tooltip-toggle-theme
+                       :title     toggle-theme-lbl
                        :onClick   #(comp/transact! this [(toggle-theme)])}
             (if (theme/dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
-            (dom/span {:className "clip"} s/tooltip-toggle-theme))))
+            (dom/span {:className "clip"} toggle-theme-lbl))))
       (dom/section {:className "app-container relative flex flex-column h-100"}
         (when list (ui-todo-list list))))))

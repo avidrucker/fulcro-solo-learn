@@ -26,6 +26,7 @@
     [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.mutations :as m]
     [learn.client.ui.theme :as theme]
+    [learn.i18n.core :as i18n]
     [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
     [learn.util.url-encoding :as url-encoding]
@@ -142,12 +143,16 @@
 (defn info-modal
   "Phase 12.3 — combines the previous About + Help modals under one
    `i`-icon trigger. Two sections under the parent `Info` heading;
-   the `?`-icon Help button is gone from the header."
-  [this theme]
+   the `?`-icon Help button is gone from the header.
+
+   `locale` (Phase 12.4) controls the h2 heading translation. Section
+   sub-headings and body copy stay English-only in the curated 12.4
+   scope; full coverage is a follow-up."
+  [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-info-modal
                 :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-info)
+    (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/info))
     (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-about)
     (dom/p {:className "pb2 ma0 lh-135"} s/info-string-1)
     (dom/p {:className "pb2 ma0 lh-135"} s/info-string-2)
@@ -167,12 +172,14 @@
 (defn settings-modal
   "Phase 12.3 — Settings modal shell. Body is intentionally minimal
    for now; Phase 12.5 will add the language dropdown. Future home
-   for `S-pwa-debug-modal` and other user preferences."
-  [this theme]
+   for `S-pwa-debug-modal` and other user preferences.
+
+   `locale` (Phase 12.4) translates the h2 heading."
+  [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-settings-modal
                 :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-settings)
+    (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/settings))
     (dom/p {:className "pt2 ma0 lh-135"} s/click-gear-to-close)))
 
 ;; ============================================================================
@@ -219,11 +226,11 @@
   "textarea-import")
 
 (defn save-modal
-  [this theme todos textarea-import-text submit-import!]
+  [this theme locale todos textarea-import-text submit-import!]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-save-modal
                 :theme       theme}
-    (dom/h2 {:className "pb2 ph3 ma0"} s/heading-import-export)
+    (dom/h2 {:className "pb2 ph3 ma0"} (i18n/tr locale :modal/import-export))
     (dom/div {:className "ph3 pb2"}
       (dom/button {:className (theme/save-modal-wide-btn-class theme)
                    :title     s/tooltip-copy-list-url
@@ -322,8 +329,12 @@
    differ. Shows both lists side-by-side (in vertical stacking
    actually — measure-narrow column), Copy URL buttons for each, and
    two Keep buttons. NO background close — user must pick one of the
-   two Keeps (matches the JS port's `docs/js_ui_reference.md` C/6)."
-  [this theme local-items url-items]
+   two Keeps (matches the JS port's `docs/js_ui_reference.md` C/6).
+
+   `locale` (Phase 12.4) is accepted for signature symmetry with the
+   other modal body fns; conflict-modal body copy stays English in
+   the curated 12.4 scope (no keys defined yet)."
+  [this theme _locale local-items url-items]
   (modal-shell {:theme theme}  ; no :on-close — must choose
     (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
     (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
@@ -373,8 +384,9 @@
    transparent-close overlay).
 
    `on-yes` / `on-no` are 0-arg handlers passed in from the TodoList
-   render so they can close over the `submit-*!` helpers built there."
-  [_this theme on-yes on-no]
+   render so they can close over the `submit-*!` helpers built there.
+   `locale` (Phase 12.4) translates the Yes/No button text."
+  [_this theme locale on-yes on-no]
   (modal-shell {:on-close    on-no
                 :close-label s/close-delete-modal
                 :theme       theme}
@@ -384,9 +396,9 @@
                    :className (theme/delete-confirm-btn-class theme)
                    :title     s/tooltip-cancel-delete
                    :onClick   #(on-no)}
-        s/btn-no)
+        (i18n/tr locale :btn/no))
       (dom/button {:type      "button"
                    :className (theme/delete-confirm-btn-class theme)
                    :title     s/tooltip-confirm-delete
                    :onClick   #(on-yes)}
-        s/btn-yes))))
+        (i18n/tr locale :btn/yes)))))
