@@ -33,6 +33,8 @@
     [learn.client.mutations :as mutations]
     [learn.client.session :as session]
     [learn.client.state :as state]
+    [learn.client.ui.modals :as modals]
+    [learn.client.ui.theme :as theme]
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
@@ -69,59 +71,26 @@
 ;; ============================================================================
 
 ;; ----------------------------------------------------------------------
-;; Tachyons class strings + theme-aware helpers (Phase 6.5.3 / 7.7).
-;; Sourced verbatim from `docs/js_ui_reference.md` §B. The
-;; `theme-*-class` helpers return the JS port's light/dark suffix
-;; pair for each themed element. `:theme/light` is the default and
-;; what callers see if `:ui/theme` is missing.
+;; Theme/class helpers — Phase 12.7 moved to `learn.client.ui.theme`.
+;; The private `def` aliases below preserve the old names used by the
+;; UI components further down in this file. When a later commit
+;; extracts those components into `learn.client.ui.components` the
+;; aliases will be dropped and call sites will switch to `theme/foo`
+;; directly.
 ;; ----------------------------------------------------------------------
 
-(defn- dark? [theme] (= theme :theme/dark))
-
-(defn- theme-text-class
-  "Foreground text color class for the page root."
-  [theme] (if (dark? theme) "white" "black"))
-
-(defn- theme-page-bg-class
-  "Page background class for `<main>` — `bg-black` in dark mode so
-   the white-text content is readable AND the shade matches the JS
-   port's `<body class=\"bg-black\">` exactly (#000 rather than #111).
-   Light mode is the document's default (no class needed). The JS port
-   sets the class on `<body>`; we apply it on `<main>` because that's
-   the highest level our React component owns — paired with the
-   html/body/#app flex-column reset in app.css so `<main>` fills the
-   viewport."
-  [theme] (if (dark? theme) "bg-black" ""))
-
-(defn- theme-modal-bg-class
-  "Modal overlay tint."
-  [theme] (if (dark? theme) "bg-black-90" "bg-white-90"))
-
-(defn- theme-input-class
-  "Theme-suffix for the new-todo input."
-  [theme]
-  (if (dark? theme)
-    "white bg-black hover-bg-dark-gray active-bg-black"
-    "black hover-bg-light-gray active-bg-white"))
-
-(defn- theme-primary-btn-suffix
-  "Theme-suffix for primary `<button>` text + bg (Add Item, Delete
-   List, Prioritize, Mark Done, modal action buttons)."
-  [theme]
-  (if (dark? theme) "bg-dark-gray white" "bg-moon-gray black"))
-
-(defn- theme-icon-btn-color
-  "Theme-suffix for per-row Cancel/Clone icon buttons."
-  [theme]
-  (if (dark? theme) "mid-gray" "moon-gray"))
-
-(defn- btn-icon-class
-  "Cancel / clone icon buttons on each todo row. `hover-button` (custom
-   class in `app.css`) hides the button until the row is hovered on
-   pointer-capable devices and stays visible on touch."
-  [theme]
-  (str "button-reset pa1 hover-button w2 h-15 pointer bg-transparent bn "
-       (theme-icon-btn-color theme)))
+(def ^:private dark?                     theme/dark?)
+(def ^:private theme-text-class          theme/theme-text-class)
+(def ^:private theme-page-bg-class       theme/theme-page-bg-class)
+(def ^:private theme-input-class         theme/theme-input-class)
+(def ^:private theme-primary-btn-suffix  theme/theme-primary-btn-suffix)
+(def ^:private btn-icon-class            theme/btn-icon-class)
+(def ^:private btn-primary-class         theme/btn-primary-class)
+(def ^:private btn-primary-dim-class     theme/btn-primary-dim-class)
+(def ^:private input-class               theme/input-class)
+(def ^:private review-btn-class          theme/review-btn-class)
+(def ^:private header-icon-wrapper-class theme/header-icon-wrapper-class)
+(def ^:private header-icon-btn-class     theme/header-icon-btn-class)
 
 (def ^:private new-todo-input-id
   "DOM id of the new-todo input — also used by `focus-new-todo-input!`
@@ -196,394 +165,22 @@
     [:com.fulcrologic.statecharts/local-data review-session-id :cursor]))
 
 ;; ----------------------------------------------------------------------
-;; Tachyons class strings for the main list / form / button row.
-;; Theme-aware via the `theme-*` helpers above (Phase 7.7).
+;; Modals — Phase 12.7 moved to `learn.client.ui.modals`. The `def`
+;; aliases below preserve the old unqualified names used by the UI
+;; components further down in this file. When a later commit extracts
+;; those components into `learn.client.ui.components` the aliases will
+;; be dropped and call sites will switch to `modals/foo` directly.
 ;; ----------------------------------------------------------------------
 
-(defn- btn-primary-class
-  "Theme-aware primary button class string (Add Item, Delete List,
-   Prioritize, Mark Done)."
-  [theme]
-  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 ph1 pointer grow"))
-
-(defn- btn-primary-dim-class
-  "Disabled/dimmed variant — same theme suffix, no `pointer grow`,
-   `o-50` opacity for the visual."
-  [theme]
-  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 ph1 o-50"))
-
-(defn- input-class
-  "Theme-aware new-todo input class string."
-  [theme]
-  (str "todo-input pa2 w-100 input-reset br3 ba bw1 b--gray "
-       (theme-input-class theme)))
-
-(defn- review-btn-class
-  "Theme-aware review modal action button class (Quit/No/Yes)."
-  [theme]
-  (str "br3 w3 fw6 ba bw1 b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 pointer grow ma1 dib"))
-
-(defn- delete-confirm-btn-class
-  "Theme-aware Yes/No button class for the delete-confirm modal. Same
-   recipe as `review-btn-class` but `w4` instead of `w3` — the JS port
-   uses a wider button here (`docs/js_ui_reference.md` line 99)."
-  [theme]
-  (str "br3 w4 fw6 ba bw1 b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 pointer grow ma1 dib"))
-
-(defn- modal-shell
-  "Tachyons-styled overlay used by all modals in the JS port (Phase 6.5.4).
-
-   The outer `<section>` is absolutely positioned over the app container
-   (which is itself `position: relative` on `Root`); the inner `<section>`
-   centers its content in a `measure-narrow` column.
-
-   Options map:
-     :on-close   — fn invoked when the transparent full-area close button
-                   is clicked. When nil, no close button is rendered —
-                   used by the review modal (must use Quit to dismiss).
-     :close-label — a11y text for that close button (e.g. \"Close Save Modal\").
-     :theme       — :theme/light (default) or :theme/dark; drives the
-                    `bg-white-90` / `bg-black-90` overlay tint.
-
-   `children` are positional DOM nodes for the modal body."
-  [{:keys [on-close close-label theme] :or {theme :theme/light}} & children]
-  (dom/section {:className (str "absolute f5 top-0 w-100 h-100 "
-                                (theme-modal-bg-class theme))}
-    ;; Inner section mirrors the JS port: `measure-narrow ml-auto mr-auto`
-    ;; ONLY — no `pa3` (would squeeze the text into a narrower column).
-    ;; `relative z-1` is kept so the inner section sits above the
-    ;; transparent close button below; without it, clicks would land on
-    ;; the close button instead of the modal content. The og has neither
-    ;; (no close button to stack against).
-    (apply dom/section
-      {:className "measure-narrow ml-auto mr-auto relative z-1"}
-      children)
-    (when on-close
-      (dom/button {:className "absolute z-0 top-0 left-0 w-100 o-0 min-h-100"
-                   :onClick   on-close}
-        close-label))))
-
-;; Phase 7.8 (revised) — matching the JS port's structure exactly:
-;;   <div class="pl3 inline-flex items-center">       ; or pl2
-;;     <button class="button-reset pa1 w2 h2 ... gray">
-;;       <svg ...>
-;;       <span class="clip">label</span>               ; our addition for tests
-;;     </button>
-;;   </div>
-;; The pl3/pl2 lives on the WRAPPER div (not the button), and the button
-;; stays a fixed 2rem × 2rem. SVGs without explicit width/height (info,
-;; question) fill the button's content area uniformly.
-
-(def ^:private header-icon-btn-class
-  "button-reset pa1 w2 h2 pointer f5 fw6 grow bg-transparent bn gray")
-
-(defn- header-icon-wrapper-class
-  "Outer-div padding class — `pl3` for the leftmost icon, `pl2` for
-   the rest (matches the JS port's spacing)."
-  [{:keys [first?]}]
-  (str (if first? "pl3" "pl2") " inline-flex items-center"))
-
-(defn- header-icon-button
-  "A header icon button that toggles `modal-id` via
-   `toggle-open-modal`. The label text is kept in the DOM via Tachyons'
-   `clip` (visually hidden, screen-reader visible, h/click-on-text!
-   findable for tests — the JS port has no such span; this is our
-   testability tweak). Pass `:first? true` for the leftmost icon to
-   match the JS port's `pl3`/`pl2` spacing.
-
-   Pass `:disabled? true` to hard-disable the button — used by Phase
-   7.14 (B-3 fix) to suppress menu opens while a review session is
-   active or the delete-confirm modal is up. The theme-toggle button
-   is rendered separately below and never receives this flag (always
-   enabled, matching the JS port).
-
-   `:type \"button\"` is explicit (matches the JS port) so the button
-   stays a no-op activation even if it ever ends up inside a `<form>`
-   — HTML's default for a form-internal `<button>` is `type=\"submit\"`."
-  [this {:keys [icon label modal-id first? disabled?]}]
-  (dom/div {:className (header-icon-wrapper-class {:first? first?})}
-    (dom/button {:type      "button"
-                 :className header-icon-btn-class
-                 :title     label
-                 :disabled  (boolean disabled?)
-                 ;; Both the HTML `:disabled` attribute AND a nil
-                 ;; onClick are set when disabled. The attribute
-                 ;; covers real browsers (default click semantics
-                 ;; skip disabled buttons); the nil handler covers
-                 ;; the headless test framework, which invokes
-                 ;; onClick directly without checking `:disabled`.
-                 :onClick   (when-not disabled?
-                              #(comp/transact! this
-                                 [(toggle-open-modal {:ui/open-modal modal-id})]))}
-      icon
-      (dom/span {:className "clip"} label))))
-
-(defn- close-current-modal!
-  "Dispatch `set-open-modal :none`. Used by `modal-shell`'s :on-close."
-  [this]
-  (comp/transact! this [(set-open-modal {:ui/open-modal :none})]))
-
-(defn- info-modal
-  "Phase 12.3 — combines the previous About + Help modals under one
-   `i`-icon trigger. Two sections under the parent `Info` heading;
-   the `?`-icon Help button is gone from the header."
-  [this theme]
-  (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-info-modal
-                :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-info)
-    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-about)
-    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-1)
-    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-2)
-    (dom/p {:className "pb3 ma0 lh-135 fw6"} (s/version-line))
-    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-help)
-    (dom/p {:className "pb2 ma0 lh-135"} s/instructions)
-    (dom/p {:className "pb2 ma0 lh-135"} s/instructions-2)
-    (dom/p {:className "pb3 ma0 lh-135"}
-      s/how-to-report-issues
-      (dom/a {:href   s/link-issues-href
-              :target "_blank"
-              :rel    "noopener noreferrer"
-              :className "link underline blue hover-orange"}
-        s/link-issues-text))
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
-
-(defn- settings-modal
-  "Phase 12.3 — Settings modal shell. Body is intentionally minimal
-   for now; Phase 12.5 will add the language dropdown. Future home
-   for `S-pwa-debug-modal` and other user preferences."
-  [this theme]
-  (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-settings-modal
-                :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-settings)
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-gear-to-close)))
-
-(defn- stub-onclick
-  "Returns a click handler that logs to the JS console and otherwise
-   no-ops. Used for the Phase 7.6 Import/Export modal buttons whose
-   real behaviour (URL serialization, JSON parse, etc.) lands in a
-   later phase."
-  [label]
-  (fn [& _]
-    #?(:cljs (js/console.log "[stub]" label)
-       :clj  nil)))
-
-#?(:cljs
-   (defn- current-share-url
-     "Build the `?list=...` share URL from the current browser location
-      and the items snapshot."
-     [items]
-     (let [loc js/window.location]
-       (url-encoding/list-share-url
-         (.-origin loc)
-         (.-pathname loc)
-         (url-encoding/items->base64-url-segment items)))))
-
-#?(:cljs
-   (defn- copy-list-url!
-     "Copy the share URL for `items` to the clipboard via
-      `navigator.clipboard.writeText`. Best-effort: silently no-ops if
-      the Clipboard API is missing (non-https context, very old
-      browsers). The promise's `.catch` keeps a copy failure from
-      surfacing as an uncaught rejection."
-     [items]
-     (let [clipboard (some-> js/navigator .-clipboard)]
-       (when clipboard
-         (-> (.writeText clipboard (current-share-url items))
-           (.catch (fn [err] (js/console.warn "[copy-list-url] failed:" err))))))))
-
-(defn- save-modal-btn-class
-  "Theme-aware Import/Export modal action-button class string."
-  [theme]
-  (str "br3 w4 f5 fw6 ba dib bw1 grow b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 pointer ma1"))
-
-(defn- save-modal-wide-btn-class
-  "Full-width variant — Copy URL + Submit."
-  [theme]
-  (str "br3 w-100 f5 fw6 ba dib bw1 grow b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 pointer"))
-
-(def textarea-import-id
-  "Stable id paired with the (clip-hidden) `<label htmlFor>` so headless
-   tests can target the textarea via `h/type-into-labeled!`."
-  "textarea-import")
-
-(defn- save-modal
-  [this theme todos textarea-import-text submit-import!]
-  (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-save-modal
-                :theme       theme}
-    (dom/h2 {:className "pb2 ph3 ma0"} s/heading-import-export)
-    (dom/div {:className "ph3 pb2"}
-      (dom/button {:className (save-modal-wide-btn-class theme)
-                   :title     s/tooltip-copy-list-url
-                   :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! todos)
-                                   :clj  nil))}
-        s/btn-copy-list-url))
-    (dom/p {:className "ph3 ma0 lh-135"} s/save-info-1)
-    (dom/div {:className "ph3 pt2 tc"}
-      ;; File-upload "button" is a styled <label> wrapping a hidden
-      ;; <input type="file"> — same pattern the JS port uses.
-      (dom/label {:className (str "br3 grow dib button-reset border-box w4 f5 fw6 "
-                                  "ba bw1 b--gray "
-                                  (theme-primary-btn-suffix theme)
-                                  " pa2 pointer ma1")
-                  :htmlFor   "save-modal-file-upload"}
-        s/btn-import)
-      (dom/input {:id        "save-modal-file-upload"
-                  :type      "file"
-                  :accept    ".json"
-                  :className "dn input-reset"
-                  :onChange  (stub-onclick "import-json-file")})
-      (dom/button {:className (save-modal-btn-class theme)
-                   :title     s/tooltip-export-json
-                   :onClick   (stub-onclick "export-json")}
-        s/btn-export))
-    (dom/p {:className "ph3 pt2 ma0 lh-135"} s/save-info-2)
-    (dom/div {:className "ph3 pt1"}
-      ;; Hidden label paired with the textarea id so headless tests can
-      ;; find this control via `h/type-into-labeled!`. The JS port has
-      ;; no such label; this is our test-affordance ↔ DOM bridge
-      ;; (same pattern as the new-todo input).
-      (dom/label {:htmlFor   textarea-import-id
-                  :className "clip"}
-        "Paste import")
-      (dom/textarea {:id          textarea-import-id
-                     :className   (str "db input-reset pa2 w-100 resize-none lh-135 "
-                                       "br3 ba bw1 b--gray "
-                                       ;; Phase 7.12 followup: use the same theme suffix
-                                       ;; as the new-todo input (text color + bg + hover
-                                       ;; states). The JS port's textarea uses the same
-                                       ;; theme suffix as its top-level input.
-                                       (theme-input-class theme))
-                     :placeholder s/textarea-placeholder
-                     :rows        2
-                     :value       (or textarea-import-text "")
-                     :onChange    #(m/set-string! this :ui/textarea-import-text
-                                     :event %)})
-      (dom/button {:type      "button"
-                   :className (save-modal-wide-btn-class theme)
-                   :onClick   #(submit-import!)}
-        s/btn-submit))
-    (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} s/click-disk-to-close)))
-
-(defn- conflict-list-preview
-  "Render a read-only list of items for the conflict modal. Mirrors the
-   JS port's preview (`docs/js_ui_reference.md` line 122–124) AND
-   matches TodoItem's visual treatment for cancelled / done rows so
-   the user can see status accurately in the modal:
-     - Cancelled rows: text strikethrough (`strike`) + 50% opacity
-       (`o-50`), icon falls back to `:todo/was`.
-     - Done rows: 50% opacity (`o-50`), no strikethrough.
-     - Otherwise: normal text.
-
-   Same icon-fallback recursion as TodoItem (the JS port's
-   `statusToSymbol(task.was)`). B-4-related: cancelled rows were
-   previously rendered without the visual marker, so URL and local
-   lists looked identical even when statuses differed."
-  [items]
-  (dom/ul {:className "ph0 todo-list list ma0 tl measure-narrow ml-auto mr-auto"}
-    (for [item items]
-      (let [status      (:todo/status item)
-            was         (:todo/was item)
-            cancelled?  (= status :status/cancelled)
-            dim?        (#{:status/done :status/cancelled} status)
-            icon-status (if (and cancelled? was) was status)
-            li-class    (str "flex lh-135 align-start mb1-butlast "
-                             (when dim? "o-50"))
-            text-class  (str "break-word"
-                             (when cancelled? " strike"))]
-        (dom/li {:key (str (:todo/id item))
-                 :className li-class}
-          (dom/span {:title     (name status)
-                     :className "mr1 dib h-15"}
-            (icons/status-icon icon-status))
-          (dom/span {:className text-class}
-            (:todo/text item)))))))
-
-(defn- conflict-modal
-  "Phase 7.18 — conflict resolution modal. Opens automatically from
-   `init` when the URL list and the localStorage list both exist and
-   differ. Shows both lists side-by-side (in vertical stacking
-   actually — measure-narrow column), Copy URL buttons for each, and
-   two Keep buttons. NO background close — user must pick one of the
-   two Keeps (matches the JS port's `docs/js_ui_reference.md` C/6)."
-  [this theme local-items url-items]
-  (modal-shell {:theme theme}  ; no :on-close — must choose
-    (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
-    (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
-    (conflict-list-preview url-items)
-    (dom/div {:className "tc pt2 pb2"}
-      (dom/button {:type      "button"
-                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
-                                   (theme-primary-btn-suffix theme)
-                                   " pa2 pointer ma1")
-                   :title     s/tooltip-copy-link-url
-                   :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! url-items)
-                                   :clj  nil))}
-        s/btn-copy-link-url))
-    (dom/p {:className "fw6 ma0 pt2"} s/label-local-list)
-    (conflict-list-preview local-items)
-    (dom/div {:className "tc pt2 pb2"}
-      (dom/button {:type      "button"
-                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
-                                   (theme-primary-btn-suffix theme)
-                                   " pa2 pointer ma1")
-                   :title     s/tooltip-copy-local-url
-                   :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! local-items)
-                                   :clj  nil))}
-        s/btn-copy-local-url))
-    (dom/div {:className "pb3 tc"}
-      (dom/button {:type      "button"
-                   :className (delete-confirm-btn-class theme)
-                   :title     s/tooltip-keep-link-list
-                   :onClick   #(comp/transact! this [(keep-link-list)])}
-        s/btn-keep-link)
-      (dom/button {:type      "button"
-                   :className (delete-confirm-btn-class theme)
-                   :title     s/tooltip-keep-local-list
-                   :onClick   #(comp/transact! this [(keep-local-list)])}
-        s/btn-keep-local))))
-
-(defn- delete-confirm-modal
-  "Phase 7.12 — confirm step for Delete List. Body text matches the JS
-   port's `confirmListDelete` string. Yes empties + closes; No just
-   closes; background click also cancels (matches the JS port's
-   transparent-close overlay).
-
-   `on-yes` / `on-no` are 0-arg handlers passed in from the TodoList
-   render so they can close over the `submit-*!` helpers built there."
-  [this theme on-yes on-no]
-  (modal-shell {:on-close    on-no
-                :close-label s/close-delete-modal
-                :theme       theme}
-    (dom/p {:className "ma0 pb3 lh-135 tc"} s/confirm-list-delete)
-    (dom/div {:className "tc"}
-      (dom/button {:type      "button"
-                   :className (delete-confirm-btn-class theme)
-                   :title     s/tooltip-cancel-delete
-                   :onClick   #(on-no)}
-        s/btn-no)
-      (dom/button {:type      "button"
-                   :className (delete-confirm-btn-class theme)
-                   :title     s/tooltip-confirm-delete
-                   :onClick   #(on-yes)}
-        s/btn-yes))))
+(def ^:private modal-shell          modals/modal-shell)
+(def ^:private header-icon-button   modals/header-icon-button)
+(def ^:private close-current-modal! modals/close-current-modal!)
+(def ^:private info-modal           modals/info-modal)
+(def ^:private settings-modal       modals/settings-modal)
+(def ^:private save-modal           modals/save-modal)
+(def ^:private conflict-modal       modals/conflict-modal)
+(def ^:private delete-confirm-modal modals/delete-confirm-modal)
+(def textarea-import-id             modals/textarea-import-id)
 
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text textarea-import-text
