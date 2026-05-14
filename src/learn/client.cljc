@@ -28,11 +28,10 @@
     ;; Chrome extension is browser-side only.
     #?(:cljs [fulcro.inspect.tool :as inspect-tool])
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.parser :as parser]
     [learn.client.session :as session]
+    [learn.client.state :as state]
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
@@ -907,200 +906,28 @@
         (when list (ui-todo-list list))))))
 
 ;; ============================================================================
-;; Pure state helpers — independently testable; mutations wrap them.
+;; Pure state helpers — Phase 12.7 moved to `learn.client.state`. The
+;; `def` aliases below preserve `learn.client/foo*` for any external
+;; readers (tests in particular use `sut/add-todo*` etc.).
 ;;
-;; Note: The AutoFocus model intentionally keeps the API surface minimal.
-;; There is no edit-todo, no individual delete - the user is prevented from
-;; micromanaging. Cancel + clone serve those needs from a different angle.
+;; Naming convention: `*`-suffix marks 'pure state-map → state-map' so
+;; mutations can `swap!` straight through. State namespace is the
+;; canonical home; this list is alphabetical for review ease.
 ;; ============================================================================
 
-(defn add-todo*
-  "Append a fresh todo to the given list and clear :ui/new-todo-text.
-
-   Status determination delegates to learn.model.list/add-todo, which
-   applies the AutoFocus add rule (SCHEMA.md §7):
-     - If the list has zero :status/ready items → new todo gets :status/ready.
-     - Otherwise (at least one ready exists)    → new todo gets :status/new.
-
-   Blank text returns state unchanged. The model returns
-   {:ok? false :error/type :error/blank-item}; we no-op here for now.
-   A future phase can surface the error via UI feedback."
-  [state-map list-ident text]
-  (let [items  (norm/denormalize-list-items state-map list-ident)
-        result (model.list/add-todo items text)]
-    (if (:ok? result)
-      (let [new-todo (last (:items result))]
-        (-> state-map
-          (merge/merge-component TodoItem new-todo
-            :append (conj list-ident :list/todos))
-          (assoc-in (conj list-ident :ui/new-todo-text) "")))
-      state-map)))
-
-(defn import-from-text*
-  "Phase 7.12 batch import: denormalize → model.list/import-from-string →
-   sync-items back into the normalized state-map. Blank-or-whitespace
-   text is a no-op (the model refuses with :error/empty-import; the UI
-   layer surfaces the error before calling here, so we just guard
-   defensively)."
-  [state-map list-ident text]
-  (let [items  (norm/denormalize-list-items state-map list-ident)
-        result (model.list/import-from-string items text)]
-    (if (:ok? result)
-      (norm/sync-items state-map list-ident (:items result))
-      state-map)))
-
-(defn- close-conflict-modal*
-  "Clear the transient conflict-modal state at `list-ident` and close
-   the modal."
-  [state-map list-ident]
-  (-> state-map
-    (assoc-in (conj list-ident :ui/conflict-url-items) nil)
-    (assoc-in (conj list-ident :ui/open-modal) :none)))
-
-(defn keep-link-list*
-  "Phase 7.18 — user chose to keep the URL-list when the conflict
-   modal showed two divergent lists. Replaces the normalized list at
-   `list-ident` with `:ui/conflict-url-items`, then closes the modal
-   and clears the transient stash. No-op when `:ui/conflict-url-items`
-   is absent (defensive — the mutation can only fire while the modal
-   is open, but we guard anyway)."
-  [state-map list-ident]
-  (if-let [url-items (get-in state-map (conj list-ident :ui/conflict-url-items))]
-    (-> state-map
-      (norm/sync-items list-ident url-items)
-      (close-conflict-modal* list-ident))
-    state-map))
-
-(defn keep-local-list*
-  "Phase 7.18 — user chose to keep the localStorage-derived list. The
-   normalized list at `list-ident` already holds those items (we
-   hydrate from localStorage before showing the modal), so this is
-   just: close the modal + clear the transient stash."
-  [state-map list-ident]
-  (close-conflict-modal* state-map list-ident))
-
-(defn delete-all*
-  "Removes every todo referenced by the given list-ident's :list/todos.
-   Used by the 'Delete List' operation in the AutoFocus model."
-  [state-map list-ident]
-  (let [todo-idents (get-in state-map (conj list-ident :list/todos))]
-    (reduce nsh/remove-entity state-map todo-idents)))
-
-;; ============================================================================
-;; Modal state foundation (Phase 7.4)
-;;
-;; `[:list/id 1 :ui/open-modal]` carries one of:
-;;   :none           — no modal open (default)
-;;   :info           — Info modal (Phase 12.3: combines About + Help)
-;;   :settings       — Settings modal (Phase 12.3: new)
-;;   :save           — Import/Export modal
-;;   :delete-confirm — Phase 7.12: Are-you-sure prompt for Delete List
-;;   :conflict       — Phase 7.18: URL/localStorage conflict resolution
-;;
-;; `set-open-modal*` is mutex-by-construction (single value), so opening
-;; any modal closes whatever else was open. `toggle-open-modal*` lets the
-;; header icon buttons toggle: click while closed → open; click again
-;; while open → close.
-;; ============================================================================
-
-(defn set-open-modal*
-  "Mutex setter — overwrites whatever modal is currently open."
-  [state-map list-ident modal-id]
-  (assoc-in state-map (conj list-ident :ui/open-modal) modal-id))
-
-(defn toggle-open-modal*
-  "If `modal-id` is currently open at `list-ident`, close it (set to
-   :none); otherwise open it. Used by the header icon buttons so the
-   same click both opens and dismisses."
-  [state-map list-ident modal-id]
-  (let [current (get-in state-map (conj list-ident :ui/open-modal))]
-    (set-open-modal* state-map list-ident
-      (if (= current modal-id) :none modal-id))))
-
-;; ============================================================================
-;; Theme toggle (Phase 7.7)
-;;
-;; `:ui/theme` at `[:list/id 1]` is one of `:theme/light` (default) or
-;; `:theme/dark`. The classes diff per theme matches the JS port's
-;; suffix-swap pattern documented in `docs/js_ui_reference.md` §B.
-;; ============================================================================
-
-(defn toggle-theme*
-  "Flip between :theme/light and :theme/dark. Defaults missing/unknown
-   values to :theme/light → :theme/dark on first toggle."
-  [state-map list-ident]
-  (update-in state-map (conj list-ident :ui/theme)
-    (fn [t] (if (= t :theme/dark) :theme/light :theme/dark))))
-
-;; ============================================================================
-;; Error message surfacing (Phase 7.9)
-;;
-;; `:ui/err-msg` at `[:list/id 1]` holds either `nil` (no error showing)
-;; or a string ready to render. Set on invalid click attempts (blank
-;; Add Item, empty Delete List, non-actionable Mark Done); cleared on
-;; the next successful action of the same kind.
-;; ============================================================================
-
-(defn set-err-msg*
-  "Set or clear the page-level error message. `msg` may be `nil` to
-   clear; any string sets the visible error."
-  [state-map list-ident msg]
-  (assoc-in state-map (conj list-ident :ui/err-msg) msg))
-
-;; ============================================================================
-;; cancel-todo* / complete-benchmark-item* / clone-todo*
-;; Each helper denormalizes state → calls the corresponding model.list fn →
-;; on :ok? reprojects via norm/sync-items, on refusal returns state unchanged.
-;; ============================================================================
-
-(defn cancel-todo*
-  "State-helper for the cancel-todo mutation. Refusal is a no-op."
-  [state-map list-ident todo-id]
-  (let [items  (norm/denormalize-list-items state-map list-ident)
-        result (model.list/cancel-todo items todo-id)]
-    (if (:ok? result)
-      (norm/sync-items state-map list-ident (:items result))
-      state-map)))
-
-(defn complete-benchmark-item*
-  "State-helper for the complete-benchmark-item mutation. Refusal is a no-op."
-  [state-map list-ident]
-  (let [items  (norm/denormalize-list-items state-map list-ident)
-        result (model.list/complete-benchmark-item items)]
-    (if (:ok? result)
-      (norm/sync-items state-map list-ident (:items result))
-      state-map)))
-
-(defn clone-todo*
-  "State-helper for the clone-todo mutation. Refusal is a no-op."
-  [state-map list-ident todo-id]
-  (let [items  (norm/denormalize-list-items state-map list-ident)
-        result (model.list/clone-todo items todo-id)]
-    (if (:ok? result)
-      (norm/sync-items state-map list-ident (:items result))
-      state-map)))
-
-;; TODO: add status change enforcement mechanics - perhaps this
-;; could/should be a state chart?
-(defn set-status*
-  "Sets :todo/status on a single todo. Centralizes the path so any future
-   schema change happens in one place. If todo is set to cancelled, then
-   :todo/was will also be set to the previous status for rendering purposes."
-  [state-map todo-id status]
-
-  (let [path [:todo/id todo-id :todo/status]
-        prev-status (get-in state-map path)]
-    (cond
-      ;; when transitioning into cancelled, we store the previous status
-      ;; and then update
-      (and (= status :status/cancelled)
-        (not= prev-status :status/cancelled))
-      (-> state-map
-        (assoc-in [:todo/id todo-id :todo/was] prev-status)
-        (assoc-in path :status/cancelled))
-      ;; any other status: just set it
-      :else
-      (assoc-in state-map path status))))
+(def add-todo*               state/add-todo*)
+(def cancel-todo*            state/cancel-todo*)
+(def clone-todo*             state/clone-todo*)
+(def complete-benchmark-item* state/complete-benchmark-item*)
+(def delete-all*             state/delete-all*)
+(def import-from-text*       state/import-from-text*)
+(def keep-link-list*         state/keep-link-list*)
+(def keep-local-list*        state/keep-local-list*)
+(def set-err-msg*            state/set-err-msg*)
+(def set-open-modal*         state/set-open-modal*)
+(def set-status*             state/set-status*)
+(def toggle-open-modal*      state/toggle-open-modal*)
+(def toggle-theme*           state/toggle-theme*)
 
 ;; ============================================================================
 ;; Mutations — thin wrappers that route helpers through swap!.
