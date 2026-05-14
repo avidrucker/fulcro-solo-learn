@@ -1550,3 +1550,77 @@
         (h/text-exists? spa "リストを削除")    => true
         (h/text-exists? spa "優先順位を付ける") => true
         (h/text-exists? spa "完了にする")      => true))))
+
+;; ============================================================================
+;; Phase 12.5 — Language dropdown in Settings modal
+;; ============================================================================
+
+(specification "set-locale*"
+  (component "sets :ui/locale at the given list-ident"
+    (let [before (fixture-state)
+          after  (sut/set-locale* before [:list/id 1] :es)]
+      (assertions
+        ":ui/locale is set to the provided value"
+        (get-in after [:list/id 1 :ui/locale]) => :es
+        "other list state unchanged"
+        (affects-only? before after #{[:list/id 1 :ui/locale]}) => true)))
+
+  (component "overwrites a prior :ui/locale value"
+    (let [before (-> (fixture-state)
+                   (assoc-in [:list/id 1 :ui/locale] :en))
+          after  (sut/set-locale* before [:list/id 1] :ja)]
+      (assertions
+        "previous locale is replaced"
+        (get-in after [:list/id 1 :ui/locale]) => :ja))))
+
+(specification "set-locale mutation"
+  (component "updates :ui/locale on [:list/id 1] via swap!"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa [(sut/set-locale {:ui/locale :ja})])
+          db  (app/current-state spa)]
+      (assertions
+        ":ui/locale is now :ja"
+        (get-in db [:list/id 1 :ui/locale]) => :ja)))
+
+  (component "is client-only (no remote sync)"
+    (server/seed!)
+    (let [spa             (sut/init)
+          server-before   @server/SERVER-DB
+          _               (comp/transact! spa [(sut/set-locale {:ui/locale :es})])
+          server-after    @server/SERVER-DB]
+      (assertions
+        "server state is unchanged after a set-locale transact"
+        server-before => server-after))))
+
+(specification "Settings modal — language dropdown (Phase 12.5)"
+  (component "open Settings modal renders one option per supported locale"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/open-modal] :settings)
+          _ (h/render-frame! spa)]
+      (assertions
+        "English option visible"
+        (h/text-exists? spa "English") => true
+        "Spanish option visible"
+        (h/text-exists? spa "Español") => true
+        "Japanese option visible"
+        (h/text-exists? spa "日本語") => true
+        "Language label visible (in :en default)"
+        (h/text-exists? spa "Language") => true)))
+
+  (component "label is translated when locale is :es"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              (fn [s] (-> s
+                        (assoc-in [:list/id 1 :ui/locale] :es)
+                        (assoc-in [:list/id 1 :ui/open-modal] :settings))))
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish 'Idioma' label appears"
+        (h/text-exists? spa "Idioma") => true
+        "English 'Language' label no longer rendered"
+        (h/text-exists? spa "Language") => false))))

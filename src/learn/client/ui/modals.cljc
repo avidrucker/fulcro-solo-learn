@@ -43,6 +43,7 @@
 (m/declare-mutation toggle-open-modal  learn.client/toggle-open-modal)
 (m/declare-mutation keep-link-list     learn.client/keep-link-list)
 (m/declare-mutation keep-local-list    learn.client/keep-local-list)
+(m/declare-mutation set-locale         learn.client/set-locale)
 
 ;; ============================================================================
 ;; Modal overlay shell
@@ -170,16 +171,35 @@
     (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
 
 (defn settings-modal
-  "Phase 12.3 — Settings modal shell. Body is intentionally minimal
-   for now; Phase 12.5 will add the language dropdown. Future home
-   for `S-pwa-debug-modal` and other user preferences.
+  "Phase 12.3 / 12.5 — Settings modal. Hosts the language dropdown
+   (Phase 12.5) and is the future home for the PWA debug toggle and
+   any other user preferences.
 
-   `locale` (Phase 12.4) translates the h2 heading."
+   `locale` (Phase 12.4) translates the h2 heading and the language
+   label; `i18n/supported-locales` drives the option list and
+   `i18n/locale-label` provides the human-readable option text in
+   each language's own script (English / Español / 日本語)."
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-settings-modal
                 :theme       theme}
     (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/settings))
+    (dom/div {:className "pt2 pb2 flex items-center"}
+      (dom/label {:htmlFor   "settings-locale"
+                  :className "fw6 mr2"}
+        (i18n/tr locale :settings/language))
+      (dom/select {:id        "settings-locale"
+                   :className (str "pa1 br3 ba bw1 b--gray "
+                                   (theme/theme-input-class theme))
+                   :value     (name locale)
+                   :onChange  (fn [e]
+                                (let [v (-> e .-target .-value)]
+                                  (comp/transact! this
+                                    [(set-locale {:ui/locale (keyword v)})])))}
+        (for [loc (sort i18n/supported-locales)]
+          (dom/option {:key   (name loc)
+                       :value (name loc)}
+            (i18n/locale-label loc)))))
     (dom/p {:className "pt2 ma0 lh-135"} s/click-gear-to-close)))
 
 ;; ============================================================================

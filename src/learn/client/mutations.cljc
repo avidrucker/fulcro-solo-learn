@@ -130,6 +130,13 @@
   (action [{:keys [state]}]
     (swap! state state/toggle-theme* [:list/id 1])))
 
+;; Phase 12.5 — set the i18n locale. Client-only: locale lives in
+;; `:ui/locale` which is in `storage/ui-prefs-whitelist`, so the
+;; storage watch persists it; the server never sees it.
+(defmutation learn.client/set-locale [{:ui/keys [locale]}]
+  (action [{:keys [state]}]
+    (swap! state state/set-locale* [:list/id 1] locale)))
+
 ;; Phase 7.9: page-level error setter. `nil` clears, string sets.
 (defmutation learn.client/set-err-msg [{:ui/keys [err-msg]}]
   (action [{:keys [state]}]

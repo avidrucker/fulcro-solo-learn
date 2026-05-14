@@ -188,6 +188,16 @@
   (update-in state-map (conj list-ident :ui/theme)
     (fn [t] (if (= t :theme/dark) :theme/light :theme/dark))))
 
+(defn set-locale*
+  "Phase 12.5 — set the i18n locale at the given list-ident. Locale is
+   a keyword in `learn.i18n.core/supported-locales`; validation is
+   intentionally absent here so the helper stays a one-liner — the
+   Settings dropdown is the only call site and it can only pick a
+   supported value. The storage watch persists `:ui/locale` via
+   `learn.util.storage/ui-prefs-whitelist`."
+  [state-map list-ident locale]
+  (assoc-in state-map (conj list-ident :ui/locale) locale))
+
 (defn set-err-msg*
   "Set or clear the page-level error message. `msg` may be `nil` to
    clear; any string sets the visible error."
