@@ -82,6 +82,24 @@ self.addEventListener('fetch', (event) => {
                    url.host.includes('fonts.gstatic.com');
   if (!sameOrigin && !knownCDN) return;
 
+  // Dev bypass — let shadow-cljs serve hot-reload chunks directly on
+  // localhost. Without this, the cache-first branch below pins the
+  // browser to whatever JS shadow-cljs wrote the first time we
+  // visited; subsequent recompiles ship new files to disk that the
+  // browser never sees. Scope is narrow:
+  //   - localhost only (prod still gets full PWA caching)
+  //   - js/main/* only (so index.html, css, icons, manifest still
+  //     route through the SW and the PWA install flow stays testable)
+  // To test the cached prod-like behaviour locally, run
+  // `npx shadow-cljs release app` and load the release build (or
+  // toggle DevTools → Application → Service Workers → Bypass for
+  // network OFF while this branch is active).
+  if (sameOrigin &&
+      self.location.hostname === 'localhost' &&
+      url.pathname.startsWith('/js/main/')) {
+    return;
+  }
+
   // Strategy:
   //   - Navigations (HTML) → network-first, fall back to cached
   //     index.html, then offline.html.
