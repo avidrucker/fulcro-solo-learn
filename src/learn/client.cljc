@@ -333,24 +333,20 @@
   [this]
   (comp/transact! this [(set-open-modal {:ui/open-modal :none})]))
 
-(defn- about-modal
+(defn- info-modal
+  "Phase 12.3 — combines the previous About + Help modals under one
+   `i`-icon trigger. Two sections under the parent `Info` heading;
+   the `?`-icon Help button is gone from the header."
   [this theme]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-info-modal
                 :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-about)
-    (dom/p {:className "pb3 ma0 lh-135"} s/info-string-1)
-    (dom/p {:className "pb3 ma0 lh-135"} s/info-string-2)
-    (dom/div {:className "pb3"}
-      (dom/h3 {:className "f5 fw6 ma0 mb2"} (s/version-line)))
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
-
-(defn- help-modal
-  [this theme]
-  (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-help-modal
-                :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} s/heading-help)
+    (dom/h2 {:className "pb2 ma0"} s/heading-info)
+    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-about)
+    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-1)
+    (dom/p {:className "pb2 ma0 lh-135"} s/info-string-2)
+    (dom/p {:className "pb3 ma0 lh-135 fw6"} (s/version-line))
+    (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} s/heading-help)
     (dom/p {:className "pb2 ma0 lh-135"} s/instructions)
     (dom/p {:className "pb2 ma0 lh-135"} s/instructions-2)
     (dom/p {:className "pb3 ma0 lh-135"}
@@ -360,7 +356,18 @@
               :rel    "noopener noreferrer"
               :className "link underline blue hover-orange"}
         s/link-issues-text))
-    (dom/p {:className "pt2 ma0 lh-135"} s/click-question-circle-to-close)))
+    (dom/p {:className "pt2 ma0 lh-135"} s/click-i-circle-to-close)))
+
+(defn- settings-modal
+  "Phase 12.3 — Settings modal shell. Body is intentionally minimal
+   for now; Phase 12.5 will add the language dropdown. Future home
+   for `S-pwa-debug-modal` and other user preferences."
+  [this theme]
+  (modal-shell {:on-close    #(close-current-modal! this)
+                :close-label s/close-settings-modal
+                :theme       theme}
+    (dom/h2 {:className "pb2 ma0"} s/heading-settings)
+    (dom/p {:className "pt2 ma0 lh-135"} s/click-gear-to-close)))
 
 (defn- stub-onclick
   "Returns a click handler that logs to the JS console and otherwise
@@ -824,8 +831,8 @@
       ;; Menu modals — driven by `:ui/open-modal`. Mutex by construction
       ;; (single keyword), so at most one is visible at a time.
       (case open-modal
-        :about          (about-modal this theme)
-        :help           (help-modal this theme)
+        :info           (info-modal this theme)
+        :settings       (settings-modal this theme)
         :save           (save-modal this theme todos
                           textarea-import-text submit-import!)
         :delete-confirm (delete-confirm-modal this theme
@@ -858,6 +865,12 @@
         menu-disabled?   (or review-active?
                            (contains? #{:delete-confirm :conflict} open-modal))]
     (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
+                               ;; Phase 12.1 (B-6 fix): bottom padding so the
+                               ;; user can tell they've scrolled to the end of
+                               ;; the page when content overflows. Goes on
+                               ;; <main> so the theme bg extends through the
+                               ;; padding zone.
+                               "pb4 "
                                (theme-text-class theme)
                                " "
                                (theme-page-bg-class theme))}
@@ -869,13 +882,16 @@
                                   :modal-id  :save
                                   :first?    true
                                   :disabled? menu-disabled?})
+        ;; Phase 12.3: About + Help merged into one Info modal. The
+        ;; `?` icon is gone from the header; clicking the `i` icon
+        ;; shows both About and Instructions content under one modal.
         (header-icon-button this {:icon      icons/info-circle
-                                  :label     s/tooltip-about
-                                  :modal-id  :about
+                                  :label     s/tooltip-info
+                                  :modal-id  :info
                                   :disabled? menu-disabled?})
-        (header-icon-button this {:icon      icons/question-circle
-                                  :label     s/tooltip-help
-                                  :modal-id  :help
+        (header-icon-button this {:icon      icons/gear
+                                  :label     s/tooltip-settings
+                                  :modal-id  :settings
                                   :disabled? menu-disabled?})
         ;; Theme toggle — lightbulb-solid when in light mode (clicking
         ;; flips to dark), lightbulb-regular when in dark mode. Same
@@ -977,10 +993,11 @@
 ;;
 ;; `[:list/id 1 :ui/open-modal]` carries one of:
 ;;   :none           — no modal open (default)
-;;   :about          — About modal
-;;   :help           — Help modal
+;;   :info           — Info modal (Phase 12.3: combines About + Help)
+;;   :settings       — Settings modal (Phase 12.3: new)
 ;;   :save           — Import/Export modal
 ;;   :delete-confirm — Phase 7.12: Are-you-sure prompt for Delete List
+;;   :conflict       — Phase 7.18: URL/localStorage conflict resolution
 ;;
 ;; `set-open-modal*` is mutex-by-construction (single value), so opening
 ;; any modal closes whatever else was open. `toggle-open-modal*` lets the

@@ -35,8 +35,11 @@
   "Keys at `[:list/id 1]` that get dehydrated to `ui-prefs-key`.
    Explicit whitelist (not a blacklist) so adding state is opt-in:
    transient UI like `:ui/open-modal` and `:ui/err-msg` SHOULD reset
-   on reload, so we want missing-by-default."
-  #{:ui/theme})
+   on reload, so we want missing-by-default.
+
+   Phase 12.4: `:ui/locale` joins `:ui/theme` so the user's language
+   choice survives reloads alongside their theme."
+  #{:ui/theme :ui/locale})
 
 ;; ============================================================================
 ;; Pure EDN adapter — same on JVM and CLJS.

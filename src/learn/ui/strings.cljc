@@ -61,6 +61,13 @@
 
 ;; Help modal
 (def heading-help         "Instructions & Help")
+
+;; Phase 12.3 — About + Help merged into one Info modal; Settings
+;; modal added with its own gear icon. The Info modal uses
+;; `heading-info` as the h2 and `heading-about` / `heading-help`
+;; as sub-headings on each section.
+(def heading-info         "Info")
+(def heading-settings     "Settings")
 (def link-issues-text     "fulcro-solo-learn Issues")
 (def link-issues-href     "https://github.com/avidrucker/fulcro-solo-learn/issues")
 
@@ -90,6 +97,7 @@
 (def close-save-modal     "Close Save Modal")
 (def close-info-modal     "Close Info Modal")
 (def close-help-modal     "Close Help Modal")
+(def close-settings-modal "Close Settings Modal")
 (def close-debug-modal    "Close Debug Modal")
 (def close-delete-modal   "Close Delete Modal")
 
@@ -170,6 +178,9 @@
 (def click-i-circle-to-close
   "Click on the 'i' icon above to close this window.")
 
+(def click-gear-to-close
+  "Click on the 'gear' icon above to close this window.")
+
 ;; Help modal instructional copy
 (def instructions
   (str "Add new items to your list by typing into the input box and clicking "
@@ -178,10 +189,13 @@
        "items from your list, click 'Delete List'."))
 
 (def instructions-2
+  ;; Phase 12.3 — updated for the Info + Settings restructure. The
+  ;; 'question mark' icon is gone (About + Help merged into the 'i'
+  ;; Info modal); the new 'gear' icon opens Settings.
   (str "Click the 'disk' icon to see options for list import/export. Click "
-       "the 'i' icon to learn more about AutoFocus. Click the 'lightbulb' "
-       "icon to toggle light/dark mode. Click the 'question mark' icon for "
-       "instructions on how to use this app."))
+       "the 'i' icon for info about AutoFocus and these instructions. Click "
+       "the 'gear' icon to change settings (including language). Click the "
+       "'lightbulb' icon to toggle light/dark mode."))
 
 (def how-to-report-issues
   "To report any issues/bugs, please leave a ticket on the GitHub repo 'Issues' page here: ")
@@ -194,6 +208,8 @@
 (def tooltip-import-export "Import/Export")
 (def tooltip-about        "About")
 (def tooltip-help         "Help")
+(def tooltip-info         "Info")
+(def tooltip-settings     "Settings")
 (def tooltip-toggle-theme "Toggle Theme")
 (def tooltip-pwa-debug    "PWA Debug Info")
 

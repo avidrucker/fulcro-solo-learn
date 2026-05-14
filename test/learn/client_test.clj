@@ -992,25 +992,25 @@
 
 (specification "set-open-modal*"
   (component "sets :ui/open-modal at the given list-ident"
-    (let [after (sut/set-open-modal* (fixture-state) [:list/id 1] :about)]
+    (let [after (sut/set-open-modal* (fixture-state) [:list/id 1] :info)]
       (assertions
         "stored at [:list/id 1 :ui/open-modal]"
-        (get-in after [:list/id 1 :ui/open-modal]) => :about
+        (get-in after [:list/id 1 :ui/open-modal]) => :info
         "no other keys mutated"
         (affects-only? (fixture-state) after
           [[:list/id 1 :ui/open-modal]]) => true)))
 
   (component "is mutex by construction (single-value overwrite)"
     (let [after (-> (fixture-state)
-                  (sut/set-open-modal* [:list/id 1] :about)
-                  (sut/set-open-modal* [:list/id 1] :help))]
+                  (sut/set-open-modal* [:list/id 1] :info)
+                  (sut/set-open-modal* [:list/id 1] :settings))]
       (assertions
         "second call replaces the first"
-        (get-in after [:list/id 1 :ui/open-modal]) => :help)))
+        (get-in after [:list/id 1 :ui/open-modal]) => :settings)))
 
   (component "closes via :none"
     (let [after (-> (fixture-state)
-                  (sut/set-open-modal* [:list/id 1] :about)
+                  (sut/set-open-modal* [:list/id 1] :info)
                   (sut/set-open-modal* [:list/id 1] :none))]
       (assertions
         "set to :none clears whatever was open"
@@ -1020,26 +1020,26 @@
   (component "opens the modal when closed"
     (let [after (-> (fixture-state)
                   (sut/set-open-modal* [:list/id 1] :none)
-                  (sut/toggle-open-modal* [:list/id 1] :about))]
+                  (sut/toggle-open-modal* [:list/id 1] :info))]
       (assertions
-        "transition :none → :about"
-        (get-in after [:list/id 1 :ui/open-modal]) => :about)))
+        "transition :none → :info"
+        (get-in after [:list/id 1 :ui/open-modal]) => :info)))
 
   (component "closes the same modal when it's open"
     (let [after (-> (fixture-state)
-                  (sut/set-open-modal* [:list/id 1] :about)
-                  (sut/toggle-open-modal* [:list/id 1] :about))]
+                  (sut/set-open-modal* [:list/id 1] :info)
+                  (sut/toggle-open-modal* [:list/id 1] :info))]
       (assertions
-        "transition :about → :none"
+        "transition :info → :none"
         (get-in after [:list/id 1 :ui/open-modal]) => :none)))
 
   (component "opens a different modal when one is already open (mutex)"
     (let [after (-> (fixture-state)
-                  (sut/set-open-modal* [:list/id 1] :about)
-                  (sut/toggle-open-modal* [:list/id 1] :help))]
+                  (sut/set-open-modal* [:list/id 1] :info)
+                  (sut/toggle-open-modal* [:list/id 1] :settings))]
       (assertions
-        ":about → :help (replaces, doesn't stack)"
-        (get-in after [:list/id 1 :ui/open-modal]) => :help))))
+        ":info → :settings (replaces, doesn't stack)"
+        (get-in after [:list/id 1 :ui/open-modal]) => :settings))))
 
 ;; ============================================================================
 ;; Phase 7.5 — About + Help modals.
@@ -1051,35 +1051,45 @@
 ;; close button's hidden label text.
 ;; ============================================================================
 
-(specification "About modal"
+(specification "Info modal (Phase 12.3: combines About + Help)"
   (component "closed by default"
     (server/seed!)
     (let [spa (sut/init)]
       (assertions
         "About body text not present at startup"
-        (h/text-exists? spa "The AutoFocus algorithm was designed") => false)))
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false
+        "Help body text not present at startup"
+        (h/text-exists? spa "Add new items to your list by typing") => false)))
 
-  (component "clicking the 'About' header icon opens the modal with expected content"
+  (component "clicking the 'Info' header icon opens the modal with BOTH sections"
     (server/seed!)
     (let [spa (sut/init)
-          _   (h/click-on-text! spa "About")
+          _   (h/click-on-text! spa "Info")
           _   (h/render-frame! spa)]
       (assertions
-        ":ui/open-modal flipped to :about"
-        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :about
-        "About heading visible"
+        ":ui/open-modal flipped to :info"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :info
+        "Info heading visible (modal h2)"
+        (h/text-exists? spa "Info") => true
+        "About sub-heading visible"
         (h/text-exists? spa "About AutoFocus") => true
-        "info-string-1 paragraph visible"
+        "info-string-1 (About body) visible"
         (h/text-exists? spa "The AutoFocus algorithm was designed") => true
         "version line visible"
         (h/text-exists? spa "Version 0.1.4") => true
+        "Instructions sub-heading visible"
+        (h/text-exists? spa "Instructions & Help") => true
+        "instructions (Help body) visible"
+        (h/text-exists? spa "Add new items to your list by typing") => true
+        "issues link visible"
+        (h/text-exists? spa "fulcro-solo-learn Issues") => true
         "close-instruction footer visible"
         (h/text-exists? spa "Click on the 'i' icon above to close this window.") => true)))
 
   (component "clicking the background close-overlay dismisses the modal"
     (server/seed!)
     (let [spa (sut/init)
-          _   (h/click-on-text! spa "About")
+          _   (h/click-on-text! spa "Info")
           _   (h/render-frame! spa)
           _   (h/click-on-text! spa "Close Info Modal")
           _   (h/render-frame! spa)]
@@ -1087,38 +1097,36 @@
         ":ui/open-modal back to :none"
         (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :none
         "About content no longer visible"
-        (h/text-exists? spa "The AutoFocus algorithm was designed") => false))))
-
-(specification "Help modal"
-  (component "clicking the 'Help' header icon opens the modal"
-    (server/seed!)
-    (let [spa (sut/init)
-          _   (h/click-on-text! spa "Help")
-          _   (h/render-frame! spa)]
-      (assertions
-        ":ui/open-modal = :help"
-        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :help
-        "Help heading visible"
-        (h/text-exists? spa "Instructions & Help") => true
-        "instructions paragraph visible"
-        (h/text-exists? spa "Add new items to your list by typing") => true
-        "issues link text visible"
-        (h/text-exists? spa "fulcro-solo-learn Issues") => true)))
-
-  (component "mutex — clicking About then Help replaces (single modal at a time)"
-    (server/seed!)
-    (let [spa (sut/init)
-          _   (h/click-on-text! spa "About")
-          _   (h/render-frame! spa)
-          _   (h/click-on-text! spa "Help")
-          _   (h/render-frame! spa)]
-      (assertions
-        ":ui/open-modal = :help (was :about)"
-        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :help
-        "About content gone"
         (h/text-exists? spa "The AutoFocus algorithm was designed") => false
-        "Help content present"
-        (h/text-exists? spa "Add new items to your list by typing") => true))))
+        "Instructions content no longer visible"
+        (h/text-exists? spa "Add new items to your list by typing") => false))))
+
+(specification "Settings modal (Phase 12.3: new shell)"
+  (component "clicking the 'Settings' header icon opens the modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Settings")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal = :settings"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :settings
+        "Settings heading visible"
+        (h/text-exists? spa "Settings") => true
+        "close-instruction footer points at gear icon"
+        (h/text-exists? spa "Click on the 'gear' icon above to close this window.") => true)))
+
+  (component "mutex — clicking Info then Settings replaces (single modal at a time)"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (h/click-on-text! spa "Info")
+          _   (h/render-frame! spa)
+          _   (h/click-on-text! spa "Settings")
+          _   (h/render-frame! spa)]
+      (assertions
+        ":ui/open-modal = :settings (was :info)"
+        (get-in (app/current-state spa) [:list/id 1 :ui/open-modal]) => :settings
+        "About content gone"
+        (h/text-exists? spa "The AutoFocus algorithm was designed") => false))))
 
 ;; ============================================================================
 ;; Phase 7.6 — Import/Export modal (stubbed actions).
@@ -1356,24 +1364,24 @@
         ":ui/open-modal stayed at :none — the disabled click is a no-op"
         (get-in db [:list/id 1 :ui/open-modal]) => :none)))
 
-  (component "clicking About header icon during review is a no-op"
+  (component "clicking Info header icon during review is a no-op"
     (server/seed!)
     (let [spa (sut/init)
           _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)
-          _   (h/click-on-text! spa "About")
+          _   (h/click-on-text! spa "Info")
           _   (h/render-frame! spa)
           db  (app/current-state spa)]
       (assertions
         ":ui/open-modal stays :none"
         (get-in db [:list/id 1 :ui/open-modal]) => :none)))
 
-  (component "clicking Help header icon during review is a no-op"
+  (component "clicking Settings header icon during review is a no-op"
     (server/seed!)
     (let [spa (sut/init)
           _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)
-          _   (h/click-on-text! spa "Help")
+          _   (h/click-on-text! spa "Settings")
           _   (h/render-frame! spa)
           db  (app/current-state spa)]
       (assertions
