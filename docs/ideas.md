@@ -46,6 +46,45 @@ Option B and seed it with whatever's accumulated.
 
 ---
 
+## RAD-vs-non-RAD side-by-side debug view
+
+**Tag:** `rad-debug-side-by-side`
+**Origin:** Phase 9.2 conversation (RAD basics)
+**Related:** [`benefits-of-RAD-in-this-project.md`](./benefits-of-RAD-in-this-project.md)
+
+When we did Phase 9.2 we replaced the Add Item input with the
+attribute-driven `rad-input/text-input`. We *considered* rendering
+both versions side-by-side behind a debug toggle so a curious
+reader could A/B them visually — same value, same flow, just two
+implementations.
+
+We chose not to build it now because the swap was complete and
+the comparison lives in the doc instead. Worth picking up if
+either: (a) a real debug-mode toggle lands in the app (the JS port
+has one for PWA diagnostics; see [`user_stories.md`](./user_stories.md)
+S-pwa-debug-modal in 🆒), or (b) we add a second RAD-driven
+component and want a visual regression check that the RAD path
+still looks right.
+
+### Sketch
+
+- A `:ui/rad-debug?` flag in `[:list/id 1]` toggled by a hidden
+  shortcut (Shift+R, say) or the future PWA debug modal.
+- When true, render both the RAD input and a hand-rolled
+  duplicate input side-by-side. Both controlled by the same
+  `:ui/new-todo-text` so typing in one updates the other.
+- Cleanup: a small visual delimiter ("RAD" / "non-RAD" labels)
+  so the reader can tell which is which.
+
+### Decide when
+
+When debug-mode lands as a real feature (S-pwa-debug-modal
+promotion ⬜ → ✅), OR when we add a second RAD component and want
+a visual regression demo. Until then, the
+`benefits-of-RAD-in-this-project.md` doc is the comparison.
+
+---
+
 > Pattern: each idea section starts with a `## Title`, a short tag
 > for cross-referencing (`Tag:` line), and a `Decide when:` trigger
 > so we don't accidentally start building speculative work without

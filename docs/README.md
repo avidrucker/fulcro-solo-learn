@@ -13,6 +13,7 @@ disjoint avoids the "is this in phases or stories or bugs?" question.
 | [`ideas.md`](./ideas.md) | **Maybe** — speculative tweaks with no clear decide-when | An idea comes up mid-conversation and we don't want to start building it yet |
 | [`changes.md`](./changes.md) | **Diverges from the og JS port** — intentional differences, not bug fixes | We deliberately do something the og doesn't (or vice versa) |
 | [`when-to-statechart.md`](./when-to-statechart.md) | **Decision criteria** — chart vs flag-with-payload | About to add new state and considering whether to reach for a chart |
+| [`benefits-of-RAD-in-this-project.md`](./benefits-of-RAD-in-this-project.md) | **What RAD added here** — honest tradeoff write-up | Considering RAD adoption (or removal) in a similarly-sized project |
 | [`SCHEMA.md`](./SCHEMA.md) | **Invariants** — canonical domain reference | Domain shape, status enum, or operation contract changes |
 | [`learned_while_making_this.md`](./learned_while_making_this.md) | **Retrospective** — past mistakes, by category | A mistake worth not-repeating shows up |
 | [`js_source_reference.md`](./js_source_reference.md) | **JS port reference** — signatures + divergence notes for each fn in the original | A new model-layer function is being ported |

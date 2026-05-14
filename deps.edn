@@ -1,5 +1,6 @@
 {:paths ["src"]
  :deps  {com.fulcrologic/fulcro      {:mvn/version "3.9.5"}
+         com.fulcrologic/fulcro-rad  {:mvn/version "1.6.23"}
          com.fulcrologic/statecharts {:mvn/version "1.3.0"}
          com.wsscode/pathom          {:mvn/version "2.4.0"}
          com.taoensso/timbre         {:mvn/version "6.8.0"}

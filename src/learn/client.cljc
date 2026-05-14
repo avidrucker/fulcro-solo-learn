@@ -35,6 +35,8 @@
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
+    [learn.rad.attributes :as rad-attrs]
+    [learn.rad.input :as rad-input]
     [learn.server :as server]
     [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
@@ -724,16 +726,20 @@
                               (.preventDefault e)
                               (submit-add!))}
         (dom/div {:className "measure-narrow ml-auto mr-auto"}
-          ;; Hidden label preserves the headless-test affordance
-          ;; (`h/type-into-labeled! ... "New TODO"`) while staying out of
-          ;; the visible UI. Tachyons class `clip` is the screen-reader-only
-          ;; hide pattern.
-          (dom/label {:htmlFor new-todo-input-id :className "clip"} "New TODO:")
-          (dom/input {:id          new-todo-input-id
-                      :className   (input-class theme)
-                      :placeholder s/input-placeholder
-                      :value       (or new-todo-text "")
-                      :onChange    #(m/set-string! this :ui/new-todo-text :event %)})
+          ;; Phase 9.2 (RAD basics): input is now attribute-driven —
+          ;; placeholder text + maxlength come from `rad-attrs/text`
+          ;; instead of being hard-coded here. The visible behaviour
+          ;; is identical; the *source of truth* moved.
+          ;; The hidden label is still emitted (with "New TODO:" via
+          ;; the attribute's `:field/label`) so
+          ;; `h/type-into-labeled!` still finds the input by label.
+          (rad-input/text-input rad-attrs/text
+            {:this        this
+             :state-key   :ui/new-todo-text
+             :value       new-todo-text
+             :class-name  (input-class theme)
+             :input-id    new-todo-input-id
+             :label-text  "New TODO:"})
           ;; Phase 7.9: page-level error message. Only rendered when
           ;; `:ui/err-msg` is truthy; the JS port uses red copy for
           ;; immediate visual cue.

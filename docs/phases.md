@@ -1213,13 +1213,46 @@ assertions, unchanged.
 
 ---
 
-## ⬜ Phase 9 — Fulcro RAD basics
+## ✅ Phase 9 — Fulcro RAD basics
 
-Migrate from hand-written `defsc` to RAD attributes. The schema we've
-built in `learn.model.schema` gets re-expressed as RAD attribute
-definitions.
+Capped scope: did 9.1 (attribute definitions) + 9.2 (replace the
+Add Item input with attribute-driven rendering) + 9.4 (analysis
+doc). Skipped 9.3 (RAD report) — would have fought our custom
+per-row rendering for no learning win.
 
-**New skill:** `fulcro-rad`.
+- **9.1**: Added `com.fulcrologic/fulcro-rad 1.6.23` to deps.edn.
+  New `learn.rad.attributes` ns with `defattr` declarations for
+  `:todo/id`, `:todo/text`, `:todo/status`, `:todo/was`. Each
+  carries data type, cardinality, required-flag, schema; text adds
+  `:field/label` (sourced from `learn.ui.strings/input-placeholder`)
+  and `:field/maxlength`; status + was enumerate the four valid
+  values. 1 new spec / 15 new assertions verifying the registry
+  shape.
+- **9.2**: New `learn.rad.input/text-input` helper reads `:field/*`
+  metadata from an attribute and renders the Tachyons-styled input
+  + `clip`-hidden label. The Add Item input swaps from a 5-key
+  inline `dom/input` to a 7-key call to the helper. Visual output
+  identical; source of truth for placeholder + maxlength moved
+  from hard-coded literals to attribute metadata. Browser-manual
+  verification confirmed type + Add Item + list-update flow
+  unchanged.
+- **9.4**: New `docs/benefits-of-RAD-in-this-project.md` —
+  honest write-up of what RAD added at our scale (attribute-as-
+  source-of-truth pattern, self-documenting schema, architectural
+  readiness for future entities), what it didn't (no auto-rendered
+  forms / reports / save flow / schema generation — we declined
+  all of these), and when its full machinery WOULD pay off (3+
+  entities, form-heavy UIs, real DB backend, multi-developer
+  consistency needs).
+- Dropped duplicate side-by-side debug-view idea into
+  `docs/ideas.md` (`rad-debug-side-by-side` tag) as a nice-to-have.
+
+**Numbers**: 88 specs / 614 assertions, all green (+1 spec / +15
+assertions). CLJS: 334 files, 0 warnings (was 327 — RAD pulls in
+7 transitive files).
+
+**Implements**: 9.1 and 9.2 sub-phases; no new user stories
+(RAD is a refactor, not a feature).
 
 ---
 
