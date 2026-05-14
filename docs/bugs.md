@@ -332,41 +332,77 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
-## B-7 — Modal-internal textarea hover transition is instant, not smooth
+## B-7 — Modal-internal textarea bg snaps instantly, doesn't match the new-todo input
 
-**Status:** 🐛 Open — minor visual regression
+**Status:** ✅ Fixed in Phase 12.6 (same commit that logged the bug)
 **Reported:** 2026-05-14 by user
 
 ### Symptom
 
-In the OG ReactJS app, hovering the import/export modal's textarea
-fades the background color smoothly between rest and hover states
-(visible as a `.2s` ease-in transition).
+The import/export modal's textarea should visually match the
+page-level new-todo input:
+- **Light mode rest state**: slightly gray (`#eee`) so it
+  clearly differentiates from the white modal body.
+- **Dark mode rest state**: very dark gray (`#333`) so it
+  reads as a distinct input field against the surrounding
+  black-90 overlay.
+- **Hover / focus end state**: solid white (light) or solid
+  black (dark) — visually crisp signal that the field is the
+  user's active input.
+- **Transition**: smooth `.2s ease-in` fade between rest and
+  hover/focus, matching the OG ReactJS app and the page-level
+  new-todo input.
 
-In the Fulcro port (since Phase 12.5c introduced
-`theme-modal-input-class`), the hover transition snaps instantly —
-no fade. Functionally identical, visually less polished.
+In the Fulcro port since Phase 12.5c (the `theme-modal-input-class`
+introduction), the textarea has the right rest color (dark-gray
+in dark, moon-gray in light) but snaps INSTANTLY to white/black
+on hover/focus — no transition. The OG and the new-todo input
+both fade smoothly.
 
-**As a user**, when I hover over the textarea in the import/export
-modal, I should see that the background color of the textarea
-transitions smoothly.
+**As a user**, when I hover or focus the import/export modal's
+textarea, I should see the background color transition smoothly
+from its gray rest state to solid white (light mode) or solid
+black (dark mode) — matching how the new-todo input on the
+main app screen behaves.
 
-### Likely root cause
+### Root cause
 
-`app.css`'s `.hover-bg-light-gray` and `.hover-bg-dark-gray` rules
-declare `transition: all .2s ease-in` on the base class. Tachyons'
-`hover-bg-black` and `hover-bg-white` (which the new
-`theme-modal-input-class` uses) do not carry a transition rule, so
-the bg switch is instantaneous.
+`app.css`'s `.hover-bg-light-gray` and `.hover-bg-dark-gray`
+rules carry `transition: all .2s ease-in` on the BASE class —
+that's the JS port's smooth-fade machinery for the page-level
+input. Tachyons' `hover-bg-black` and `hover-bg-white` (which
+the current `theme-modal-input-class` uses) don't carry a
+`transition` rule, so the bg switch is instantaneous.
 
-### Likely fix
+We also can't reuse `.hover-bg-light-gray` / `.hover-bg-dark-gray`
+directly because their `:hover/:focus` end state is fade-to-
+TRANSPARENT (which shows the modal overlay through), not solid
+white/black. We need the transition machinery from those classes
+PLUS a different end state.
 
-Add a small custom class — `transition-bg` or similar — to
-`app.css` that declares `transition: background-color .2s ease-in`,
-and apply it alongside `hover-bg-black` / `hover-bg-white` in
-`theme-modal-input-class`. Avoid adding `transition: all` because
-the JS port's `.2s` fade on the page-level new-todo input
-(`.hover-bg-light-gray` / `.hover-bg-dark-gray`) uses `all`
-deliberately — it animates the background AND the bg-color of the
-focus ring together. The modal-input variant doesn't need that
-breadth.
+### Fix sketch
+
+Reuse the JS port's `.hover-bg-light-gray` / `.hover-bg-dark-gray`
+for rest state + the `.2s ease-in` transition, but override the
+`:hover/:focus` end state with a higher-specificity rule keyed on
+a new `.modal-input` marker class:
+
+```css
+.modal-input.hover-bg-light-gray:hover,
+.modal-input.hover-bg-light-gray:focus {
+  background-color: white;
+}
+.modal-input.hover-bg-dark-gray:hover,
+.modal-input.hover-bg-dark-gray:focus {
+  background-color: black;
+}
+```
+
+Then `theme-modal-input-class` becomes:
+- Light: `"modal-input black hover-bg-light-gray"`
+- Dark:  `"modal-input white hover-bg-dark-gray"`
+
+Specificity wins (`.modal-input.hover-bg-light-gray:hover` is
+0,2,1 vs the base rule's 0,1,1), so the modal-input variant ends
+at solid white/black while still inheriting the base class's
+transition.

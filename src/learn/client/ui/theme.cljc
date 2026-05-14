@@ -51,18 +51,21 @@
 
 (defn theme-modal-input-class
   "Theme-suffix for inputs/textareas/selects rendered INSIDE a modal.
-   Default state matches the surrounding primary-button bg (dark-gray
-   in dark mode, moon-gray in light) so the field reads as a clear
-   tier of UI chrome at rest. Hover and focus snap to solid
-   black/white respectively — the JS port's `hover-bg-*-gray` rules
-   (app.css) fade to transparent, which inside a translucent modal
-   washes the field out. Tachyons' `hover-bg-black` / `hover-bg-white`
-   are NOT overridden in app.css so they stay solid, and the
-   `focus-bg-*` rules (app.css) cover the focus state."
+   Visually matches the page-level new-todo input — same gray rest
+   state, same `.2s` smooth transition — but on hover/focus the bg
+   ends on solid white/black rather than the new-todo input's
+   fade-to-transparent (which inside a modal would stack with the
+   translucent overlay and wash the field out).
+
+   Mechanism: reuse the JS port's `hover-bg-light-gray` /
+   `hover-bg-dark-gray` classes (they provide rest color + the
+   `.2s ease-in` transition), with the `.modal-input` marker class
+   (defined in app.css) overriding the `:hover/:focus` end state
+   to solid white/black via higher CSS specificity. See B-7."
   [theme]
   (if (dark? theme)
-    "white bg-dark-gray hover-bg-black focus-bg-black"
-    "black bg-moon-gray hover-bg-white focus-bg-white"))
+    "modal-input white hover-bg-dark-gray"
+    "modal-input black hover-bg-light-gray"))
 
 (defn theme-primary-btn-suffix
   "Theme-suffix for primary `<button>` text + bg (Add Item, Delete

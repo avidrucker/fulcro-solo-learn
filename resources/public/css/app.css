@@ -127,6 +127,35 @@ input, textarea, select {
   background-color: black;
 }
 
+/* Modal-internal input variant — B-7 fix. The page-level new-todo
+ * input uses `.hover-bg-light-gray` / `.hover-bg-dark-gray` directly:
+ * those classes carry a `.2s ease-in` transition and fade the bg to
+ * TRANSPARENT on hover/focus (revealing the page bg through).
+ * Inside a modal that's wrong — the modal overlay is itself
+ * translucent (`bg-white-90` / `bg-black-90`), so fading to
+ * transparent stacks the translucency and washes the field out.
+ *
+ * Adding `.modal-input` alongside `.hover-bg-*-gray` keeps the rest
+ * state (slightly gray in light, very dark gray in dark) AND the
+ * smooth transition, but overrides the `:hover/:focus` end state to
+ * solid white/black so the active field reads crisply. Specificity
+ * (`.modal-input.hover-bg-*:hover` = 0,2,1) wins over the base rule
+ * (`.hover-bg-*:hover` = 0,1,1).
+ *
+ * Visual contract: matches the new-todo input's rest appearance,
+ * matches the OG ReactJS app's smooth `.2s` transition, ends on a
+ * solid color (not transparent) so the field stays readable
+ * against the modal overlay. */
+.modal-input.hover-bg-light-gray:hover,
+.modal-input.hover-bg-light-gray:focus {
+  background-color: white;
+}
+
+.modal-input.hover-bg-dark-gray:hover,
+.modal-input.hover-bg-dark-gray:focus {
+  background-color: black;
+}
+
 /* On pointer-hover devices (desktop), per-row action buttons hide
  * until the row is hovered. On touch devices the @media block does not
  * match, so the buttons stay visible — that's the JS port's
