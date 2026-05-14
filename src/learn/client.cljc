@@ -32,6 +32,7 @@
     [com.fulcrologic.fulcro.algorithms.normalized-state :as nsh]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.parser :as parser]
+    [learn.client.session :as session]
     [learn.model.list :as model.list]
     [learn.model.review :as review]
     [learn.review.chart :as chart]
@@ -53,18 +54,15 @@
          set-err-msg)
 
 ;; ============================================================================
-;; Constants — kept at the top because ClojureScript flags forward
-;; references at compile time (CLJ resolves at runtime and tolerates it).
-;; These two are referenced by TodoList's render, which appears below.
+;; Constants — Phase 12.7 moved to `learn.client.session`. The two re-
+;; exports below preserve `learn.client/review-session-id` and
+;; `learn.client/review-chart-key` for any external readers (tests,
+;; REPL bindings) that captured the old symbols. The session ns is
+;; the canonical home.
 ;; ============================================================================
 
-;; Well-known singleton session id for the review chart. The chart runs at
-;; most one session at a time per app (SCHEMA.md §13 "One per app instance"),
-;; so a keyword id is sufficient; no need to mint random UUIDs.
-(def review-session-id :review-session)
-
-;; Registry key for the review chart definition on the Fulcro app.
-(def review-chart-key ::review-chart)
+(def review-session-id session/review-session-id)
+(def review-chart-key  session/review-chart-key)
 
 ;; ============================================================================
 ;; UI components
