@@ -535,9 +535,17 @@ appended to my current list. The JS port (`handleImportTasks` in
 
 Our port has `S-import-batch-text` (Phase 7.12) covering the
 paste-text path; this story covers the file-upload path. The pure
-`json-text → items` parser lives in `learn.model.list` (or a new
-`learn.util.tasks-io`); the FileReader + UI wiring goes in
-`learn.client`.
+`json-text → items` parser lives in `learn.util.tasks-io`; the
+FileReader + UI wiring lives in
+`learn.client.ui.modals/import-json-file!`.
+
+**Merge semantics: APPEND + fresh UUIDs** (matches the OG's
+`addAll`). Importing a file you previously exported adds a second
+copy of those items to your list — predictable, non-destructive,
+zero confirmation friction. Users wanting "replace current list
+with this file" go Delete List → confirm → Import (two clicks,
+each with their own affordance). The "ask first" alternative is
+queued as a nice-to-have (`S-import-confirmation` below).
 
 ### S-export-json-file — Export the current list as a JSON file
 **Phase:** 13
@@ -613,6 +621,38 @@ service worker state, cache contents, offline status, and a
 general-info JSON dump. Useful once `S-pwa-offline` is live and we
 need to debug install/cache behaviour. Until then there's nothing
 to debug.
+
+### S-import-confirmation — Ask before importing into a non-empty list
+**Phase:** —
+**Status:** 🆒
+**Tests:** TBD when promoted to ⬜
+
+Today the Import button (`S-import-json-file`, Phase 13) silently
+appends parsed items to whatever's already in the list — matches
+the OG's `addAll` semantics, zero confirmation friction, but means
+re-importing a file you previously exported produces two copies of
+those items in your list. Not destructive, but occasionally
+surprising.
+
+Future enhancement: when the user picks a file AND the current list
+is non-empty, intercept with a confirmation modal:
+
+> "You have N items in your list. The import has M items.
+> [Replace] [Append] [Cancel]"
+
+Where:
+- **Replace** = clear current list + add imported items.
+- **Append** = today's behaviour.
+- **Cancel** = no change.
+
+Empty-list import skips the modal (nothing to clobber).
+
+**Decide when to promote ⬜**: if a real user trips over the
+silent append, OR if we ever build a Settings preference for
+"default import mode" (in which case the modal can pre-select
+the user's preferred default and show as a one-click confirm).
+Until then the workflow "Delete List → confirm → Import" covers
+the replace case in two-clicks-each-with-an-affordance.
 
 ---
 
