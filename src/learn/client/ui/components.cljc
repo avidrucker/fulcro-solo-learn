@@ -327,8 +327,16 @@
           ;; Phase 7.9: page-level error message. Only rendered when
           ;; `:ui/err-msg` is truthy; the JS port uses red copy for
           ;; immediate visual cue.
+          ;;
+          ;; Phase 19k a11y: `role="alert"` makes this a live region
+          ;; (shorthand for `aria-live="assertive" aria-atomic="true"`),
+          ;; so screen readers announce the error as soon as
+          ;; :ui/err-msg flips from nil to a string. Without this,
+          ;; sighted users see the red copy but AT users get no
+          ;; signal that their last action was refused.
           (when err-msg
-            (dom/p {:className "lh-135 red ml-auto mr-auto measure-narrow ma0 pt2"}
+            (dom/p {:className "lh-135 red ml-auto mr-auto measure-narrow ma0 pt2"
+                    :role      "alert"}
               err-msg))))
       (dom/section {:className "pt2 pb2 flex justify-center flex-wrap measure-wide ml-auto mr-auto"}
         ;; Group 1: list-mutation actions (Add Item, Delete List).
