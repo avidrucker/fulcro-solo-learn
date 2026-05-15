@@ -26,6 +26,13 @@ Multi-phase learning project; **never skip phases, always TDD red-green-refactor
   the behavior it claims to exercise.
 - **Always run the master test runner after every change.** Code-level
   REPL evaluation is not a substitute for the spec runner.
+- **After any refactor that removes/renames a public var, verify with a
+  fresh JVM.** `(require :reload-all)` in a long-running REPL keeps stale
+  vars from earlier sessions alive — local tests pass, CI fails. Run
+  `clojure -M:test:cljs -m test-runner` as a fresh process before push
+  whenever you've touched re-exports / aliases / sub-namespace
+  boundaries. See `docs/learned_while_making_this.md` Part 1 →
+  "REPL / stale-vars-after-refactor".
 - **Decisions that diverge from the JS source** (see phases.md for the
   open list) require explicit user approval before locking in. Ask in
   chat; don't just choose.

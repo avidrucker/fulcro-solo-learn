@@ -121,6 +121,37 @@ it tripped, and the lesson distilled.
   *inside* the inner form and use Cursive's "Send Top Form to REPL" (Ctrl+Shift+P
   by default). It walks up to the innermost non-comment enclosing form.
 
+**[REPL / stale-vars-after-refactor] — Long-running REPL kept a var that the source no longer defined; tests passed locally but CI failed**
+- **What happened (Phase 13 followup):** During the Phase 12.7 facade rewrite
+  of `learn.client.cljc`, the re-export `(def textarea-import-id …)` was
+  dropped. The running JVM nREPL had `learn.client/textarea-import-id` cached
+  from BEFORE the rewrite. Every subsequent local `(require :reload-all)` ran
+  fine because :reload-all re-runs the namespace's requires but does NOT
+  unintern vars that no longer exist in the source. CI's fresh JVM process
+  caught the regression immediately with `No such var: sut/textarea-import-id`.
+- **Root cause:** Cognitive model. I'd been treating `(require :reload-all)` as
+  "fresh process equivalent" when it's only "fresh code load against the
+  existing var table". Old vars stick around unless you `(remove-ns ...)` or
+  restart the REPL.
+- **Lesson — best practices to prevent recurrence:**
+  1. **After any namespace refactor that removes / renames a public var**,
+     run the same entrypoint CI does: `clojure -M:test:cljs -m test-runner`
+     in a *fresh process* (not via your nREPL). It's slower (~30s cold start)
+     but is the only way to catch stale-var regressions before push.
+  2. **For shorter inner-loop verification**, do
+     `(ns-unmap 'learn.client 'textarea-import-id)` before `:reload-all` to
+     simulate the removed var. Tedious but cheap.
+  3. **Whenever a test references a `sut/<name>` that you might have removed
+     from the SUT during a refactor**, mentally pause and ask: "Is this
+     re-export still there?" The pattern in `learn.client.cljc` (where many
+     defs are aliases for the sub-namespace canonical homes) makes this
+     particularly bite-y — removing a sub-namespace entry without updating
+     the aliases compiles fine in a running REPL but breaks in CI.
+  4. **When CI shows a "No such var" error on a name your local tests passed
+     on**, the cause is almost certainly stale-var-in-REPL. Don't chase the
+     symptom in CI logs first; go check whether the name is actually defined
+     in the current source.
+
 ### Fulcro UI Concepts
 
 **[Fulcro / root-component] — Tried to put `:ident` on Root**

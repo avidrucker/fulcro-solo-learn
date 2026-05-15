@@ -20,6 +20,20 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Opt the workflow into the Node-24 JavaScript-action runner. As of
+# the 2025-09-19 GitHub Actions announcement, Node 20 is deprecated
+# for action runners (sunset 2026-09-16). This env var forces every
+# JavaScript action used below (checkout / setup-java / setup-clojure /
+# setup-node / cache / upload-pages-artifact / deploy-pages) onto the
+# Node-24 runner without having to bump each action's version
+# individually. Action versions stay pinned at their current majors;
+# the runtime Node they execute on switches.
+#
+# Once Node 24 becomes the default (~2026-06-02 per GitHub's timeline)
+# this env var can be removed — it'll be the implicit behaviour.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   contents: read
   pages: write
@@ -50,7 +64,10 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 24 — matches the JS-action runner the workflow now
+          # opts into via FORCE_JAVASCRIPT_ACTIONS_TO_NODE24. Used
+          # downstream by `npm install` and `npx shadow-cljs release`.
+          node-version: '24'
 
       - name: Cache deps
         uses: actions/cache@v4
