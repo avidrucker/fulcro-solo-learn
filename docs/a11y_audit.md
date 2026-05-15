@@ -111,17 +111,17 @@ needs a localized string in all three locales:
 1. **"Include language in link" checkbox** in the save modal.
    Current label is the visible checkbox text only; users who
    tab-focus the checkbox first hear no explanation of what the
-   flag does. Tooltip should explain that the URL produced by the
-   button below it will pin recipients to the sender's current
-   app language. Working draft (needs simplification):
+   flag does. **Locked en string** (user confirmed 2026-05-15):
    > When checked, the share link will open in this app's current
    > language for whoever clicks it.
-2. **JSON import button** (file picker trigger).
+2. **JSON import button** (file picker trigger). Working draft:
+   > Click here to import a JSON file of to-do items.
 3. **Text-list import submit button** (under the textarea). Working
    draft:
-   > Click to import the typed/pasted list of to-do items.
+   > Click here to import a text list of to-do items.
 4. **Language dropdown in the settings modal**. Working draft:
-   > Pick a language to change this app's language.
+   > Select a language from this list to change this app's
+   > language.
 
 Each tooltip lives as `:tooltip/<key>` in `learn.i18n.core` with
 en/es/ja strings, and is wired as both `:title` (mouse hover) and
