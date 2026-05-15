@@ -97,16 +97,18 @@
       (sut/tr :en :tooltip/include-lang)
       => "When checked, the share link will open in this app's current language for whoever clicks it.")))
 
-(specification "tr — Phase 19l/19m a11y i18n keys"
+(specification "tr — Phase 19l/19m/19o a11y i18n keys"
   ;; 19l added the localized new-todo input placeholder + clip-label.
-  ;; 19m added the locale-aware theme-toggle direction labels. Both
-  ;; need to resolve to real translations in every locale so the
-  ;; UI flips with `:ui/locale` instead of silently rendering the
-  ;; English fallback or the raw keyword name.
+  ;; 19m added the locale-aware theme-toggle direction labels.
+  ;; 19o added the skip-link label. All need to resolve to real
+  ;; translations in every locale so the UI flips with `:ui/locale`
+  ;; instead of silently rendering the English fallback or the raw
+  ;; keyword name.
   (let [keys [:input/new-todo-placeholder
               :input/new-todo-label
               :tooltip/switch-to-dark
-              :tooltip/switch-to-light]
+              :tooltip/switch-to-light
+              :nav/skip-to-main]
         translated? (fn [locale k]
                       (let [s (sut/tr locale k)]
                         (and (string? s)

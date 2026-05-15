@@ -496,6 +496,14 @@
                                (theme/theme-text-class theme)
                                " "
                                (theme/theme-page-bg-class theme))}
+      ;; Phase 19o a11y: skip-link as the first focusable element on
+      ;; the page so keyboard users can bypass the four header icon
+      ;; buttons and land directly in the main content. Hidden
+      ;; off-screen by default; becomes visible on `:focus` via CSS
+      ;; in `app.css`. WCAG 2.1 §2.4.1 (Bypass Blocks).
+      (dom/a {:className "skip-link"
+              :href      "#main-content"}
+        (i18n/tr locale :nav/skip-to-main))
       (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
         (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
           s/app-name)
@@ -536,5 +544,11 @@
                        :onClick      #(comp/transact! this [(toggle-theme)])}
             (if (theme/dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
             (dom/span {:className "clip"} toggle-theme-lbl))))
-      (dom/section {:className "app-container relative flex flex-column flex-1"}
+      ;; Phase 19o a11y: id + tabindex make this the skip-link
+      ;; target. `tabindex="-1"` keeps the section out of the
+      ;; natural tab cycle but allows programmatic `.focus()`
+      ;; when the user activates the skip link.
+      (dom/section {:id        "main-content"
+                    :tabIndex  -1
+                    :className "app-container relative flex flex-column flex-1"}
         (when list (ui-todo-list list))))))

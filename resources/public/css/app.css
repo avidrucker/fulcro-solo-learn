@@ -201,3 +201,47 @@ input, textarea, select {
 .h0 {
   height: 0;
 }
+
+/* Phase 19o — skip link for keyboard users.
+ *
+ * Hidden off-screen by default; becomes visible (and a high-contrast
+ * focusable target) when Tab-focused. Pressing Enter sends focus to
+ * the `#main-content` section, letting keyboard users bypass the
+ * header icon buttons. WCAG 2.1 success criterion 2.4.1 (Bypass
+ * Blocks). Mouse users never see it.
+ *
+ * `position: fixed` + `top: -100px` is the cross-browser standard
+ * for "visually hidden but in the accessibility tree" — older
+ * `display: none` removes it from AT, `clip` plus a fade is
+ * unreliable across UAs. The `:focus` override scrolls it into view
+ * at the top-left of the viewport. */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 0.5rem;
+  background: white;
+  color: black;
+  padding: 0.5rem 1rem;
+  border: 2px solid black;
+  border-radius: 0.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  z-index: 1000;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Dark-theme variant. The body class flips via
+ * `learn.client.lifecycle/sync-body-theme-class!` so we can target
+ * `body.bg-black .skip-link` for the dark-mode look. Without this,
+ * the white background on the skip link clashes badly with the
+ * dark theme. */
+body.bg-black .skip-link {
+  background: black;
+  color: white;
+  border-color: white;
+}
