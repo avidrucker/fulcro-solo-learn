@@ -380,10 +380,17 @@
         :close/save                 "保存モーダルを閉じる"
         :close/delete               "削除モーダルを閉じる"}
 
-   :pt {:btn/add-item       "Adicionar Tarefa"
+   :pt {;; Page-level button labels. "Adicionar" and "Concluir" are
+        ;; verb-only (parallels "Priorizar") — chosen for brevity
+        ;; over "Adicionar Tarefa" / "Marcar como Feita" which
+        ;; wrapped past the `w4` (128px) Tachyons width into two
+        ;; lines. Verb-only reads clearly in context (button
+        ;; immediately below the new-todo input, and "Mark Done"
+        ;; targets the obvious benchmark — no ambiguity).
+        :btn/add-item       "Adicionar"
         :btn/delete-list    "Excluir Lista"
         :btn/prioritize     "Priorizar"
-        :btn/mark-done      "Marcar como Feita"
+        :btn/mark-done      "Concluir"
         :btn/yes            "Sim"
         :btn/no             "Não"
         :btn/quit           "Sair"
