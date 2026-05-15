@@ -1761,6 +1761,76 @@ logged this phase but not fixed; next-up after Phase 18 ships.
 
 ---
 
+## 🟡 Phase 19 — a11y / Section 508 audit pass
+
+Programmatic accessibility pass. Living artifact: `docs/a11y_audit.md`,
+which holds the full Section-A (in-codebase) / Section-B (user must
+run) split and the per-sub-phase notes. Below is the phases-doc
+tracking summary.
+
+**✅ 19a — Tooltip / aria-label / close-label i18n migration.** All
+button accessible names that were still hardcoded English (modal
+close-buttons, header-button tooltips, the four primary action
+buttons, six row-action variants) routed through `learn.i18n.core`
+and pulled via `i18n/tr`. Each button now has localized `:title` and
+`:aria-label` pulling the same key. Commit `7d37ea6`.
+
+**✅ 19b — Modal dialog semantics.** `modal-shell` now emits
+`role="dialog"` + `aria-modal="true"` on every modal; opt-in
+`aria-labelledby="<id-of-title>"` extension wired through to every
+caller, with stable IDs on each modal's heading/question element
+(info-modal-title, settings-modal-title, save-modal-title,
+delete-confirm-question, locale-conflict-question,
+list-conflict-question, review-question). Commit `bb0e44b`.
+
+**✅ 19c — `<html lang>` sync.** New
+`learn.client.lifecycle/sync-html-lang!` /
+`install-html-lang-sync!` pair (CLJS-only, parallel to the body-theme
+watch) keeps `<html lang>` aligned with `[:list/id 1 :ui/locale]` so
+screen readers pick the right voice. Mapping is locale-keyword
+`name` → IETF tag (1:1 for :en/:es/:ja). Commit `e445453`.
+
+**✅ 19d — Decorative SVG icons.** `learn.ui.icons/svg-attrs` now
+sets `aria-hidden="true"` + `focusable="false"`, applied via merge
+to all eleven icons (status icons, header icons, lightbulbs, gear,
+cancel-x, repeat-arrow). Prevents screen readers from double-reading
+button labels alongside a generic "graphic" announcement.
+
+**⬜ 19e — Localized tooltips on bare interactive controls** (queued).
+Four controls lack `title` / `aria-label` entirely: the
+"Include language in link" checkbox, the JSON import button, the
+text-list import submit button, and the language dropdown. Add four
+`:tooltip/<key>` strings × three locales and wire each as both
+`:title` and `:aria-label`.
+
+**⬜ 19f — Status-icon accessible names** (queued). Now that the
+status SVG itself is `aria-hidden`, the wrapping `<span>` has no
+announceable text, so screen reader users get no status info per
+row. Move to a `role="img"` + localized `aria-label` for the
+status indicator span. Cancelled rows announce both state and
+prior-state.
+
+**⬜ 19g — Focus management on modal open / close** (queued). On
+open, move focus inside the modal; on close, restore. Lowest-cost
+first pass: focus-the-heading + restore.
+
+**⬜ 19h — Escape-to-close on dismissible modals** (queued).
+Info / Settings / Save / Delete-confirm. List-conflict and
+locale-conflict remain non-dismissible by design.
+
+**⬜ 19i — Keyboard-only navigation sweep** (queued — partly user
+work, see Section B-5).
+
+**⬜ 19j — Color-contrast pass on dark theme** (queued — measure
+first, then fix; see Section B-8).
+
+The Section-B handoff list (Lighthouse, axe, WAVE, NVDA/VoiceOver,
+keyboard, zoom, reduced-motion, contrast measurement) lives in
+`docs/a11y_audit.md` and tracks as `S-ux-a11y-review-pass` in
+`docs/user_stories.md`.
+
+---
+
 ## Optional / out of arc
 
 - **DataScript swap.** Replace the atom-as-database with DataScript.

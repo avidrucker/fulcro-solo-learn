@@ -18,9 +18,21 @@
 
 (def svg-attrs
   "Shared SVG root attributes — every icon is a circle/glyph that
-   inherits color from the surrounding text."
-  {:xmlns "http://www.w3.org/2000/svg"
-   :fill  "currentColor"})
+   inherits color from the surrounding text.
+
+   Phase 19d a11y: `aria-hidden=\"true\"` marks every icon as
+   decorative. Each icon ships inside a parent (button or labeled
+   span) that already carries its own accessible name via
+   `aria-label`/`title`, so without `aria-hidden` a screen reader
+   would announce the SVG as a separate \"graphic\" alongside the
+   button's label — duplicate noise. `focusable=\"false\"` guards
+   against legacy-IE/Edge behavior that made inline SVGs part of
+   the keyboard tab order; benign in modern browsers, required
+   for older AT/browser combinations."
+  {:xmlns        "http://www.w3.org/2000/svg"
+   :fill         "currentColor"
+   :aria-hidden  "true"
+   :focusable    "false"})
 
 ;; ----------------------------------------------------------------------
 ;; Status icons (TodoItem's `statusToSymbol`)
