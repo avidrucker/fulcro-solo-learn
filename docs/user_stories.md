@@ -348,6 +348,52 @@ language I picked should still be active. Implemented by joining
 `:ui/locale` to `learn.util.storage/ui-prefs-whitelist` so the same
 storage watch that persists theme also persists locale.
 
+### S-i18n-url-locale — `?lang=<code>` URL parameter sets initial language
+**Phase:** 14
+**Status:** ✅ (parser + precedence rule tested); 🟢 (window.location read + state mutation is browser-manual)
+**Tests:** `util.url-encoding-test:locale-from-url-search` (happy paths covering `:en` / `:es` / `:ja`, case-insensitive code, coexistence with `?list=`; failure paths covering unsupported / empty / malformed input).
+
+**As a user**, when I follow a link like `…/?lang=es` to the app
+for the first time, the UI should open in Spanish so I can read
+it. But if I've already used the app and set my preferred
+language to Japanese, that preference should NOT be overridden by
+someone else's `?lang=es` link — my saved choice wins.
+
+**Precedence rule** (highest-priority signal first):
+
+```
+localStorage :ui/locale  >  URL ?lang=<code>  >  :en (default)
+```
+
+Implementation lives in
+`learn.client.lifecycle/install-url-locale-fallback!`. On
+`init` (CLJS branch), AFTER
+`storage/install-ui-prefs-persistence!` has hydrated the saved
+preference:
+- If localStorage's ui-prefs slice already contains
+  `:ui/locale`, do nothing (saved preference wins).
+- Else, if the URL has a valid `?lang=<code>` with `<code>` in
+  `i18n/supported-locales`, set `:ui/locale` to that. The
+  storage-watch (already installed) saves the URL-derived
+  locale on the next state change, so the visitor's first-load
+  choice becomes their saved preference for subsequent visits.
+
+**Sharing semantics**:
+- The Copy List URL feature does NOT include `?lang=`. Shared
+  list links (`?list=…`) load with the recipient's saved
+  locale, never overriding their preference.
+- Locale-specific links are an explicit, opt-in action: a
+  publisher writes `…/?lang=ja` for their Japanese audience;
+  the link only takes effect on visitors who haven't already
+  chosen a language.
+
+**Edge cases**:
+- `?lang=ES` (uppercase) → normalised to `:es`.
+- `?lang=fr` (unsupported) → ignored; visitor sees `:en`
+  default or their saved preference.
+- `?list=…&lang=es` (both params) → list loads, locale rule
+  applies the same way (only when localStorage is empty).
+
 ---
 
 ## Inputs and keyboard

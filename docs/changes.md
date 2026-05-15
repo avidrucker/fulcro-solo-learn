@@ -258,6 +258,27 @@ option style is the de-facto cross-browser fix.
 
 **Where:** `learn.client.ui.modals/settings-modal`.
 
+### Locale can be hinted via `?lang=<code>` URL parameter
+
+**Difference:** First-time visitors following a URL like
+`/?lang=es` open the app in Spanish (or `:ja` for Japanese);
+subsequent visits use whatever the visitor saved via the
+Settings dropdown. The JS port has no localisation at all.
+
+**Why:** Phase 14. Lets publishers write locale-specific
+landing links ("here's the app in Japanese — `…/?lang=ja`")
+without forcing that locale onto recipients of separate list-
+share links. The precedence rule
+(`localStorage > URL > :en default`) means saved preferences
+always win, so `?list=…` share-links never override the
+recipient's chosen language.
+
+**Where:** `learn.util.url-encoding/locale-from-url-search`
+(pure parser); `learn.util.url-encoding/locale-from-current-url`
+(CLJS wrapper); `learn.client.lifecycle/install-url-locale-fallback!`
+(applies the URL value only when localStorage has no saved
+preference); call site in `learn.client/init` CLJS branch.
+
 ### Service worker bypasses cache for `/js/main/*` on localhost
 
 **Difference:** The SW's cache-first branch skips

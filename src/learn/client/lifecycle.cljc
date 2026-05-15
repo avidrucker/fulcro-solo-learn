@@ -13,7 +13,9 @@
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.client.session :as session]
-    [learn.review.chart :as chart]))
+    [learn.review.chart :as chart]
+    [learn.util.storage :as storage]
+    [learn.util.url-encoding :as url-encoding]))
 
 (defonce SPA
   ;; Holds the live app instance. defonce so reloading the namespace
@@ -66,3 +68,28 @@
   [spa todo-item-class]
   (df/load! spa :all-todos todo-item-class
     {:target [:list/id 1 :list/todos]}))
+
+(defn install-url-locale-fallback!
+  "Phase 14 — apply `?lang=<code>` from the page URL ONLY when the
+   user has no saved locale preference yet. Precedence rule:
+
+     localStorage  >  URL ?lang=  >  :en default
+
+   Implementation: read the raw ui-prefs slice from localStorage
+   (bypasses the in-memory state which already shows the `:en`
+   initial-state default). If that slice doesn't contain
+   `:ui/locale`, treat the user as first-time and apply the URL
+   value if present. The persistence watch (installed earlier in
+   `init` via `storage/install-ui-prefs-persistence!`) will save
+   the URL-derived locale to localStorage on the next swap, so a
+   future visit picks it up as a saved preference.
+
+   JVM: no-op (the headless test suite doesn't use URL params for
+   locale). The CLJS branch is the real path."
+  [fulcro-state-atom]
+  #?(:cljs
+     (let [saved-locale (some-> (storage/load-ui-prefs!) :ui/locale)]
+       (when (nil? saved-locale)
+         (when-let [url-locale (url-encoding/locale-from-current-url)]
+           (swap! fulcro-state-atom
+             assoc-in [:list/id 1 :ui/locale] url-locale))))))

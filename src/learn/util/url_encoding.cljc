@@ -24,6 +24,7 @@
      `list-share-url`    — wrap a segment into a shareable URL"
   (:require
     [clojure.string :as str]
+    [learn.i18n.core :as i18n]
     [learn.util.normalized :as norm])
   #?(:clj (:import (java.util Base64))))
 
@@ -405,6 +406,58 @@
       back to seed / localStorage."
      []
      (items-from-query-string (.-search js/window.location))))
+
+;; ============================================================================
+;; Phase 14 — `?lang=<code>` query-param locale (S-i18n-url-locale).
+;;
+;; Standalone helpers (don't share infrastructure with the `?list=`
+;; pipeline). Could be extracted to a separate ns if more
+;; query-param features land, but at this scale colocating with the
+;; other URL-parsing fns keeps the touchpoints to one file.
+;; ============================================================================
+
+(defn- parse-lang-param
+  "Pure: extract the value of `?lang=<value>` from a URL query string.
+   Returns the raw value or nil if absent. Same shape contract as
+   `parse-list-param`. Lowercased so `?lang=ES` matches `:es`."
+  [query-string]
+  (when (string? query-string)
+    (let [s (if (.startsWith ^String query-string "?")
+              (subs query-string 1)
+              query-string)]
+      (some (fn [pair]
+              (let [[k v] (str/split pair #"=" 2)]
+                (when (= "lang" k)
+                  (when (and v (seq v))
+                    (str/lower-case v)))))
+        (str/split s #"&")))))
+
+(defn locale-from-url-search
+  "Pure: parse a URL query string and return a supported locale
+   keyword (`:en` / `:es` / `:ja`), or nil if no valid `?lang=<code>`
+   is present.
+
+   Validation: the value must be present, non-empty, and the
+   lowercased value as a keyword must be in
+   `learn.i18n.core/supported-locales`. Unsupported codes (`fr`,
+   `42`, etc.) return nil so the caller falls through to the
+   localStorage / default path — matches the Phase 14 precedence
+   rule (localStorage > URL > :en)."
+  [query-string]
+  (when-let [raw (parse-lang-param query-string)]
+    (let [kw (keyword raw)]
+      (when (contains? i18n/supported-locales kw)
+        kw))))
+
+#?(:cljs
+   (defn locale-from-current-url
+     "Read `window.location.search` and parse `?lang=` into a
+      supported locale keyword. Returns nil if absent or
+      unsupported — caller falls back to the saved preference or
+      `:en` default. CLJS-only counterpart to the JVM-testable
+      `locale-from-url-search`."
+     []
+     (locale-from-url-search (.-search js/window.location))))
 
 (defn install-url-sync!
   "Watch `fulcro-state-atom`. When the denormalized items at

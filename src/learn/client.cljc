@@ -237,6 +237,13 @@
        ;; correct from the very first frame the user sees.
        (storage/install-ui-prefs-persistence!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 14 — apply ?lang= ONLY when localStorage has no
+       ;; :ui/locale yet (first-time visitor). localStorage > URL > :en.
+       ;; Runs AFTER install-ui-prefs-persistence! so the save-watch
+       ;; is in place to persist the URL-derived locale on the next
+       ;; swap (visitor's choice becomes their saved preference).
+       (lifecycle/install-url-locale-fallback!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Same hook point: keep `document.body.className` in sync with
        ;; the active theme so the browser's canvas bg matches the theme
        ;; even when the list overflows the viewport.

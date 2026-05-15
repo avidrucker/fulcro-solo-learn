@@ -348,6 +348,43 @@
     "list= with empty value — returns empty string (caller filters)"
     (sut/parse-list-param "?list=") => ""))
 
+;; ============================================================================
+;; Phase 14 — locale from URL query string. See S-i18n-url-locale.
+;; ============================================================================
+
+(specification "locale-from-url-search"
+  (component "happy paths — returns a supported locale keyword"
+    (assertions
+      "?lang=es"
+      (sut/locale-from-url-search "?lang=es") => :es
+      "?lang=ja"
+      (sut/locale-from-url-search "?lang=ja") => :ja
+      "?lang=en"
+      (sut/locale-from-url-search "?lang=en") => :en
+      "uppercase code is normalised"
+      (sut/locale-from-url-search "?lang=ES") => :es
+      "coexists with ?list= — order doesn't matter"
+      (sut/locale-from-url-search "?list=JTVCJTVE&lang=es") => :es
+      (sut/locale-from-url-search "?lang=es&list=JTVCJTVE") => :es
+      "no leading `?`"
+      (sut/locale-from-url-search "lang=es") => :es))
+
+  (component "unsupported / malformed input returns nil"
+    (assertions
+      "unsupported locale (fr not in i18n/supported-locales)"
+      (sut/locale-from-url-search "?lang=fr") => nil
+      "empty value"
+      (sut/locale-from-url-search "?lang=") => nil
+      "absent param"
+      (sut/locale-from-url-search "?list=JTVCJTVE") => nil
+      "empty string"
+      (sut/locale-from-url-search "") => nil
+      "nil"
+      (sut/locale-from-url-search nil) => nil
+      "non-letter code (defensive — caller never builds these but we
+       guard anyway)"
+      (sut/locale-from-url-search "?lang=42") => nil)))
+
 (specification "items-from-query-string"
   (component "happy path round-trip"
     (assertions
