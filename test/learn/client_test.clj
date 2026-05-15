@@ -1317,10 +1317,13 @@
     (server/seed!)
     (let [spa (sut/init)
           start-theme (get-in (app/current-state spa) [:list/id 1 :ui/theme])
-          _   (h/click-on-text! spa "Toggle Theme")
+          ;; Phase 19m: toggle accessible name is direction-aware.
+          ;; First click finds "Switch to dark mode" (light is active);
+          ;; second finds "Switch to light mode" (dark is active).
+          _   (h/click-on-text! spa "Switch to dark mode")
           _   (h/render-frame! spa)
           mid-theme   (get-in (app/current-state spa) [:list/id 1 :ui/theme])
-          _   (h/click-on-text! spa "Toggle Theme")
+          _   (h/click-on-text! spa "Switch to light mode")
           _   (h/render-frame! spa)
           end-theme   (get-in (app/current-state spa) [:list/id 1 :ui/theme])]
       (assertions
@@ -1509,7 +1512,8 @@
           _   (h/click-on-text! spa "Prioritize")
           _   (h/render-frame! spa)
           theme-before (get-in (app/current-state spa) [:list/id 1 :ui/theme])
-          _   (h/click-on-text! spa "Toggle Theme")
+          ;; Phase 19m: direction-aware label. Light is active here.
+          _   (h/click-on-text! spa "Switch to dark mode")
           _   (h/render-frame! spa)
           theme-after  (get-in (app/current-state spa) [:list/id 1 :ui/theme])]
       (assertions
@@ -1543,7 +1547,8 @@
     (let [spa (sut/init)
           _   (h/click-on-text! spa "Delete List")
           _   (h/render-frame! spa)
-          _   (h/click-on-text! spa "Toggle Theme")
+          ;; Phase 19m: direction-aware label. Light is active here.
+          _   (h/click-on-text! spa "Switch to dark mode")
           _   (h/render-frame! spa)
           db  (app/current-state spa)]
       (assertions

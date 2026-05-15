@@ -314,16 +314,25 @@
           ;; placeholder text + maxlength come from `rad-attrs/text`
           ;; instead of being hard-coded here. The visible behaviour
           ;; is identical; the *source of truth* moved.
-          ;; The hidden label is still emitted (with "New TODO:" via
-          ;; the attribute's `:field/label`) so
+          ;; The hidden label is still emitted via :label-text so
           ;; `h/type-into-labeled!` still finds the input by label.
+          ;;
+          ;; Phase 19l a11y/i18n: both the placeholder (visible) and
+          ;; the clip-hidden label (accessible name for AT) flip with
+          ;; `:ui/locale`. Previously hardcoded English regardless of
+          ;; locale — Spanish / Japanese users heard "New TODO:" on
+          ;; focus and saw "Type new task here" in the empty input.
+          ;; The headless test still finds the input via the literal
+          ;; English label-text because tests run in :en (the test
+          ;; suite never flips locale during a render).
           (rad-input/text-input rad-attrs/text
             {:this        this
              :state-key   :ui/new-todo-text
              :value       new-todo-text
              :class-name  (theme/input-class theme)
              :input-id    new-todo-input-id
-             :label-text  "New TODO:"})
+             :label-text  (i18n/tr locale :input/new-todo-label)
+             :placeholder (i18n/tr locale :input/new-todo-placeholder)})
           ;; Phase 7.9: page-level error message. Only rendered when
           ;; `:ui/err-msg` is truthy; the JS port uses red copy for
           ;; immediate visual cue.
@@ -467,7 +476,16 @@
         menu-disabled?   (or review-active?
                            (contains? #{:delete-confirm :conflict :locale-conflict}
                              open-modal))
-        toggle-theme-lbl (i18n/tr locale :tooltip/toggle-theme)]
+        ;; Phase 19m a11y: direction-aware label for the theme toggle.
+        ;; The icon flip already signals state to sighted users; AT
+        ;; users get "Switch to <other-mode>" so they know what
+        ;; pressing the button will do. The generic
+        ;; `:tooltip/toggle-theme` key remains in the registry for
+        ;; backwards compatibility but is no longer the toggle's
+        ;; accessible name.
+        toggle-theme-lbl (i18n/tr locale (if (theme/dark? theme)
+                                           :tooltip/switch-to-light
+                                           :tooltip/switch-to-dark))]
     (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
                                ;; Phase 12.1 (B-6 fix): bottom padding so the
                                ;; user can tell they've scrolled to the end of
@@ -503,10 +521,19 @@
         ;; `type="button"` per the JS port (and defensive against any
         ;; future enclosing <form>).
         (dom/div {:className (theme/header-icon-wrapper-class {})}
-          (dom/button {:type      "button"
-                       :className theme/header-icon-btn-class
-                       :title     toggle-theme-lbl
-                       :onClick   #(comp/transact! this [(toggle-theme)])}
+          (dom/button {:type         "button"
+                       :className    theme/header-icon-btn-class
+                       :title        toggle-theme-lbl
+                       :aria-label   toggle-theme-lbl
+                       ;; Phase 19m a11y: aria-pressed announces the
+                       ;; explicit toggle state. "true" when dark mode
+                       ;; is active (toggle is "engaged"), "false"
+                       ;; when light mode is active. Screen readers
+                       ;; say "Switch to light mode, toggle button,
+                       ;; pressed" so the user hears both the action
+                       ;; and the current state.
+                       :aria-pressed (if (theme/dark? theme) "true" "false")
+                       :onClick      #(comp/transact! this [(toggle-theme)])}
             (if (theme/dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
             (dom/span {:className "clip"} toggle-theme-lbl))))
       (dom/section {:className "app-container relative flex flex-column flex-1"}

@@ -32,10 +32,10 @@
   "Render a text `<input>` driven by `attribute`'s metadata.
 
    Reads:
-     `:field/label`      — used as `:placeholder` (our app's only
-                           visible label-equivalent — the actual
-                           `<label>` is `clip`-hidden for headless
-                           tests, see `client.cljc` comment).
+     `:field/label`      — fallback `:placeholder` when the call site
+                           doesn't pass `:placeholder` explicitly. The
+                           visible `<label>` is `clip`-hidden for
+                           headless tests, see `client.cljc` comment.
      `:field/maxlength`  — `:maxLength` on the `<input>`.
 
    Required call-site props:
@@ -46,20 +46,28 @@
      `:class-name`  — Tachyons class string for theming.
      `:input-id`    — DOM id for the `<input>` (used by the hidden
                       `<label htmlFor>` for headless test access).
+
+   Optional:
      `:label-text`  — text inside the `clip`-hidden `<label>` so
-                      `h/type-into-labeled!` can find it. Defaults
-                      to the attribute's `:field/label`.
+                      `h/type-into-labeled!` can find it AND screen
+                      readers announce a name for the input. Defaults
+                      to the attribute's `:field/label`. Phase 19l —
+                      pass a localized string here.
+     `:placeholder` — placeholder text on the `<input>`. Defaults to
+                      the attribute's `:field/label`. Phase 19l —
+                      pass a localized string here.
 
    Returns the `<label>` + `<input>` pair as a Fulcro `fragment` so
    call sites can drop it inline into their form markup."
   [attribute
-   {:keys [this state-key value class-name input-id label-text]
-    :or   {label-text (:field/label attribute)}}]
+   {:keys [this state-key value class-name input-id label-text placeholder]
+    :or   {label-text  (:field/label attribute)
+           placeholder (:field/label attribute)}}]
   (comp/fragment
     (dom/label {:htmlFor input-id :className "clip"} label-text)
     (dom/input {:id          input-id
                 :className   class-name
-                :placeholder (:field/label attribute)
+                :placeholder placeholder
                 :maxLength   (:field/maxlength attribute)
                 :value       (or value "")
                 :onChange    #(m/set-string! this state-key :event %)})))
