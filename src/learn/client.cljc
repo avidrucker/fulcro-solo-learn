@@ -258,6 +258,11 @@
        ;; screen readers pick the right voice / pronunciation.
        (lifecycle/install-html-lang-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 19g a11y: focus management on modal open/close.
+       (lifecycle/install-modal-focus-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 19h a11y: Escape closes dismissible modals.
+       (lifecycle/install-escape-to-close! spa)
        ;; Phase 7.16: URL sync — write the current list to
        ;; ?list=<encoded> on every items change so the address bar can
        ;; be copied directly (not just via the Copy List URL button).

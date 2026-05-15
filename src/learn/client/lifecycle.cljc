@@ -10,12 +10,21 @@
    Each fn is public so `learn.client/init` can call them without
    reaching into a private."
   (:require
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.statecharts.integration.fulcro :as scf]
     [learn.client.session :as session]
     [learn.review.chart :as chart]
     [learn.util.storage :as storage]
     [learn.util.url-encoding :as url-encoding]))
+
+;; Phase 19g/19h a11y — declare the modal-close mutation by qualified
+;; name so we can `transact!` from the lifecycle layer without pulling
+;; in `learn.client` (which would create a cycle). The mutation itself
+;; is defined in `learn.client` and resolved at dispatch time, after
+;; both namespaces have loaded.
+(m/declare-mutation set-open-modal learn.client/set-open-modal)
 
 (defonce SPA
   ;; Holds the live app instance. defonce so reloading the namespace
@@ -88,6 +97,119 @@
                  new-locale (locale-of new-state)]
              (when (not= old-locale new-locale)
                (sync-html-lang! new-locale))))))))
+
+;; ============================================================================
+;; Phase 19g/19h a11y — modal focus management + Escape-to-close
+;; ============================================================================
+
+(def ^:private modal-id->heading-id
+  "Phase 19g — maps a `:ui/open-modal` value to the DOM `id` of the
+   heading/question element inside that modal (set in Phase 19b for
+   `aria-labelledby`). Focus management uses this id to focus the
+   correct heading when the modal mounts."
+  {:info            "info-modal-title"
+   :settings        "settings-modal-title"
+   :save            "save-modal-title"
+   :delete-confirm  "delete-confirm-question"
+   :conflict        "list-conflict-question"
+   :locale-conflict "locale-conflict-question"})
+
+(def ^:private dismissible-modals
+  "Phase 19h — modals that close on Escape. The two conflict modals
+   are excluded by design: the user MUST resolve the conflict, no
+   silent dismissal."
+  #{:info :settings :save :delete-confirm})
+
+#?(:cljs
+   (defonce ^:private prev-focus-element
+     ;; Snapshot of `document.activeElement` at the moment a modal
+     ;; opens, so we can restore focus on close. defonce so a
+     ;; hot-reload mid-modal doesn't lose the snapshot.
+     (atom nil)))
+
+#?(:cljs
+   (defn- focus-modal-heading!
+     "Locate the modal's heading element by id and focus it. Deferred
+      via `setTimeout 0` so React has a tick to mount the modal DOM
+      first. Adds `tabindex=-1` if missing — programmatically
+      focusable, but not inserted into the natural tab cycle."
+     [modal-id]
+     (when-let [heading-id (get modal-id->heading-id modal-id)]
+       (js/setTimeout
+         (fn []
+           (when-let [el (.getElementById js/document heading-id)]
+             (when-not (.hasAttribute el "tabindex")
+               (.setAttribute el "tabindex" "-1"))
+             (.focus el)))
+         0))))
+
+#?(:cljs
+   (defn- restore-previous-focus!
+     "Re-focus whatever element had focus before the modal opened.
+      No-op if the previous element is gone (e.g. unmounted)."
+     []
+     (when-let [prev @prev-focus-element]
+       (try
+         (.focus prev)
+         (catch :default _e nil))
+       (reset! prev-focus-element nil))))
+
+#?(:cljs
+   (defn install-modal-focus-sync!
+     "Phase 19g a11y — focus management on modal open/close.
+
+      On open (transition :none → modal-id):
+        - Snapshot `document.activeElement`.
+        - On next tick (so React mounts the modal first), focus the
+          modal's heading element by id. Set `tabindex=-1` if missing
+          so the heading is programmatically focusable.
+      On close (transition modal-id → :none):
+        - Restore focus to the previously-active element.
+      On modal-to-modal transition (rare):
+        - Focus the new modal's heading; previous snapshot survives.
+
+      Covers the six `:ui/open-modal`-driven modals. The review modal
+      is statechart-driven and is NOT covered — future work."
+     [fulcro-state-atom]
+     (let [open-of (fn [s] (get-in s [:list/id 1 :ui/open-modal] :none))]
+       (add-watch fulcro-state-atom ::modal-focus
+         (fn [_k _ref old-state new-state]
+           (let [old-modal (open-of old-state)
+                 new-modal (open-of new-state)]
+             (when (not= old-modal new-modal)
+               (cond
+                 (and (= old-modal :none) (not= new-modal :none))
+                 (do
+                   (reset! prev-focus-element (.-activeElement js/document))
+                   (focus-modal-heading! new-modal))
+
+                 (and (not= old-modal :none) (= new-modal :none))
+                 (restore-previous-focus!)
+
+                 :else
+                 (focus-modal-heading! new-modal)))))))))
+
+#?(:cljs
+   (defn install-escape-to-close!
+     "Phase 19h a11y — window-level keydown listener that closes the
+      current `:ui/open-modal` on Escape, but only for dismissible
+      modals (`dismissible-modals` set). The two conflict modals stay
+      non-dismissible by design.
+
+      Dispatched via the Fulcro mutation pipeline (`set-open-modal`)
+      so any future side effects of closing — persistence, statechart
+      events — stay consistent with the background-click and
+      close-button paths."
+     [spa]
+     (let [state-atom (:com.fulcrologic.fulcro.application/state-atom spa)]
+       (.addEventListener js/window "keydown"
+         (fn [e]
+           (when (= "Escape" (.-key e))
+             (let [open-modal (get-in @state-atom [:list/id 1 :ui/open-modal] :none)]
+               (when (contains? dismissible-modals open-modal)
+                 (.preventDefault e)
+                 (comp/transact! spa
+                   [(set-open-modal {:ui/open-modal :none})])))))))))
 
 (defn load-todos!
   "Initial load that populates `:list/todos` from the in-process Pathom
