@@ -73,6 +73,26 @@
   [theme]
   (if (dark? theme) "bg-dark-gray white" "bg-moon-gray black"))
 
+(defn theme-primary-dim-btn-suffix
+  "Phase 19j — dim variant of `theme-primary-btn-suffix`. Replaces
+   the previous `o-50`-opacity approach (active suffix + 50%
+   opacity) with an explicit lighter-bg + lighter-text combo. The
+   opacity pattern halved contrast below the WCAG AA 4.5:1
+   threshold (axe measured 3.16:1 on the dim buttons); explicit
+   color classes preserve readability while still distinguishing
+   the dim state visually from active.
+
+   Divergence note: the JS port uses `o-50` here. We diverge for
+   a11y compliance — sighted users still see a clearly muted
+   button, AT users get a button announcement with normal
+   contrast.
+
+   Contrast targets met:
+     - Light: `dark-gray` (#333) on `light-gray` (#eee) ≈ 11.6:1
+     - Dark:  `near-white` (#f4f4f4) on `mid-gray` (#555) ≈ 7.1:1"
+  [theme]
+  (if (dark? theme) "bg-mid-gray near-white" "bg-light-gray dark-gray"))
+
 (defn theme-icon-btn-color
   "Theme-suffix for per-row Cancel/Clone icon buttons."
   [theme]
@@ -99,12 +119,15 @@
        " pa2 ph1 pointer grow"))
 
 (defn btn-primary-dim-class
-  "Disabled/dimmed variant — same theme suffix, no `pointer grow`,
-   `o-50` opacity for the visual."
+  "Disabled/dimmed variant — Phase 19j swapped the previous
+   `theme-primary-btn-suffix + o-50` (which measured 3.16:1
+   contrast — below WCAG AA 4.5:1) for an explicit
+   lighter-bg + lighter-text suffix that stays above 7:1 in
+   both themes."
   [theme]
   (str "br3 w4 fw6 ba bw1 b--gray button-reset "
-       (theme-primary-btn-suffix theme)
-       " pa2 ph1 o-50"))
+       (theme-primary-dim-btn-suffix theme)
+       " pa2 ph1"))
 
 (defn input-class
   "Theme-aware new-todo input class string."

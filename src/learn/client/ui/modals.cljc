@@ -195,10 +195,16 @@
     (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/instructions-2))
     (dom/p {:className "pb3 ma0 lh-135"}
       (i18n/tr locale :info/report-issues)
+      ;; Phase 19j a11y: `blue` (#357edd) on white was 4.05:1 — just
+      ;; under WCAG AA's 4.5:1 target. `dark-blue` (#00449e) raises
+      ;; the light-theme link contrast to ~10:1; `light-blue` (#96ccff)
+      ;; preserves a readable link color in dark mode where the
+      ;; underlying modal bg is near-black.
       (dom/a {:href   s/link-issues-href
               :target "_blank"
               :rel    "noopener noreferrer"
-              :className "link underline blue hover-orange"}
+              :className (str "link underline hover-orange "
+                              (if (theme/dark? theme) "light-blue" "dark-blue"))}
         s/link-issues-text))
     (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :info/click-i-circle))))
 

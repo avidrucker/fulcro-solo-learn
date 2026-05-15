@@ -174,65 +174,52 @@ test.describe('19g + 19h — dismissible modal focus + Escape', () => {
 // ---------------------------------------------------------------------------
 // axe-core — automated WCAG rule checks
 //
-// One scan per page state. The default ruleset is WCAG 2.1 AA.
-//
-// Strategy: assert NO violations OTHER THAN the known Phase 19j contrast
-// failures on dimmed buttons (`.bg-moon-gray.black` at 3.16:1 vs. the
-// 4.5:1 AA target). The first axe run surfaced these as expected — they
-// are the exact gap that Phase 19j is queued to address.
-//
-// The contrast finding is filtered out here so the suite passes;
-// removing the filter once 19j ships will let the suite catch any new
-// regression. Other axe rules (missing labels, missing roles,
-// duplicate ids, etc.) still fail loudly.
+// One scan per page state. The default ruleset is WCAG 2.1 AA. The
+// suite asserts ZERO violations at each state. (Phase 19j fixed the
+// dim-button contrast that the first run surfaced — see commit notes.)
 // ---------------------------------------------------------------------------
 
-/**
- * Run an axe scan and return only the violations that are NOT the known
- * Phase 19j color-contrast gap. Anything else fails the test.
- */
-async function unexpectedViolations(page) {
+async function axeViolations(page) {
   const results = await new AxeBuilder({ page }).analyze();
-  return results.violations.filter((v) => v.id !== 'color-contrast');
+  return results.violations;
 }
 
 test.describe('axe-core scans', () => {
-  test('initial page: no unexpected a11y violations (19j contrast is known)', async ({ page }) => {
+  test('initial page has zero a11y violations', async ({ page }) => {
     await page.goto('');
-    expect(await unexpectedViolations(page)).toEqual([]);
+    expect(await axeViolations(page)).toEqual([]);
   });
 
-  test('Info modal open: no unexpected violations', async ({ page }) => {
+  test('Info modal open: zero violations', async ({ page }) => {
     await page.goto('');
     await page.getByRole('button', { name: /^Info$/i }).click();
     await expect(page.locator('#info-modal-title')).toBeFocused();
-    expect(await unexpectedViolations(page)).toEqual([]);
+    expect(await axeViolations(page)).toEqual([]);
   });
 
-  test('Settings modal open: no unexpected violations', async ({ page }) => {
+  test('Settings modal open: zero violations', async ({ page }) => {
     await page.goto('');
     await page.getByRole('button', { name: /^Settings$/i }).click();
     await expect(page.locator('#settings-modal-title')).toBeFocused();
-    expect(await unexpectedViolations(page)).toEqual([]);
+    expect(await axeViolations(page)).toEqual([]);
   });
 
-  test('Save modal open: no unexpected violations', async ({ page }) => {
+  test('Save modal open: zero violations', async ({ page }) => {
     await page.goto('');
     await page.getByRole('button', { name: /Import\/Export/i }).click();
     await expect(page.locator('#save-modal-title')).toBeFocused();
-    expect(await unexpectedViolations(page)).toEqual([]);
+    expect(await axeViolations(page)).toEqual([]);
   });
 
-  test('Delete-confirm open: no unexpected violations', async ({ page }) => {
+  test('Delete-confirm open: zero violations', async ({ page }) => {
     await page.goto('');
-    // Need a non-empty list to reach the Delete-confirm modal. See
-    // the matching note in the 19g+19h block above.
+    // Non-empty list precondition (see 19g+19h block).
     await page.getByRole('textbox', { name: /New TODO/i }).fill('placeholder');
     await page.getByRole('button', { name: /Add Item/i }).click();
 
     await page.getByRole('button', { name: /Delete List/i }).click();
     await expect(page.locator('#delete-confirm-question')).toBeFocused();
-    expect(await unexpectedViolations(page)).toEqual([]);
+    expect(await axeViolations(page)).toEqual([]);
   });
 });
 
