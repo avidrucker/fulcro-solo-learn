@@ -1864,6 +1864,34 @@ The render condition `(when err-msg ...)` is unchanged — the
 node only exists while there's an error, which is the correct
 shape for `role="alert"`.
 
+**✅ 19l — Localize new-todo input placeholder + accessible
+name.** The page-level new-todo input had a hardcoded English
+placeholder ("Type new task here") AND a hardcoded English
+clip-hidden label ("New TODO:") regardless of locale —
+Spanish / Japanese users got an English-named input on focus
+and an English placeholder when the field was empty.
+
+Added two i18n keys × three locales
+(`:input/new-todo-placeholder`, `:input/new-todo-label`) and
+extended `learn.rad.input/text-input` with an optional
+`:placeholder` override (was previously fixed to the attribute's
+`:field/label`). Call site passes both keys via `(i18n/tr locale
+...)` so the strings flip with `:ui/locale`.
+
+**✅ 19m — Theme-toggle direction labeling + aria-pressed.**
+The theme-toggle button's accessible name was "Toggle Theme"
+regardless of state. Now reads "Switch to dark mode" (when
+light is active) / "Switch to light mode" (when dark is
+active), localized. Also added `aria-pressed="true"` when dark
+mode is active, `"false"` when light is active — the explicit
+ARIA toggle-state announcement that complements the icon flip
+(which is aria-hidden, so AT users can't infer state from it).
+
+The generic `:tooltip/toggle-theme` key stays in the registry
+for back-compat (other callers may exist in future), but the
+toggle button itself now uses the direction-aware pair
+`:tooltip/switch-to-dark` / `:tooltip/switch-to-light`.
+
 **⬜ 19i — Keyboard-only navigation sweep** (queued — partly user
 work, see Section B-5).
 

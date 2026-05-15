@@ -277,6 +277,52 @@ With NVDA / VoiceOver running:
 
 ---
 
+## Phase 19l — localized new-todo input
+
+The page-level new-todo input's placeholder + clip-hidden label
+now flip with `:ui/locale`.
+
+### 19l.1 Placeholder switches with locale
+- [ ] English: empty input shows "Type new task here".
+- [ ] Spanish: empty input shows "Escribe una nueva tarea aquí".
+- [ ] Japanese: empty input shows "ここに新しいタスクを入力".
+
+### 19l.2 Screen reader announces the localized label
+With NVDA / VoiceOver:
+- [ ] Tab to the new-todo input in each locale. The announced
+      name should be "New TODO:" / "Nueva tarea:" / "新しいToDo:"
+      respectively.
+
+---
+
+## Phase 19m — theme-toggle direction labeling + aria-pressed
+
+### 19m.1 Tooltip switches with state
+- [ ] In **light** mode, hover the lightbulb icon. Tooltip is
+      "Switch to dark mode" (or es/ja equivalent).
+- [ ] Click → mode flips to dark; the lightbulb icon also flips
+      (solid → outline). Hover again. Tooltip is now "Switch to
+      light mode".
+- [ ] Repeat in Spanish: "Cambiar a modo oscuro" / "Cambiar a
+      modo claro".
+- [ ] Repeat in Japanese: "ダークモードに切り替える" /
+      "ライトモードに切り替える".
+
+### 19m.2 aria-pressed announces the toggle state
+Inspect the toggle button via DevTools:
+- [ ] In light mode, `aria-pressed="false"`.
+- [ ] In dark mode, `aria-pressed="true"`.
+
+### 19m.3 Screen reader announces direction + state
+With NVDA / VoiceOver:
+- [ ] In light mode, tab to the toggle. Announce should include
+      the localized "Switch to dark mode" plus "toggle button,
+      not pressed" (NVDA wording may vary).
+- [ ] Click to flip; the announce updates accordingly on next
+      focus / re-announce.
+
+---
+
 ## Phase 19i — keyboard-only navigation sweep
 
 Walk the golden path with **keyboard only** (no mouse). Each

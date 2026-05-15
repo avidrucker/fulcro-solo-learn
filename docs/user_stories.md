@@ -622,6 +622,25 @@ re-navigation needed.
 
 Sighted users see the red copy; AT users hear it.
 
+### S-a11y-localized-new-todo-input — New-todo input announces and prompts in the active locale
+**Phase:** 19l
+**Status:** 🟢 (browser-manual; manual_tests §19l)
+
+The page-level new-todo input's placeholder (visible) and
+clip-hidden `<label>` (accessible name for AT) both flip with
+`:ui/locale`. Previously hardcoded English — Spanish / Japanese
+users got "New TODO:" / "Type new task here" regardless of mode.
+
+### S-a11y-theme-toggle-direction — Theme toggle announces direction + pressed state
+**Phase:** 19m
+**Status:** 🟢 (browser-manual; manual_tests §19m)
+
+The theme toggle's accessible name reflects what pressing it would
+do — "Switch to dark mode" / "Switch to light mode" (localized).
+Backed up by `aria-pressed="true"` when dark is active,
+`"false"` when light is active, so screen readers also announce
+the explicit toggle state alongside the action.
+
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
 **Phase:** 19a–19h together
 **Status:** 🟢 (browser-manual sweep; manual_tests §19i)
