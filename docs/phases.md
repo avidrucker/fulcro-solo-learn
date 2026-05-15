@@ -1949,11 +1949,49 @@ CSS-only; no Clojure changes; no spec changes. Browser-manual
 verification via DevTools → Rendering panel → Emulate CSS
 media feature `prefers-reduced-motion: reduce`.
 
-**⬜ 19i — Keyboard-only navigation sweep** (queued — partly user
-work, see Section B-5).
+**✅ 19i — Keyboard-only navigation sweep (largely automated).**
+The Playwright suite (`e2e/keyboard-and-a11y.spec.js`) now
+covers tab order through the header (`19i — header tab order`),
+modal focus management for all dismissible + non-dismissible +
+review modals (`19g + 19h` and `19g (ext)` describes), Escape
+behavior on each, and a full golden-path sweep
+(`19i — keyboard-only golden path`: add → prioritize → review
+:yes → mark done → delete list, every step keyboard-activated).
 
-**⬜ 19j — Color-contrast pass on dark theme** (queued — measure
-first, then fix; see Section B-8).
+Remaining browser-manual check: **visible focus indicator** —
+that every focusable element gets a visible outline on focus.
+axe-core doesn't check this and Playwright can't infer "is it
+visually distinct from the surrounding UI." The remaining
+~10-minute keyboard pass is exclusively this visual property.
+Listed in `docs/manual_tests.md` §19i.3.
+
+**✅ 19j — Color-contrast pass on dark theme.** axe-core
+surfaced two distinct failures the first time the suite ran:
+
+  (a) Dim primary buttons (Add Item / Delete List / Prioritize /
+      Mark Done in their dim-but-clickable state). The old
+      pattern was `bg-moon-gray black o-50` (active suffix +
+      50% opacity) = 3.16:1 — below WCAG AA 4.5:1. Replaced
+      with explicit lighter-bg + lighter-text suffix
+      (`theme-primary-dim-btn-suffix` in `theme.cljc`):
+        Light: `bg-light-gray dark-gray`   ≈ 11.6:1
+        Dark:  `bg-mid-gray near-white`    ≈ 7.1:1
+      Divergence note: the JS port uses `o-50`; we diverge for
+      a11y compliance.
+
+  (b) GitHub Issues link inside the Info modal. Old: Tachyons
+      `blue` (#357edd) on white = 4.05:1 — just under AA. Now
+      theme-aware in `info-modal`:
+        Light: `dark-blue`  (#00449e) on white     ≈ 10:1
+        Dark:  `light-blue` (#96ccff) on near-black ≈ 11.5:1
+
+The Playwright spec asserts ZERO axe violations at each page
+state (initial + 4 open modals) — any future contrast
+regression breaks the suite. Dark-theme spot-check across more
+surfaces (review modal + non-default themes for the per-row
+status icons + the dim row indicators on done/cancelled items)
+stays browser-manual; the dominant systemic violation is
+fixed.
 
 The Section-B handoff list (Lighthouse, axe, WAVE, NVDA/VoiceOver,
 keyboard, zoom, reduced-motion, contrast measurement) lives in

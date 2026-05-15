@@ -411,65 +411,76 @@ DevTools emulation.
 
 ## Phase 19i — keyboard-only navigation sweep
 
-Walk the golden path with **keyboard only** (no mouse). Each
-sub-step should be reachable + activatable via Tab / Shift-Tab /
-Enter / Space / arrow keys / Escape.
+The keyboard golden path is **automated** by
+`e2e/keyboard-and-a11y.spec.js`. The remaining items are visual
+checks Playwright + axe can't infer.
 
-### 19i.1 Golden path
-- [ ] Tab to the new-todo input → type "Pet the cat" → Tab to "Add
-      Item" → Enter. Item appears.
-- [ ] Repeat for "Pet the dog". Two items in the list.
-- [ ] Tab to "Prioritize" → Enter. Review modal opens.
-- [ ] Tab through the Quit / No / Yes buttons. Press Enter on Yes.
-- [ ] After review ends, Tab to "Mark Done" → Enter.
-- [ ] Tab to "Delete List" → Enter. Delete-confirm modal opens.
-- [ ] Tab to "Confirm" → Enter. List clears.
+### 19i.1 Golden path ✅ Playwright-asserted
+Covered by `19i — keyboard-only golden path` test block: add 2
+items → Prioritize → review :yes → Mark Done → Delete List →
+confirm. Every step keyboard-activated. Re-run via
+`cd e2e && npx playwright test`.
 
 ### 19i.2 No keyboard trap
-- [ ] No interaction sequence reaches a state where Tab / Shift-Tab
-      cycles infinitely or jumps to an unexpected place.
+- [ ] Cycle Tab through the whole page from the URL bar a few
+      times. Confirm you reach every header button + main control
+      and the focus eventually wraps back to the URL bar (or skip
+      link, depending on browser).
+- [ ] Repeat with each modal open: tab inside the modal a few
+      times. Focus may exit to the page (current behavior — full
+      focus-trap is a future-work item) but should NOT cycle
+      infinitely between two elements.
 
 ### 19i.3 Visible focus indicator
-- [ ] Every focusable element has a visible focus ring (browser
-      default or styled). If any control is focusable but invisible
-      when focused, log as a bug.
+- [ ] Tab through every focusable control. Each should show a
+      visible focus ring (browser-default or styled). Log any
+      missing/invisible focus as a bug.
+- [ ] Repeat in dark mode — dark-themed buttons can hide the
+      default focus ring against their darker background.
 
-### 19i.4 Header icon buttons are reachable
-- [ ] Tab order reaches the four header icons (save-disk, info,
-      gear, lightbulb). They can be activated with Enter or Space.
+### 19i.4 Header icon buttons reachable ✅ Playwright-asserted
+Covered by `19i — header tab order` test block.
 
 ---
 
-## Phase 19j — dark-theme color contrast
+## Phase 19j — color contrast
 
-Run in dark mode. Use DevTools' inspect → color picker (it shows the
-WCAG contrast ratio for any text element) OR the WebAIM contrast
-checker (https://webaim.org/resources/contrastchecker/).
+Most contrast is **axe-asserted** at 5 page states (initial + 4
+open modals) in `e2e/keyboard-and-a11y.spec.js`. Two systemic
+violations were found and fixed:
+  - Dim primary buttons (`btn-primary-dim-class`): the
+    `o-50`-opacity pattern was 3.16:1; now uses
+    `theme-primary-dim-btn-suffix` (explicit lighter-bg +
+    lighter-text per theme) at ≥ 7:1.
+  - GitHub Issues link in Info modal: was Tachyons `blue`
+    (4.05:1 on white); now theme-aware `dark-blue` /
+    `light-blue`.
 
-WCAG AA targets:
-- 4.5:1 for normal text.
-- 3:1 for large text (18pt / 14pt bold) and UI components / icons.
+Remaining browser-manual spot-checks for surfaces axe
+didn't reach in the test states:
 
-### 19j.1 Main list text contrast
-- [ ] List item text against the dark background — measure
-      contrast. Should be ≥ 4.5:1.
-- [ ] Dimmed (`o-50`) text on cancelled/done items — measure
-      contrast. Should still be ≥ 4.5:1; if it dips below, flag for
-      a class change.
+### 19j.1 Dimmed row indicators on done/cancelled items
+- [ ] Open the app with at least one `:status/done` or
+      `:status/cancelled` item. The row uses `o-50` dimming —
+      measure text contrast vs. page bg in light + dark themes.
+      Should be ≥ 4.5:1. (Background is page-level, not button-
+      level, so the opacity math is different and likely fine —
+      but worth confirming.)
 
-### 19j.2 Button text contrast
-- [ ] Header icon button SVG color vs. button background — ≥ 3:1.
-- [ ] Primary button (Add Item etc.) text vs. background — ≥ 4.5:1.
-- [ ] Secondary action button (Cancel / Clone) icon vs. button bg
-      — ≥ 3:1.
+### 19j.2 Review modal contrast
+- [ ] Start a review session, then measure:
+  - The review-question text vs. modal background — ≥ 4.5:1.
+  - The Quit / No / Yes buttons text vs. button bg — ≥ 4.5:1.
+- [ ] Repeat in dark theme.
 
-### 19j.3 Modal text contrast
-- [ ] Modal heading + body text vs. modal background — ≥ 4.5:1.
-- [ ] Modal action buttons — same targets as above.
+### 19j.3 Status icon SVG color
+- [ ] Per-row status icons (dot-circle / empty-circle /
+      filled-circle / cancel-x glyph) — confirm SVG fill color
+      has ≥ 3:1 against page bg in light + dark.
 
-### 19j.4 Error message contrast
-- [ ] Trigger an error (e.g. submit an empty new-todo). The error
-      message vs. background — ≥ 4.5:1.
+### 19j.4 Header icon SVG color
+- [ ] Header buttons (save-disk, info, gear, lightbulb) — same
+      ≥ 3:1 check against the header bg in light + dark.
 
 ---
 

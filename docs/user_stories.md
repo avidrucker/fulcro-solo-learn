@@ -676,8 +676,16 @@ visually (hover/focus background change is preserved) — only
 the *animation* between states is skipped.
 
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
-**Phase:** 19a–19h together
-**Status:** 🟢 (browser-manual sweep; manual_tests §19i)
+**Phase:** 19a–19h together (19i for the explicit sweep)
+**Status:** ✅ (Playwright-asserted golden path; one browser-manual
+visual check remains — focus-indicator visibility, see manual_tests §19i.3)
+**Tests:** `e2e/keyboard-and-a11y.spec.js`:
+- `19o — skip link` (2 tests)
+- `19i — header tab order`
+- `19g + 19h — dismissible modal focus + Escape` (4 modal tests)
+- `19g (ext) — review modal focus`
+- `19g + 19h — non-dismissible conflict modals` (2 tests)
+- `19i — keyboard-only golden path` (full pipeline)
 
 As a user who can't or doesn't want to use a mouse, I can complete
 every primary action — add items, prioritize, mark done, delete the
@@ -691,13 +699,22 @@ explicit close button at the modal foot.
 
 ### S-a11y-contrast-aa — Dark theme meets WCAG AA contrast
 **Phase:** 19j
-**Status:** ⬜ (measurement pending — manual_tests §19j; agent fixes any
-failing pair once measured)
+**Status:** ✅ (axe-asserted; manual_tests §19j for the remaining
+spot-check)
+**Tests:** `e2e/keyboard-and-a11y.spec.js` axe-core scans across
+5 page states (initial + 4 open modals); asserts zero violations.
 
-All text and UI elements in dark mode meet WCAG AA contrast targets
-(4.5:1 normal text, 3:1 large text and UI components / icons). Light
-mode is presumed fine by default but spot-check covered by the same
-manual_tests step.
+Light + dark themes meet WCAG AA contrast targets (4.5:1 normal
+text, 3:1 large text + UI components). Two systemic gaps found
++ fixed in Phase 19j:
+  - Dim primary buttons (`btn-primary-dim-class`) — was `o-50`
+    opacity = 3.16:1; replaced with explicit lighter-bg +
+    lighter-text suffix per theme.
+  - GitHub Issues link in Info modal — was Tachyons `blue` =
+    4.05:1 on white; now theme-aware `dark-blue` / `light-blue`.
+
+The axe-core scan locks the fix in — any future regression
+breaks the Playwright suite.
 
 ---
 
