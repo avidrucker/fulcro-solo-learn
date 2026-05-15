@@ -459,45 +459,55 @@
 
    `locale` (Phase 12.4) is accepted for signature symmetry with the
    other modal body fns; conflict-modal body copy stays English in
-   the curated 12.4 scope (no keys defined yet)."
+   the curated 12.4 scope (no keys defined yet).
+
+   B-10 fix: layout matches the OG JS port — both list previews
+   stacked at the top, then a two-row button footer at the
+   bottom. Row 1: Copy Link URL / Copy Local URL. Row 2: Keep
+   link list / Keep local list. Previously the Copy buttons were
+   interleaved between the previews, which made the modal feel
+   taller than it needed to and visually fragmented the
+   decision surface."
   [this theme _locale local-items url-items]
-  (modal-shell {:theme theme}  ; no :on-close — must choose
-    (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
-    (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
-    (conflict-list-preview url-items)
-    (dom/div {:className "tc pt2 pb2"}
-      (dom/button {:type      "button"
-                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
-                                   (theme/theme-primary-btn-suffix theme)
-                                   " pa2 pointer ma1")
-                   :title     s/tooltip-copy-link-url
-                   :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! url-items)
-                                   :clj  nil))}
-        s/btn-copy-link-url))
-    (dom/p {:className "fw6 ma0 pt2"} s/label-local-list)
-    (conflict-list-preview local-items)
-    (dom/div {:className "tc pt2 pb2"}
-      (dom/button {:type      "button"
-                   :className (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
-                                   (theme/theme-primary-btn-suffix theme)
-                                   " pa2 pointer ma1")
-                   :title     s/tooltip-copy-local-url
-                   :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! local-items)
-                                   :clj  nil))}
-        s/btn-copy-local-url))
-    (dom/div {:className "pb3 tc"}
-      (dom/button {:type      "button"
-                   :className (theme/delete-confirm-btn-class theme)
-                   :title     s/tooltip-keep-link-list
-                   :onClick   #(comp/transact! this [(keep-link-list)])}
-        s/btn-keep-link)
-      (dom/button {:type      "button"
-                   :className (theme/delete-confirm-btn-class theme)
-                   :title     s/tooltip-keep-local-list
-                   :onClick   #(comp/transact! this [(keep-local-list)])}
-        s/btn-keep-local))))
+  (let [copy-btn-class (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
+                            (theme/theme-primary-btn-suffix theme)
+                            " pa2 pointer ma1")]
+    (modal-shell {:theme theme}  ; no :on-close — must choose
+      (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
+      ;; Both list previews stacked first, so the user can read
+      ;; through them before picking — no buttons interleaved.
+      (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
+      (conflict-list-preview url-items)
+      (dom/p {:className "fw6 ma0 pt2"} s/label-local-list)
+      (conflict-list-preview local-items)
+      ;; Row 1 — Copy URL buttons, side-by-side.
+      (dom/div {:className "tc pt3 pb1"}
+        (dom/button {:type      "button"
+                     :className copy-btn-class
+                     :title     s/tooltip-copy-link-url
+                     :onClick   (fn [_]
+                                  #?(:cljs (copy-list-url! url-items)
+                                     :clj  nil))}
+          s/btn-copy-link-url)
+        (dom/button {:type      "button"
+                     :className copy-btn-class
+                     :title     s/tooltip-copy-local-url
+                     :onClick   (fn [_]
+                                  #?(:cljs (copy-list-url! local-items)
+                                     :clj  nil))}
+          s/btn-copy-local-url))
+      ;; Row 2 — Keep <side> list buttons, side-by-side.
+      (dom/div {:className "tc pb3"}
+        (dom/button {:type      "button"
+                     :className (theme/delete-confirm-btn-class theme)
+                     :title     s/tooltip-keep-link-list
+                     :onClick   #(comp/transact! this [(keep-link-list)])}
+          s/btn-keep-link)
+        (dom/button {:type      "button"
+                     :className (theme/delete-confirm-btn-class theme)
+                     :title     s/tooltip-keep-local-list
+                     :onClick   #(comp/transact! this [(keep-local-list)])}
+          s/btn-keep-local)))))
 
 ;; ============================================================================
 ;; Delete-confirm modal (Phase 7.12)

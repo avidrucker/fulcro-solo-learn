@@ -423,7 +423,7 @@ new contract, plus one new assertion for the both-empty case.
 
 ## B-10 — Conflict modal button row layout is suboptimal
 
-**Status:** 🐛 Open — minor visual; not blocking
+**Status:** ✅ Fixed in the same conversation that logged it.
 **Reported:** 2026-05-14 by user
 
 ### Symptom
