@@ -149,6 +149,12 @@
   (action [{:keys [state]}]
     (swap! state state/set-locale* [:list/id 1] locale)))
 
+;; Phase 17 — set the "Include language in URL" checkbox state.
+;; Client-only, like set-locale; persisted via ui-prefs-whitelist.
+(defmutation learn.client/set-share-with-locale [{:keys [value]}]
+  (action [{:keys [state]}]
+    (swap! state state/set-share-with-locale* [:list/id 1] value)))
+
 ;; Phase 7.9: page-level error setter. `nil` clears, string sets.
 (defmutation learn.client/set-err-msg [{:ui/keys [err-msg]}]
   (action [{:keys [state]}]

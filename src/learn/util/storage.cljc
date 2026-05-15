@@ -38,8 +38,13 @@
    on reload, so we want missing-by-default.
 
    Phase 12.4: `:ui/locale` joins `:ui/theme` so the user's language
-   choice survives reloads alongside their theme."
-  #{:ui/theme :ui/locale})
+   choice survives reloads alongside their theme.
+
+   Phase 17: `:ui/share-with-locale?` — the 'Include language in
+   URL' checkbox in the save modal. Sticky preference: once you've
+   opted into language-stamped share URLs, that's likely your
+   default going forward."
+  #{:ui/theme :ui/locale :ui/share-with-locale?})
 
 ;; ============================================================================
 ;; Pure EDN adapter — same on JVM and CLJS.

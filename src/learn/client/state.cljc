@@ -213,6 +213,17 @@
   [state-map list-ident locale]
   (assoc-in state-map (conj list-ident :ui/locale) locale))
 
+(defn set-share-with-locale*
+  "Phase 17 — set the 'Include language in URL' checkbox at the given
+   list-ident. Boolean toggle controlling whether the Copy List URL
+   action appends `&lang=<locale>` to the shareable URL.
+
+   Persisted via `learn.util.storage/ui-prefs-whitelist` so the user's
+   choice survives reloads — a sticky preference rather than a
+   per-session reset."
+  [state-map list-ident value]
+  (assoc-in state-map (conj list-ident :ui/share-with-locale?) value))
+
 (defn set-err-msg*
   "Set or clear the page-level error message. `msg` may be `nil` to
    clear; any string sets the visible error."

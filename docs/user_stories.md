@@ -348,6 +348,44 @@ language I picked should still be active. Implemented by joining
 `:ui/locale` to `learn.util.storage/ui-prefs-whitelist` so the same
 storage watch that persists theme also persists locale.
 
+### S-i18n-share-with-locale — Checkbox to stamp Copy List URL with current language
+**Phase:** 17
+**Status:** ✅ (URL builder + state helper + mutation + checkbox render tested); 🟢 (clipboard write of the stamped URL is browser-manual)
+**Tests:** `url-encoding-test:list-share-url — with optional locale` (no locale / nil / each supported locale / round-trip with `locale-from-url-search`), `client_test:set-share-with-locale*`, `client_test:set-share-with-locale mutation` (client-only confirmation), `client_test:Save modal — Include-language checkbox`.
+
+**As a user**, when I open the import/export modal, I see a
+checkbox labeled "Include language in URL" (translated) just
+above the "Copy List URL" button. When I tick it and then click
+Copy List URL, the copied URL has both `?list=…` AND
+`&lang=<my-locale>`. Recipients who don't have a saved language
+preference yet land in my language; recipients who already chose
+a language keep their choice (Phase 14's precedence rule still
+holds — saved `>` URL).
+
+The checkbox state is persisted via
+`learn.util.storage/ui-prefs-whitelist` (`:ui/share-with-locale?`
+joined `:ui/theme` and `:ui/locale` in Phase 17). Once toggled
+on, it stays on across reloads — most users who want
+language-stamped sharing want it as a default, not a per-action
+choice.
+
+**Why a checkbox rather than always-stamp**: forcing your locale
+onto recipients overrides their preference if they haven't saved
+one yet, and most sharing flows don't actually want that.
+Opt-in default-off respects the recipient.
+
+**Implementation**:
+- `learn.util.url-encoding/list-share-url` extended to 4-arity
+  with an optional locale; the locale gets appended as
+  `&lang=<code>` when non-nil. Round-trips with
+  `locale-from-url-search` (Phase 14).
+- `learn.client.state/set-share-with-locale*` + matching
+  `set-share-with-locale` defmutation (client-only).
+- Save modal's `<input type="checkbox">` reads
+  `:ui/share-with-locale?` from props; `onChange` fires the
+  mutation. The Copy List URL button reads the same flag and
+  passes `locale` (or nil) into `copy-list-url!`.
+
 ### S-i18n-url-locale — `?lang=<code>` URL parameter sets initial language
 **Phase:** 14
 **Status:** ✅ (parser + precedence rule tested); 🟢 (window.location read + state mutation is browser-manual)

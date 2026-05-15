@@ -1646,6 +1646,64 @@
 ;; Phase 16 — error messages translate with :ui/locale (closes B-8)
 ;; ============================================================================
 
+;; ============================================================================
+;; Phase 17 — Include-language checkbox in the save modal
+;; ============================================================================
+
+(specification "set-share-with-locale*"
+  (let [before (fixture-state)]
+    (assertions
+      "true sets the flag"
+      (get-in (sut/set-share-with-locale* before [:list/id 1] true)
+        [:list/id 1 :ui/share-with-locale?]) => true
+      "false sets the flag"
+      (get-in (sut/set-share-with-locale* before [:list/id 1] false)
+        [:list/id 1 :ui/share-with-locale?]) => false
+      "affects only :ui/share-with-locale? at the list-ident"
+      (affects-only? before
+        (sut/set-share-with-locale* before [:list/id 1] true)
+        #{[:list/id 1 :ui/share-with-locale?]}) => true)))
+
+(specification "set-share-with-locale mutation"
+  (component "updates :ui/share-with-locale? on [:list/id 1]"
+    (server/seed!)
+    (let [spa (sut/init)
+          _   (comp/transact! spa [(sut/set-share-with-locale {:value true})])]
+      (assertions
+        "state has the flag set"
+        (get-in (app/current-state spa)
+          [:list/id 1 :ui/share-with-locale?]) => true)))
+
+  (component "is client-only (no remote sync)"
+    (server/seed!)
+    (let [spa (sut/init)
+          server-before @server/SERVER-DB
+          _ (comp/transact! spa [(sut/set-share-with-locale {:value true})])]
+      (assertions
+        "server state is unchanged after a set-share-with-locale transact"
+        server-before => @server/SERVER-DB))))
+
+(specification "Save modal — Include-language checkbox (Phase 17)"
+  (component "checkbox label renders with locale-appropriate text"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/open-modal] :save)
+          _ (h/render-frame! spa)]
+      (assertions
+        "English label appears in default :en locale"
+        (h/text-exists? spa "Include language in URL") => true))
+
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom (fn [s] (-> s
+                                         (assoc-in [:list/id 1 :ui/locale] :es)
+                                         (assoc-in [:list/id 1 :ui/open-modal] :save))))
+          _ (h/render-frame! spa)]
+      (assertions
+        "Spanish label appears in :es"
+        (h/text-exists? spa "Incluir idioma en la URL") => true))))
+
 (specification "TodoList errors — translate with :ui/locale (Phase 16)"
   (component "blank Add-Item in :es renders Spanish empty-input error"
     (server/seed!)

@@ -298,9 +298,17 @@
 (defn list-share-url
   "Construct the shareable URL from a browser `origin`, `pathname`, and
    pre-encoded list `segment`. Pure string concat — kept separate so it
-   stays testable on JVM (no `js/window` dependency)."
-  [origin pathname segment]
-  (str origin pathname "?list=" segment))
+   stays testable on JVM (no `js/window` dependency).
+
+   Phase 17 — optional 4-arity appends `&lang=<code>` when the caller
+   opts in (Save modal's 'Include language in URL' checkbox). Recipients
+   with no saved locale pick up the URL's lang via Phase 14's
+   precedence rule. Nil `locale` is treated as 'don't append'."
+  ([origin pathname segment]
+   (list-share-url origin pathname segment nil))
+  ([origin pathname segment locale]
+   (cond-> (str origin pathname "?list=" segment)
+     locale (str "&lang=" (name locale)))))
 
 ;; ============================================================================
 ;; URL-sync watch — Phase 7.16 / S-url-sync-current-list.

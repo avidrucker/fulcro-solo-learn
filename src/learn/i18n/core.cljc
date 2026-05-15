@@ -106,6 +106,8 @@
         :save/info-2                "You can also import a list by pasting in raw text below, and then clicking the 'Submit' button."
         :save/textarea-placeholder  "Paste your list here, with each item on a new line"
         :save/click-disk            "Click on the 'disk' icon above to close this window."
+        ;; Phase 17 — Include-language checkbox in the save modal.
+        :save/include-lang          "Include language in URL"
         ;; Phase 15 — URL-length-safeguard error (S-max-url-length).
         ;; Surfaced when the encoded list would exceed MAX_URL_LENGTH;
         ;; the URL freezes at its last fitting value, localStorage
@@ -177,6 +179,7 @@
         :save/info-2                "También puedes importar una lista pegando texto sin formato a continuación y haciendo clic en el botón 'Enviar'."
         :save/textarea-placeholder  "Pega tu lista aquí, con cada elemento en una nueva línea"
         :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."
+        :save/include-lang          "Incluir idioma en la URL"
         :err/url-too-long           "La lista actual no se puede guardar como URL: respalda tu lista en formato texto o JSON."
         :err/empty-input            "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
         :err/nothing-to-delete      "No hay nada que eliminar."
@@ -236,6 +239,7 @@
         :save/info-2                "下のテキストエリアに生のテキストを貼り付けて「送信」ボタンをクリックすることでも、リストをインポートできます。"
         :save/textarea-placeholder  "リストをここに貼り付けてください。1 行につき 1 項目です。"
         :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"
+        :save/include-lang          "URLに言語を含める"
         :err/url-too-long           "現在のリストはURLとして保存できません。リストをテキストまたはJSONにバックアップしてください。"
         :err/empty-input            "新しい項目は空または空白のみにすることはできません。"
         :err/nothing-to-delete      "削除するものがありません。"

@@ -140,7 +140,7 @@
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text textarea-import-text
                                    open-modal theme locale err-msg
-                                   conflict-url-items]
+                                   conflict-url-items share-with-locale?]
                        :or        {theme :theme/light locale :en}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -167,6 +167,10 @@
                    ;; `learn.i18n.core/supported-locales`. Persisted via
                    ;; `learn.util.storage/ui-prefs-whitelist`.
                    :ui/locale
+                   ;; Phase 17: 'Include language in URL' checkbox state
+                   ;; for the save modal's Copy List URL action.
+                   ;; Persisted via `ui-prefs-whitelist`.
+                   :ui/share-with-locale?
                    ;; Phase 7.9: page-level error message string, or nil.
                    :ui/err-msg
                    ;; Subscribe to the review chart's state. Without these
@@ -194,6 +198,7 @@
                      :ui/open-modal           :none
                      :ui/theme                :theme/light
                      :ui/locale               :en
+                     :ui/share-with-locale?   false
                      :ui/err-msg              nil})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
@@ -392,7 +397,7 @@
         :info           (modals/info-modal this theme locale)
         :settings       (modals/settings-modal this theme locale)
         :save           (modals/save-modal this theme locale todos
-                          textarea-import-text submit-import!)
+                          textarea-import-text submit-import! share-with-locale?)
         :delete-confirm (modals/delete-confirm-modal this theme locale
                           confirm-delete! cancel-delete!)
         :conflict       (modals/conflict-modal this theme locale todos conflict-url-items)

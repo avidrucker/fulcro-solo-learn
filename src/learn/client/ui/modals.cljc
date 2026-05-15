@@ -44,9 +44,10 @@
 (m/declare-mutation toggle-open-modal  learn.client/toggle-open-modal)
 (m/declare-mutation keep-link-list     learn.client/keep-link-list)
 (m/declare-mutation keep-local-list    learn.client/keep-local-list)
-(m/declare-mutation set-locale         learn.client/set-locale)
-(m/declare-mutation set-err-msg        learn.client/set-err-msg)
-(m/declare-mutation import-from-json   learn.client/import-from-json)
+(m/declare-mutation set-locale            learn.client/set-locale)
+(m/declare-mutation set-share-with-locale learn.client/set-share-with-locale)
+(m/declare-mutation set-err-msg           learn.client/set-err-msg)
+(m/declare-mutation import-from-json      learn.client/import-from-json)
 
 ;; ============================================================================
 ;; Modal overlay shell
@@ -230,14 +231,19 @@
 
 #?(:cljs
    (defn- current-share-url
-     "Build the `?list=...` share URL from the current browser location
-      and the items snapshot."
-     [items]
-     (let [loc js/window.location]
-       (url-encoding/list-share-url
-         (.-origin loc)
-         (.-pathname loc)
-         (url-encoding/items->base64-url-segment items)))))
+     "Build the `?list=...` share URL from the current browser
+      location and the items snapshot. Phase 17 — optional
+      `locale` arg appends `&lang=<code>` for explicit
+      language-stamped sharing (driven by the Save modal's
+      Include-language checkbox)."
+     ([items] (current-share-url items nil))
+     ([items locale]
+      (let [loc js/window.location]
+        (url-encoding/list-share-url
+          (.-origin loc)
+          (.-pathname loc)
+          (url-encoding/items->base64-url-segment items)
+          locale)))))
 
 #?(:cljs
    (defn- copy-list-url!
@@ -245,12 +251,17 @@
       `navigator.clipboard.writeText`. Best-effort: silently no-ops if
       the Clipboard API is missing (non-https context, very old
       browsers). The promise's `.catch` keeps a copy failure from
-      surfacing as an uncaught rejection."
-     [items]
-     (let [clipboard (some-> js/navigator .-clipboard)]
-       (when clipboard
-         (-> (.writeText clipboard (current-share-url items))
-           (.catch (fn [err] (js/console.warn "[copy-list-url] failed:" err))))))))
+      surfacing as an uncaught rejection.
+
+      Phase 17 — optional `locale` arg flows through to
+      `current-share-url`; nil = no lang stamping (today's default
+      everywhere except Copy List URL with the checkbox ticked)."
+     ([items] (copy-list-url! items nil))
+     ([items locale]
+      (let [clipboard (some-> js/navigator .-clipboard)]
+        (when clipboard
+          (-> (.writeText clipboard (current-share-url items locale))
+            (.catch (fn [err] (js/console.warn "[copy-list-url] failed:" err)))))))))
 
 #?(:cljs
    (defn- import-json-file!
@@ -319,16 +330,30 @@
   "textarea-import")
 
 (defn save-modal
-  [this theme locale todos textarea-import-text submit-import!]
+  [this theme locale todos textarea-import-text submit-import! share-with-locale?]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label s/close-save-modal
                 :theme       theme}
     (dom/h2 {:className "pb2 ph3 ma0"} (i18n/tr locale :modal/import-export))
+    ;; Phase 17 — "Include language in URL" checkbox sits ABOVE the
+    ;; Copy List URL button so the user toggles intent first, then
+    ;; clicks Copy. When checked, the URL gains `&lang=<locale>`.
+    (dom/div {:className "ph3 pt1 pb2"}
+      (dom/label {:className "pointer"}
+        (dom/input {:type      "checkbox"
+                    :className "mr1"
+                    :checked   (boolean share-with-locale?)
+                    :onChange  (fn [e]
+                                 (comp/transact! this
+                                   [(set-share-with-locale
+                                      {:value (-> e .-target .-checked)})]))})
+        (i18n/tr locale :save/include-lang)))
     (dom/div {:className "ph3 pb2"}
       (dom/button {:className (theme/save-modal-wide-btn-class theme)
                    :title     s/tooltip-copy-list-url
                    :onClick   (fn [_]
-                                #?(:cljs (copy-list-url! todos)
+                                #?(:cljs (copy-list-url! todos
+                                           (when share-with-locale? locale))
                                    :clj  nil))}
         (i18n/tr locale :btn/copy-list-url)))
     (dom/p {:className "ph3 ma0 lh-135"} (i18n/tr locale :save/info-1))

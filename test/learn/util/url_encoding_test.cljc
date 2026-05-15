@@ -397,6 +397,30 @@
 ;; locally; only URL-sharing is affected.
 ;; ============================================================================
 
+(specification "list-share-url — with optional locale (Phase 17)"
+  (assertions
+    "no locale arg — bare ?list="
+    (sut/list-share-url "http://x" "/" "abc")
+    => "http://x/?list=abc"
+    "nil locale — same as no-arg form"
+    (sut/list-share-url "http://x" "/" "abc" nil)
+    => "http://x/?list=abc"
+    "locale appended as &lang=<code>"
+    (sut/list-share-url "http://x" "/" "abc" :es)
+    => "http://x/?list=abc&lang=es"
+    ":en is still emitted (caller opted in by passing it)"
+    (sut/list-share-url "http://x" "/" "abc" :en)
+    => "http://x/?list=abc&lang=en"
+    ":ja"
+    (sut/list-share-url "http://x" "/" "abc" :ja)
+    => "http://x/?list=abc&lang=ja"
+    "round-trip works with `locale-from-url-search`"
+    (let [url (sut/list-share-url "http://x" "/" "abc" :ja)
+          ;; Extract just the search portion (everything past ?)
+          search (subs url (.indexOf url "?"))]
+      (sut/locale-from-url-search search))
+    => :ja))
+
 (specification "MAX_URL_LENGTH"
   (assertions
     "matches the JS port's constant"
