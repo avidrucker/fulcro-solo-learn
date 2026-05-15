@@ -1639,7 +1639,7 @@
         "Japanese button labels appear"
         (h/text-exists? spa "項目を追加")      => true
         (h/text-exists? spa "リストを削除")    => true
-        (h/text-exists? spa "優先順位を付ける") => true
+        (h/text-exists? spa "優先する") => true
         (h/text-exists? spa "完了にする")      => true))))
 
 ;; ============================================================================
