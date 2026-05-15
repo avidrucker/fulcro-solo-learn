@@ -180,7 +180,10 @@
                 :close-label (i18n/tr locale :close/info)
                 :theme       theme
                 :labelled-by "info-modal-title"}
-    (dom/h2 {:id "info-modal-title" :className "pb2 ma0"}
+    ;; Phase 19g + 20b: `tabIndex="-1"` ships declaratively so React
+    ;; re-renders preserve it. The focus-sync watcher's `.focus()`
+    ;; call is a no-op without it (h2 isn't natively focusable).
+    (dom/h2 {:id "info-modal-title" :tabIndex "-1" :className "pb2 ma0"}
       (i18n/tr locale :modal/info))
     (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} (i18n/tr locale :info/heading-about))
     (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/about-1))
@@ -213,7 +216,7 @@
                 :close-label (i18n/tr locale :close/settings)
                 :theme       theme
                 :labelled-by "settings-modal-title"}
-    (dom/h2 {:id "settings-modal-title" :className "pb2 ma0"}
+    (dom/h2 {:id "settings-modal-title" :tabIndex "-1" :className "pb2 ma0"}
       (i18n/tr locale :modal/settings))
     (dom/div {:className "pt2 pb2 flex items-center"}
       (dom/label {:htmlFor   "settings-locale"
@@ -362,7 +365,7 @@
                 :close-label (i18n/tr locale :close/save)
                 :theme       theme
                 :labelled-by "save-modal-title"}
-    (dom/h2 {:id "save-modal-title" :className "pb2 ph3 ma0"}
+    (dom/h2 {:id "save-modal-title" :tabIndex "-1" :className "pb2 ph3 ma0"}
       (i18n/tr locale :modal/import-export))
     ;; Phase 17 — "Include language in URL" checkbox sits ABOVE the
     ;; Copy List URL button so the user toggles intent first, then
@@ -515,7 +518,7 @@
                             " pa2 pointer ma1")]
     (modal-shell {:theme theme  ; no :on-close — must choose
                   :labelled-by "list-conflict-question"}
-      (dom/p {:id "list-conflict-question" :className "ma0 pb2 lh-135"}
+      (dom/p {:id "list-conflict-question" :tabIndex "-1" :className "ma0 pb2 lh-135"}
         (i18n/tr locale :conflict/mismatch))
       ;; Both list previews stacked first, so the user can read
       ;; through them before picking — no buttons interleaved.
@@ -576,7 +579,7 @@
     ;; `<span lang>` segments so the screen reader voices each in
     ;; its own pronunciation rather than reading the off-locale
     ;; half with whatever the page-level voice happens to be.
-    (dom/p {:id "locale-conflict-question" :className "ma0 pb2 lh-135 tc fw6"}
+    (dom/p {:id "locale-conflict-question" :tabIndex "-1" :className "ma0 pb2 lh-135 tc fw6"}
       (dom/span {:lang (name saved-locale)}
         (i18n/tr saved-locale :locale-conflict/question))
       (dom/span " / ")
@@ -613,7 +616,7 @@
                 :close-label (i18n/tr locale :close/delete)
                 :theme       theme
                 :labelled-by "delete-confirm-question"}
-    (dom/p {:id "delete-confirm-question" :className "ma0 pb3 lh-135 tc"}
+    (dom/p {:id "delete-confirm-question" :tabIndex "-1" :className "ma0 pb3 lh-135 tc"}
       (i18n/tr locale :modal/confirm-delete))
     (dom/div {:className "tc"}
       (dom/button {:type      "button"

@@ -413,7 +413,7 @@
         (modals/modal-shell {:theme theme
                              :labelled-by "review-question"}
           (when question
-            (dom/p {:id "review-question" :className "ma0 pb3 lh-135 tc"}
+            (dom/p {:id "review-question" :tabIndex "-1" :className "ma0 pb3 lh-135 tc"}
               (i18n/tr-review-question locale
                 (:cursor-text question)
                 (:benchmark-text question))))

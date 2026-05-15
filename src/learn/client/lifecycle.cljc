@@ -129,19 +129,27 @@
 
 #?(:cljs
    (defn- focus-modal-heading!
-     "Locate the modal's heading element by id and focus it. Deferred
-      via `setTimeout 0` so React has a tick to mount the modal DOM
-      first. Adds `tabindex=-1` if missing — programmatically
-      focusable, but not inserted into the natural tab cycle."
+     "Locate the modal's heading element by id and focus it. Polls
+      via `requestAnimationFrame` until the element exists, with a
+      ~10-frame ceiling (~160ms at 60fps) — Fulcro's render lands
+      on a later frame than the state-atom watcher's tick, so a
+      naive `setTimeout 0` runs BEFORE the modal mounts.
+
+      Adds `tabindex=-1` only as a defensive fallback; heading
+      elements ship with `:tabIndex \"-1\"` declaratively so React
+      preserves it across re-renders."
      [modal-id]
      (when-let [heading-id (get modal-id->heading-id modal-id)]
-       (js/setTimeout
-         (fn []
-           (when-let [el (.getElementById js/document heading-id)]
-             (when-not (.hasAttribute el "tabindex")
-               (.setAttribute el "tabindex" "-1"))
-             (.focus el)))
-         0))))
+       (letfn [(try-focus! [attempts]
+                 (if-let [el (.getElementById js/document heading-id)]
+                   (do
+                     (when-not (.hasAttribute el "tabindex")
+                       (.setAttribute el "tabindex" "-1"))
+                     (.focus el))
+                   (when (pos? attempts)
+                     (js/requestAnimationFrame
+                       #(try-focus! (dec attempts))))))]
+         (js/requestAnimationFrame #(try-focus! 10))))))
 
 #?(:cljs
    (defn- restore-previous-focus!
@@ -228,13 +236,19 @@
                (and (not was-active?) is-active?)
                (do
                  (reset! prev-focus-element (.-activeElement js/document))
-                 (js/setTimeout
-                   (fn []
-                     (when-let [el (.getElementById js/document "review-question")]
-                       (when-not (.hasAttribute el "tabindex")
-                         (.setAttribute el "tabindex" "-1"))
-                       (.focus el)))
-                   0))
+                 ;; rAF poll mirrors `focus-modal-heading!` — naive
+                 ;; setTimeout 0 fires before Fulcro renders the modal,
+                 ;; so the heading element doesn't yet exist.
+                 (letfn [(try-focus! [attempts]
+                           (if-let [el (.getElementById js/document "review-question")]
+                             (do
+                               (when-not (.hasAttribute el "tabindex")
+                                 (.setAttribute el "tabindex" "-1"))
+                               (.focus el))
+                             (when (pos? attempts)
+                               (js/requestAnimationFrame
+                                 #(try-focus! (dec attempts))))))]
+                   (js/requestAnimationFrame #(try-focus! 10))))
 
                (and was-active? (not is-active?))
                (restore-previous-focus!))))))))
