@@ -261,6 +261,10 @@
        ;; Phase 19g a11y: focus management on modal open/close.
        (lifecycle/install-modal-focus-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 19g a11y (extension): same for the statechart-driven
+       ;; review modal.
+       (lifecycle/install-review-modal-focus-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Phase 19h a11y: Escape closes dismissible modals.
        (lifecycle/install-escape-to-close! spa)
        ;; Phase 7.16: URL sync — write the current list to

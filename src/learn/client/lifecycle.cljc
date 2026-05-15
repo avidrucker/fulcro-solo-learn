@@ -190,6 +190,56 @@
                  (focus-modal-heading! new-modal)))))))))
 
 #?(:cljs
+   (defn install-review-modal-focus-sync!
+     "Phase 19g a11y (extension) — focus management for the review
+      modal, which is statechart-driven and not represented in
+      `:ui/open-modal`. Watches the statechart session configuration
+      at `[:com.fulcrologic.statecharts/session-id :review-session
+      :com.fulcrologic.statecharts/configuration]`; when the
+      `:review.state/active` keyword enters the set, the modal is
+      visible — snapshot focus and move it to the `review-question`
+      element. When the keyword leaves, restore focus.
+
+      Shares `prev-focus-element` with `install-modal-focus-sync!`
+      — safe because the review modal and the :ui/open-modal menu
+      modals are mutually exclusive by construction (the
+      Prioritize button is disabled while a menu modal is up, and
+      menu-disabling logic blocks menu modals while review is
+      active).
+
+      Caveat: the heading id is hardcoded here. If the review
+      modal's `<p id=\"review-question\">` is ever renamed, this
+      reference must update. The id is asserted in
+      `manual_tests.md` §19b.2 to slow that drift."
+     [fulcro-state-atom]
+     (let [config-path [:com.fulcrologic.statecharts/session-id
+                        :review-session
+                        :com.fulcrologic.statecharts/configuration]
+           active-state :review.state/active
+           active-of    (fn [s]
+                          (boolean
+                            (contains? (get-in s config-path #{})
+                              active-state)))]
+       (add-watch fulcro-state-atom ::review-modal-focus
+         (fn [_k _ref old-state new-state]
+           (let [was-active? (active-of old-state)
+                 is-active?  (active-of new-state)]
+             (cond
+               (and (not was-active?) is-active?)
+               (do
+                 (reset! prev-focus-element (.-activeElement js/document))
+                 (js/setTimeout
+                   (fn []
+                     (when-let [el (.getElementById js/document "review-question")]
+                       (when-not (.hasAttribute el "tabindex")
+                         (.setAttribute el "tabindex" "-1"))
+                       (.focus el)))
+                   0))
+
+               (and was-active? (not is-active?))
+               (restore-previous-focus!))))))))
+
+#?(:cljs
    (defn install-escape-to-close!
      "Phase 19h a11y — window-level keydown listener that closes the
       current `:ui/open-modal` on Escape, but only for dismissible
