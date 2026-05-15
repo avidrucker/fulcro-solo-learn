@@ -254,6 +254,10 @@
        ;; even when the list overflows the viewport.
        (lifecycle/install-body-theme-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 19 a11y: keep `<html lang>` in sync with :ui/locale so
+       ;; screen readers pick the right voice / pronunciation.
+       (lifecycle/install-html-lang-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Phase 7.16: URL sync — write the current list to
        ;; ?list=<encoded> on every items change so the address bar can
        ;; be copied directly (not just via the Copy List URL button).

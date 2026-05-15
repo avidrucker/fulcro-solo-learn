@@ -60,6 +60,35 @@
              (when (not= old-theme new-theme)
                (sync-body-theme-class! new-theme))))))))
 
+#?(:cljs
+   (defn sync-html-lang!
+     "Phase 19 a11y — set `<html lang=\"...\">` to reflect the active
+      `:ui/locale`. Screen readers use this attribute to pick the
+      right pronunciation / voice for content. Without it the
+      browser guesses (usually defaults to the OS locale), which
+      means a Japanese user reading our Spanish UI would get the
+      Japanese voice attempting to read Spanish text.
+
+      Maps :en/:es/:ja to the matching IETF tag (which happens to
+      equal the locale keyword name for our supported set)."
+     [locale]
+     (.setAttribute (.-documentElement js/document) "lang" (name locale))))
+
+#?(:cljs
+   (defn install-html-lang-sync!
+     "Phase 19 a11y — watch the Fulcro state-atom and keep
+      `<html lang>` in sync with `:ui/locale`. Same pattern as
+      `install-body-theme-sync!`."
+     [fulcro-state-atom]
+     (let [locale-of (fn [s] (get-in s [:list/id 1 :ui/locale] :en))]
+       (sync-html-lang! (locale-of @fulcro-state-atom))
+       (add-watch fulcro-state-atom ::html-lang
+         (fn [_k _ref old-state new-state]
+           (let [old-locale (locale-of old-state)
+                 new-locale (locale-of new-state)]
+             (when (not= old-locale new-locale)
+               (sync-html-lang! new-locale))))))))
+
 (defn load-todos!
   "Initial load that populates `:list/todos` from the in-process Pathom
    parser. Same call shape on both platforms. Takes `todo-item-class`
