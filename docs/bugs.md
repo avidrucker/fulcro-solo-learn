@@ -334,38 +334,38 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ## B-11 — Empty-vs-non-empty list conflict modal can trigger on refresh
 
-**Status:** 🐛 Open — reported but not yet diagnosed
+**Status:** ✅ Fixed in the same conversation that logged it.
 **Reported:** 2026-05-14 by user
 
 ### Symptom
 
-Sometimes refreshing the page produces a list-conflict modal
+Refreshing the page sometimes produced a list-conflict modal
 between an empty list and the user's non-empty list. The
 conflict modal is for resolving genuine divergence between
 URL-encoded items and localStorage items; an empty-vs-non-empty
-mismatch isn't a real conflict the user needs to resolve — the
-non-empty list is unambiguously the one to keep.
+mismatch isn't a real conflict — the non-empty list is
+unambiguously the one to keep.
 
-### Desired behavior
+### Root cause
 
-When one side of a list-source conflict is empty and the other
-is non-empty, **the non-empty list wins automatically** (no
-modal). The conflict-resolution modal should only surface when
-both sides are non-empty and disagree.
+`learn.util.url-encoding/decide-initial-list` compared the two
+sides via `items-content-shape` then `not=`. When one side was
+`[]` and the other had items, the shapes differed, so the
+function returned `{:source :conflict}` and the modal opened.
 
-### Likely place to look
+### Fix
 
-`learn.util.url-encoding/decide-initial-list` — it currently
-returns `{:source :conflict}` when both URL items and local
-items are non-nil and differ. The "differ" check probably
-treats `[]` as different from `[item-a]`, triggering the
-conflict path. Filter the inputs first: if either side is
-empty, fall through to the non-empty side without modal.
+`decide-initial-list` now has two priority branches BEFORE the
+content-shape comparison: if exactly one side is empty (present
+as `[]`) and the other has content (`(seq …)`), the non-empty
+side wins automatically (`:source :url` or `:source :local`,
+no modal). The "both non-empty and disagreeing" branch
+unchanged; both-empty falls through to `:url` (matches the
+both-equal case).
 
-### Scope
-
-Independent of the Phase 18 locale-conflict work. Will tackle
-right after Phase 18 ships.
+Test surface: two existing assertions that asserted the buggy
+behavior (`[]` + items → conflict) were flipped to encode the
+new contract, plus one new assertion for the both-empty case.
 
 ---
 

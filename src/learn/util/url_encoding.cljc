@@ -369,9 +369,24 @@
    status, :was) — NOT on UUID — because the URL decoder assigns
    fresh UUIDs every load. If the content is the same we collapse to
    `:url` (the URL is the more recent thing the user explicitly
-   visited). B-4 fix."
+   visited). B-4 fix.
+
+   B-11 fix: an empty side isn't a real conflict. When one side is
+   `[]` (empty list, present but nothing in it) and the other is
+   non-empty, the non-empty side wins automatically — no conflict
+   modal. Refreshing a page where the user emptied their local list
+   (or just shared an empty link) shouldn't prompt them to choose
+   between content and nothing."
   [local-items url-items]
   (cond
+    ;; B-11: one side empty, the other non-empty → non-empty wins
+    (and (some? local-items) (empty? local-items) (seq url-items))
+    {:source :url :items url-items}
+
+    (and (some? url-items) (empty? url-items) (seq local-items))
+    {:source :local :items local-items}
+
+    ;; Content-shape conflict — both non-empty and disagreeing
     (and (some? local-items) (some? url-items)
       (not= (items-content-shape local-items)
             (items-content-shape url-items)))

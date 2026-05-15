@@ -588,13 +588,17 @@
     (sut/decide-initial-list items-a items-b)
     => {:source :conflict :local-items items-a :url-items items-b}
 
-    "localStorage exists as `[]` (user emptied their list), URL has items — STILL a conflict"
+    "B-11 fix: localStorage `[]` + URL has items → :url (the non-empty side wins; no modal)"
     (sut/decide-initial-list [] items-a)
-    => {:source :conflict :local-items [] :url-items items-a}
+    => {:source :url :items items-a}
 
-    "URL exists as `[]` (someone shared an empty list), localStorage has items — STILL a conflict"
+    "B-11 fix: URL `[]` + localStorage has items → :local (the non-empty side wins; no modal)"
     (sut/decide-initial-list items-a [])
-    => {:source :conflict :local-items items-a :url-items []})
+    => {:source :local :items items-a}
+
+    "both empty — no real conflict, fall through to :url (matches the both-equal case)"
+    (sut/decide-initial-list [] [])
+    => {:source :url :items []})
 
   (component "B-4 fix — UUIDs differ but content matches → NO conflict"
     ;; The decoder (`og-shape->items`) assigns fresh UUIDs on every
