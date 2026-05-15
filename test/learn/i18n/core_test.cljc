@@ -1,6 +1,7 @@
 (ns learn.i18n.core-test
   "Phase 12.4 — pure specs for the i18n lookup helper."
   (:require
+    [clojure.string :as str]
     [fulcro-spec.core :refer [specification component assertions =>]]
     [learn.i18n.core :as sut]))
 
@@ -68,6 +69,33 @@
     (assertions
       (sut/tr-list-count :ja 1) => "リストに1個の項目があります。"
       (sut/tr-list-count :ja 5) => "リストに5個の項目があります。")))
+
+(specification "tr — Phase 19e tooltip keys"
+  ;; Phase 19e — four tooltips added for controls that previously had
+  ;; no accessible name beyond their visible label. Each must resolve
+  ;; to a translated string (not the fallback `:keyword-as-string`)
+  ;; in every supported locale so screen reader announce on focus.
+  (let [keys [:tooltip/include-lang
+              :tooltip/import-json
+              :tooltip/submit-text-import
+              :tooltip/language-dropdown]
+        translated? (fn [locale k]
+                      (let [s (sut/tr locale k)]
+                        (and (string? s)
+                             ;; The `tr` fallback path turns missing
+                             ;; keys into `(str key)` → ":ns/name".
+                             ;; A real translation never starts with ':'.
+                             (not (str/starts-with? s ":")))))]
+    (assertions
+      "each key has a real :en translation"
+      (every? #(translated? :en %) keys) => true
+      "each key has a real :es translation"
+      (every? #(translated? :es %) keys) => true
+      "each key has a real :ja translation"
+      (every? #(translated? :ja %) keys) => true
+      "locked en string for the include-language checkbox"
+      (sut/tr :en :tooltip/include-lang)
+      => "When checked, the share link will open in this app's current language for whoever clicks it.")))
 
 (specification "tr-review-question (parameterized — B-13)"
   ;; Counterpart to `learn.model.review/current-question` (which now

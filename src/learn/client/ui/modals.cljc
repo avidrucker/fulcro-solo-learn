@@ -230,15 +230,17 @@
             option-style (when dark?
                            {:backgroundColor "#1a1a1a"
                             :color           "#ffffff"})]
-        (dom/select {:id        "settings-locale"
-                     :className (str "pa1 br3 ba bw1 b--gray "
-                                     (theme/theme-modal-input-class theme))
-                     :style     {:colorScheme (if dark? "dark" "light")}
-                     :value     (name locale)
-                     :onChange  (fn [e]
-                                  (let [v (-> e .-target .-value)]
-                                    (comp/transact! this
-                                      [(set-locale {:ui/locale (keyword v)})])))}
+        (dom/select {:id         "settings-locale"
+                     :className  (str "pa1 br3 ba bw1 b--gray "
+                                      (theme/theme-modal-input-class theme))
+                     :title      (i18n/tr locale :tooltip/language-dropdown)
+                     :aria-label (i18n/tr locale :tooltip/language-dropdown)
+                     :style      {:colorScheme (if dark? "dark" "light")}
+                     :value      (name locale)
+                     :onChange   (fn [e]
+                                   (let [v (-> e .-target .-value)]
+                                     (comp/transact! this
+                                       [(set-locale {:ui/locale (keyword v)})])))}
           (for [loc (sort i18n/supported-locales)]
             (dom/option (cond-> {:key   (name loc)
                                  :value (name loc)}
@@ -362,14 +364,17 @@
     ;; Copy List URL button so the user toggles intent first, then
     ;; clicks Copy. When checked, the URL gains `&lang=<locale>`.
     (dom/div {:className "ph3 pt1 pb2"}
-      (dom/label {:className "pointer"}
-        (dom/input {:type      "checkbox"
-                    :className "mr1"
-                    :checked   (boolean share-with-locale?)
-                    :onChange  (fn [e]
-                                 (comp/transact! this
-                                   [(set-share-with-locale
-                                      {:value (-> e .-target .-checked)})]))})
+      (dom/label {:className "pointer"
+                  :title     (i18n/tr locale :tooltip/include-lang)}
+        (dom/input {:type       "checkbox"
+                    :className  "mr1"
+                    :title      (i18n/tr locale :tooltip/include-lang)
+                    :aria-label (i18n/tr locale :tooltip/include-lang)
+                    :checked    (boolean share-with-locale?)
+                    :onChange   (fn [e]
+                                  (comp/transact! this
+                                    [(set-share-with-locale
+                                       {:value (-> e .-target .-checked)})]))})
         (i18n/tr locale :save/include-lang)))
     (dom/div {:className "ph3 pb2"}
       (dom/button {:className (theme/save-modal-wide-btn-class theme)
@@ -387,15 +392,17 @@
                                   "ba bw1 b--gray "
                                   (theme/theme-primary-btn-suffix theme)
                                   " pa2 pointer ma1")
-                  :htmlFor   "save-modal-file-upload"}
+                  :htmlFor   "save-modal-file-upload"
+                  :title     (i18n/tr locale :tooltip/import-json)}
         (i18n/tr locale :btn/import))
-      (dom/input {:id        "save-modal-file-upload"
-                  :type      "file"
-                  :accept    ".json"
-                  :className "dn input-reset"
-                  :onChange  (fn [e]
-                               #?(:cljs (import-json-file! this e locale)
-                                  :clj  nil))})
+      (dom/input {:id         "save-modal-file-upload"
+                  :type       "file"
+                  :accept     ".json"
+                  :className  "dn input-reset"
+                  :aria-label (i18n/tr locale :tooltip/import-json)
+                  :onChange   (fn [e]
+                                #?(:cljs (import-json-file! this e locale)
+                                   :clj  nil))})
       (dom/button {:className (theme/save-modal-btn-class theme)
                    :title     (i18n/tr locale :tooltip/export-json)
                    :onClick   (fn [_]
@@ -427,9 +434,11 @@
                      :value       (or textarea-import-text "")
                      :onChange    #(m/set-string! this :ui/textarea-import-text
                                      :event %)})
-      (dom/button {:type      "button"
-                   :className (theme/save-modal-wide-btn-class theme)
-                   :onClick   #(submit-import!)}
+      (dom/button {:type       "button"
+                   :className  (theme/save-modal-wide-btn-class theme)
+                   :title      (i18n/tr locale :tooltip/submit-text-import)
+                   :aria-label (i18n/tr locale :tooltip/submit-text-import)
+                   :onClick    #(submit-import!)}
         (i18n/tr locale :btn/submit)))
     (dom/p {:className "pt2 ph3 pb3 ma0 lh-135"} (i18n/tr locale :save/click-disk))))
 
