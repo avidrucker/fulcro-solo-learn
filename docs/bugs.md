@@ -332,6 +332,69 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
+## B-14 — Modal close-gutter button doesn't stretch to page bottom when content overflows
+
+**Status:** 🐛 Open
+**Reported:** 2026-05-15 by user
+
+### Symptom
+
+The transparent full-area close button that every dismissible
+modal renders (the "click anywhere outside the content area to
+close" affordance, from `modal-shell` in
+`learn.client.ui.modals`) does NOT consistently extend to the
+bottom of the page when the page content extends past the
+viewport height. Result: scrolling down past the viewport, the
+user can click in the lower portion of the page (below where
+the gutter button reaches) and that click does NOT close the
+modal — even though the visual overlay (the modal-shell's
+`<section>`) appears to cover that area.
+
+### Suspected root cause (not yet confirmed)
+
+`modal-shell`'s outer `<section>` is positioned `absolute
+top-0 bottom-0 left-0 right-0`. That anchors it to the
+nearest positioned ancestor — `app-container` (set to
+`position: relative` in `Root`). The transparent close button
+inside it (`min-h-100`) is sized relative to its own parent.
+
+If `app-container`'s height is constrained to viewport height
+(via flex layout interacting with `<main>`'s
+`min-vh-100`), the absolute overlay also clips at that
+boundary. When the list overflows the viewport, the user
+scrolls past the overlay's bottom edge and clicks land on
+content that's still beneath the modal's z-index but outside
+the close button's hit-target.
+
+### Reproduction
+
+1. Add ~20-30 items so the list overflows the viewport.
+2. Open Info / Settings / Save modal.
+3. Scroll the page so the bottom of the list is visible.
+4. Click in the gutter region BELOW where the visible overlay
+   appears to end.
+5. Expected: modal closes (the overlay is supposed to cover
+   that region).
+6. Actual: click doesn't close the modal.
+
+### Decision
+
+**Logged but not fixed yet.** Per Phase 19 wrap discussion,
+this slots in after the current priorities (Portuguese
+localization, deferred QA pass, then any next phase). Likely
+fix is to either:
+  - Anchor the overlay relative to `<body>` (or a higher
+    container) rather than `app-container`.
+  - Compute the actual content height and set `min-height`
+    on the overlay to match.
+
+The escape-to-close path (Phase 19h) still works for
+dismissible modals, so users with keyboard access have a
+reliable alternative; this only affects mouse users on
+overflowing pages.
+
+---
+
 ## B-13 — Modal body copy not translated (delete-confirm / review / list-conflict)
 
 **Status:** ✅ Fixed in the same conversation that logged it.
