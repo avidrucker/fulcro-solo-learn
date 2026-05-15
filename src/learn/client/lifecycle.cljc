@@ -70,26 +70,40 @@
     {:target [:list/id 1 :list/todos]}))
 
 (defn install-url-locale-fallback!
-  "Phase 14 — apply `?lang=<code>` from the page URL ONLY when the
-   user has no saved locale preference yet. Precedence rule:
+  "Phase 14 + Phase 18 — resolve the relationship between localStorage
+   `:ui/locale` (saved preference) and URL `?lang=<code>` (URL hint
+   for sharing).
 
-     localStorage  >  URL ?lang=  >  :en default
+   Decision logic in `url-encoding/locale-decision`:
+     :apply    — first-time visitor + URL hint; swap state to URL value
+     :conflict — saved present + URL differs; open the locale-conflict
+                 modal so the user picks (Phase 18 / S-language-conflict-modal)
+     :no-op    — no URL hint, or saved matches URL
 
-   Implementation: read the raw ui-prefs slice from localStorage
-   (bypasses the in-memory state which already shows the `:en`
-   initial-state default). If that slice doesn't contain
-   `:ui/locale`, treat the user as first-time and apply the URL
-   value if present. The persistence watch (installed earlier in
-   `init` via `storage/install-ui-prefs-persistence!`) will save
-   the URL-derived locale to localStorage on the next swap, so a
-   future visit picks it up as a saved preference.
+   The persistence watch (installed earlier in `init` via
+   `storage/install-ui-prefs-persistence!`) handles writing the
+   user's chosen locale back to localStorage in both the :apply
+   and :conflict-resolution paths.
 
-   JVM: no-op (the headless test suite doesn't use URL params for
-   locale). The CLJS branch is the real path."
+   JVM: no-op (the headless test suite doesn't exercise URL-based
+   locale selection)."
   [fulcro-state-atom]
   #?(:cljs
-     (let [saved-locale (some-> (storage/load-ui-prefs!) :ui/locale)]
-       (when (nil? saved-locale)
-         (when-let [url-locale (url-encoding/locale-from-current-url)]
-           (swap! fulcro-state-atom
-             assoc-in [:list/id 1 :ui/locale] url-locale))))))
+     (let [saved-locale (some-> (storage/load-ui-prefs!) :ui/locale)
+           url-locale   (url-encoding/locale-from-current-url)
+           decision     (url-encoding/locale-decision saved-locale url-locale)]
+       (case (:action decision)
+         :apply
+         (swap! fulcro-state-atom
+           assoc-in [:list/id 1 :ui/locale] (:locale decision))
+
+         :conflict
+         (swap! fulcro-state-atom
+           (fn [s]
+             (-> s
+               (assoc-in [:list/id 1 :ui/locale-conflict-pair]
+                 (select-keys decision [:saved :url]))
+               (assoc-in [:list/id 1 :ui/open-modal] :locale-conflict))))
+
+         ;; :no-op — nothing to do
+         nil))))

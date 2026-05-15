@@ -370,6 +370,56 @@ language I picked should still be active. Implemented by joining
 `:ui/locale` to `learn.util.storage/ui-prefs-whitelist` so the same
 storage watch that persists theme also persists locale.
 
+### S-language-conflict-modal — Resolve mismatch between URL `?lang=` and saved locale
+**Phase:** 18
+**Status:** ✅ (decision logic + state helpers + mutation + modal render tested); 🟢 (the `history.replaceState` URL update is browser-manual)
+**Tests:** `url-encoding-test:replace-lang-param`, `url-encoding-test:locale-decision` (all four cases), `client_test:set-locale-conflict-pair*`, `client_test:keep-locale*`, `client_test:keep-locale mutation` (state update + client-only), `client_test:Locale-conflict modal renders both locale labels`.
+
+**As a user**, when someone sends me a list with a `?lang=es`
+parameter and my saved locale is English, the Phase 14 silent-
+apply rule (saved wins) means I never get to see the sender's
+intended language. I'd like the option to switch — but I don't
+want it forced on me.
+
+When the URL's `?lang=` differs from my saved locale, the app
+opens a **non-cancellable modal** asking which language to use:
+
+> Which language do you want to use? / ¿Qué idioma quieres usar?
+>
+> [ English ] [ Español ]
+
+The question is shown bilingually so either reader can answer.
+Buttons render each locale's label in its own script (`English`
+/ `Español` / `日本語`). After I pick, `:ui/locale` is set to
+my choice, the modal closes, and the address bar's `?lang=` is
+rewritten to match — so a reload doesn't reopen the modal.
+
+**Asymmetry with Phase 14**: the silent-apply path
+(`{:action :apply}`) still fires when localStorage has NO
+saved locale. First-time visitors following `/?lang=ja` still
+get Japanese without a modal. The modal only surfaces when
+both signals are present and disagree.
+
+**Header icons hard-disable during `:locale-conflict`** (same
+pattern as `:delete-confirm` and `:conflict`) so the user
+can't sidetrack into Settings / Save / etc. before resolving.
+
+**Implementation**:
+- `learn.util.url-encoding/locale-decision` — pure dispatcher
+  on `(saved, url) → :apply | :conflict | :no-op`.
+- `learn.util.url-encoding/replace-lang-param` — pure URL-query
+  rewriter (overwrites/removes `lang=`); used by the CLJS-only
+  `update-current-url-lang!` after resolution.
+- `learn.client.state/set-locale-conflict-pair*` +
+  `keep-locale*` (pure state helpers).
+- `learn.client/keep-locale` defmutation — client-only, state
+  swap + CLJS-only `history.replaceState` side effect.
+- `learn.client.ui.modals/locale-conflict-modal` body — same
+  shape as the list-conflict modal (no `:on-close`, full-area
+  close button OMITTED).
+- `learn.client.lifecycle/install-url-locale-fallback!` —
+  extended to dispatch on `locale-decision`'s three-way result.
+
 ### S-i18n-share-with-locale — Checkbox to stamp Copy List URL with current language
 **Phase:** 17
 **Status:** ✅ (URL builder + state helper + mutation + checkbox render tested); 🟢 (clipboard write of the stamped URL is browser-manual)

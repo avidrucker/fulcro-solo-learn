@@ -468,6 +468,77 @@
      (locale-from-url-search (.-search js/window.location))))
 
 ;; ============================================================================
+;; Phase 18 — Locale-conflict modal helpers (S-language-conflict-modal).
+;;
+;; When the URL `?lang=` differs from the user's saved locale, the
+;; locale-conflict modal asks them which to use. After they pick, the
+;; URL needs to be updated to match their choice (so a future reload
+;; doesn't re-trigger the modal). `replace-lang-param` builds the new
+;; query string; `locale-decision` dispatches the three init-time
+;; cases (silent apply / conflict / no-op) for the lifecycle layer.
+;; ============================================================================
+
+(defn replace-lang-param
+  "Pure: given a URL query string and a target locale, return the
+   query string with `lang=<code>` set to that locale (overwriting any
+   existing `lang=` pair). `nil` locale REMOVES the lang pair instead.
+   Other params are preserved; the new lang pair is appended at the
+   end so the function is deterministic. The leading `?` is preserved
+   on output when the result is non-empty."
+  [query-string locale]
+  (let [s     (cond
+                (nil? query-string) ""
+                (and (string? query-string)
+                     (.startsWith ^String query-string "?")) (subs query-string 1)
+                :else query-string)
+        pairs (filter seq (str/split s #"&"))
+        without-lang (remove #(.startsWith ^String % "lang=") pairs)
+        with-new     (if locale
+                       (concat without-lang [(str "lang=" (name locale))])
+                       without-lang)
+        joined       (str/join "&" with-new)]
+    (if (seq joined) (str "?" joined) "")))
+
+(defn locale-decision
+  "Pure: given a saved-locale (from localStorage) and a url-locale
+   (from `?lang=`), return one of:
+     {:action :apply :locale <loc>}              — first-time visitor with
+                                                     URL hint; lifecycle
+                                                     applies silently.
+     {:action :conflict :saved <s> :url <u>}     — returning user, two
+                                                     supported locales
+                                                     disagree; lifecycle
+                                                     opens the conflict modal.
+     {:action :no-op}                            — neither, or saved
+                                                     matches URL.
+
+   See `learn.client.lifecycle/install-url-locale-fallback!` for the
+   call site. JVM-testable; keeps the lifecycle thin."
+  [saved-locale url-locale]
+  (cond
+    (and (nil? saved-locale) url-locale)
+    {:action :apply :locale url-locale}
+
+    (and saved-locale url-locale (not= saved-locale url-locale))
+    {:action :conflict :saved saved-locale :url url-locale}
+
+    :else
+    {:action :no-op}))
+
+#?(:cljs
+   (defn update-current-url-lang!
+     "CLJS-only side effect: rewrite the address bar's `?lang=` to
+      `locale` (or drop the lang pair if `locale` is nil), preserving
+      other query params. Used after the locale-conflict modal closes
+      so subsequent reloads pick up the user's choice without
+      re-triggering the modal."
+     [locale]
+     (let [loc       js/window.location
+           new-search (replace-lang-param (.-search loc) locale)
+           new-url    (str (.-pathname loc) new-search (.-hash loc))]
+       (.replaceState js/history nil "" new-url))))
+
+;; ============================================================================
 ;; Phase 15 — URL-length safeguard (S-max-url-length).
 ;;
 ;; The JS port's `MAX_URL_LENGTH = 8000` was a defensive cap on the

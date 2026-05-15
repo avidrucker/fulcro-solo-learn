@@ -46,6 +46,7 @@
 (m/declare-mutation keep-local-list    learn.client/keep-local-list)
 (m/declare-mutation set-locale            learn.client/set-locale)
 (m/declare-mutation set-share-with-locale learn.client/set-share-with-locale)
+(m/declare-mutation keep-locale           learn.client/keep-locale)
 (m/declare-mutation set-err-msg           learn.client/set-err-msg)
 (m/declare-mutation import-from-json      learn.client/import-from-json)
 
@@ -501,6 +502,37 @@
 ;; ============================================================================
 ;; Delete-confirm modal (Phase 7.12)
 ;; ============================================================================
+
+(defn locale-conflict-modal
+  "Phase 18 (S-language-conflict-modal) — surfaces when the URL
+   `?lang=<code>` differs from the user's saved locale. The user
+   has to pick one before the app proceeds (no `:on-close`, no
+   background dismiss; identical UX shape to the
+   list-conflict modal).
+
+   Question text is shown bilingually so either reader can
+   understand. Buttons render each locale's label in its own
+   script (`English` / `Español` / `日本語`), so the user can
+   recognise their language regardless of which way the prompt
+   was shown to them. `keep-locale` mutation persists the choice
+   and rewrites the URL (CLJS-only side effect)."
+  [this theme {saved-locale :saved url-locale :url}]
+  (modal-shell {:theme theme}  ; no :on-close — must choose
+    (dom/p {:className "ma0 pb2 lh-135 tc fw6"}
+      (str (i18n/tr saved-locale :locale-conflict/question)
+        " / "
+        (i18n/tr url-locale :locale-conflict/question)))
+    (dom/div {:className "tc pt2 pb3"}
+      (dom/button {:type      "button"
+                   :className (theme/delete-confirm-btn-class theme)
+                   :onClick   #(comp/transact! this
+                                 [(keep-locale {:value saved-locale})])}
+        (i18n/locale-label saved-locale))
+      (dom/button {:type      "button"
+                   :className (theme/delete-confirm-btn-class theme)
+                   :onClick   #(comp/transact! this
+                                 [(keep-locale {:value url-locale})])}
+        (i18n/locale-label url-locale)))))
 
 (defn delete-confirm-modal
   "Phase 7.12 — confirm step for Delete List. Body text matches the JS

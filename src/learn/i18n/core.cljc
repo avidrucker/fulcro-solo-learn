@@ -108,6 +108,9 @@
         :save/click-disk            "Click on the 'disk' icon above to close this window."
         ;; Phase 17 — Include-language checkbox in the save modal.
         :save/include-lang          "Include language in URL"
+        ;; Phase 18 — locale-conflict modal question, shown in both
+        ;; languages side-by-side so either reader can answer.
+        :locale-conflict/question   "Which language do you want to use?"
         ;; Phase 15 — URL-length-safeguard error (S-max-url-length).
         ;; Surfaced when the encoded list would exceed MAX_URL_LENGTH;
         ;; the URL freezes at its last fitting value, localStorage
@@ -180,6 +183,7 @@
         :save/textarea-placeholder  "Pega tu lista aquí, con cada elemento en una nueva línea"
         :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."
         :save/include-lang          "Incluir idioma en la URL"
+        :locale-conflict/question   "¿Qué idioma quieres usar?"
         :err/url-too-long           "La lista actual no se puede guardar como URL: respalda tu lista en formato texto o JSON."
         :err/empty-input            "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
         :err/nothing-to-delete      "No hay nada que eliminar."
@@ -240,6 +244,7 @@
         :save/textarea-placeholder  "リストをここに貼り付けてください。1 行につき 1 項目です。"
         :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"
         :save/include-lang          "URLに言語を含める"
+        :locale-conflict/question   "どの言語を使用しますか？"
         :err/url-too-long           "現在のリストはURLとして保存できません。リストをテキストまたはJSONにバックアップしてください。"
         :err/empty-input            "新しい項目は空または空白のみにすることはできません。"
         :err/nothing-to-delete      "削除するものがありません。"

@@ -234,6 +234,37 @@
   [state-map list-ident value]
   (assoc-in state-map (conj list-ident :ui/share-with-locale?) value))
 
+;; ============================================================================
+;; Phase 18 — locale-conflict modal (S-language-conflict-modal).
+;; ============================================================================
+
+(defn set-locale-conflict-pair*
+  "Phase 18 — write the conflict pair to transient state and open the
+   :locale-conflict modal. Called from
+   `learn.client.lifecycle/install-url-locale-fallback!` when the
+   URL `?lang=` differs from the user's saved locale."
+  [state-map list-ident pair]
+  (-> state-map
+    (assoc-in (conj list-ident :ui/locale-conflict-pair) pair)
+    (assoc-in (conj list-ident :ui/open-modal) :locale-conflict)))
+
+(defn keep-locale*
+  "Phase 18 — user picked a locale in the conflict modal. Set
+   `:ui/locale` to that value, clear the transient conflict pair, and
+   close the modal in one shot. The persistence watch picks up the
+   new `:ui/locale` and saves it on the next state diff — so the next
+   reload sees a saved preference and won't reopen the modal.
+
+   URL-bar update is a SIDE EFFECT performed by the mutation
+   (`learn.client/keep-locale`) after this state helper runs; it
+   lives outside the state-map → state-map contract so this helper
+   stays pure and JVM-testable."
+  [state-map list-ident locale]
+  (-> state-map
+    (assoc-in (conj list-ident :ui/locale) locale)
+    (assoc-in (conj list-ident :ui/locale-conflict-pair) nil)
+    (assoc-in (conj list-ident :ui/open-modal) :none)))
+
 (defn set-err-msg*
   "Set or clear the page-level error message. `msg` may be `nil` to
    clear; any string sets the visible error."

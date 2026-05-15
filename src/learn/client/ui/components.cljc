@@ -140,7 +140,8 @@
 (defsc TodoList [this {:list/keys [todos]
                        :ui/keys   [new-todo-text textarea-import-text
                                    open-modal theme locale err-msg
-                                   conflict-url-items share-with-locale?]
+                                   conflict-url-items share-with-locale?
+                                   locale-conflict-pair]
                        :or        {theme :theme/light locale :en}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -171,6 +172,11 @@
                    ;; for the save modal's Copy List URL action.
                    ;; Persisted via `ui-prefs-whitelist`.
                    :ui/share-with-locale?
+                   ;; Phase 18: transient stash for the locale-conflict
+                   ;; modal — `{:saved :en :url :es}`-shaped when URL
+                   ;; `?lang=` differs from saved locale. Cleared by
+                   ;; `keep-locale`. NOT persisted (session-scope).
+                   :ui/locale-conflict-pair
                    ;; Phase 7.9: page-level error message string, or nil.
                    :ui/err-msg
                    ;; Subscribe to the review chart's state. Without these
@@ -199,6 +205,7 @@
                      :ui/theme                :theme/light
                      :ui/locale               :en
                      :ui/share-with-locale?   false
+                     :ui/locale-conflict-pair nil
                      :ui/err-msg              nil})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
@@ -401,6 +408,7 @@
         :delete-confirm (modals/delete-confirm-modal this theme locale
                           confirm-delete! cancel-delete!)
         :conflict       (modals/conflict-modal this theme locale todos conflict-url-items)
+        :locale-conflict (modals/locale-conflict-modal this theme locale-conflict-pair)
         nil))))
 
 (def ui-todo-list (comp/factory TodoList {:keyfn :list/id}))
@@ -431,7 +439,8 @@
         review-active?   (contains? config chart/active)
         open-modal       (:ui/open-modal list)
         menu-disabled?   (or review-active?
-                           (contains? #{:delete-confirm :conflict} open-modal))
+                           (contains? #{:delete-confirm :conflict :locale-conflict}
+                             open-modal))
         toggle-theme-lbl (i18n/tr locale :tooltip/toggle-theme)]
     (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
                                ;; Phase 12.1 (B-6 fix): bottom padding so the

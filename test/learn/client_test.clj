@@ -1674,6 +1674,86 @@
 ;; Phase 17 — Include-language checkbox in the save modal
 ;; ============================================================================
 
+;; ============================================================================
+;; Phase 18 — Locale-conflict modal (S-language-conflict-modal)
+;; ============================================================================
+
+(specification "set-locale-conflict-pair*"
+  (let [before (fixture-state)
+        after  (sut/set-locale-conflict-pair* before [:list/id 1]
+                 {:saved :en :url :es})]
+    (assertions
+      "stores the pair at :ui/locale-conflict-pair"
+      (get-in after [:list/id 1 :ui/locale-conflict-pair])
+      => {:saved :en :url :es}
+      "opens the :locale-conflict modal"
+      (get-in after [:list/id 1 :ui/open-modal]) => :locale-conflict)))
+
+(specification "keep-locale*"
+  (let [before (-> (fixture-state)
+                 (assoc-in [:list/id 1 :ui/locale-conflict-pair]
+                   {:saved :en :url :es})
+                 (assoc-in [:list/id 1 :ui/open-modal] :locale-conflict)
+                 (assoc-in [:list/id 1 :ui/locale] :en))
+        after  (sut/keep-locale* before [:list/id 1] :es)]
+    (assertions
+      ":ui/locale becomes the chosen value"
+      (get-in after [:list/id 1 :ui/locale]) => :es
+      ":ui/locale-conflict-pair cleared"
+      (get-in after [:list/id 1 :ui/locale-conflict-pair]) => nil
+      "modal closed"
+      (get-in after [:list/id 1 :ui/open-modal]) => :none)))
+
+(specification "keep-locale mutation"
+  (component "updates :ui/locale + clears conflict + closes modal"
+    (server/seed!)
+    (let [spa (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              #(-> %
+                 (assoc-in [:list/id 1 :ui/locale-conflict-pair]
+                   {:saved :en :url :es})
+                 (assoc-in [:list/id 1 :ui/open-modal] :locale-conflict)))
+          _ (comp/transact! spa [(sut/keep-locale {:value :es})])
+          db (app/current-state spa)]
+      (assertions
+        ":ui/locale = :es"
+        (get-in db [:list/id 1 :ui/locale]) => :es
+        ":ui/locale-conflict-pair cleared"
+        (get-in db [:list/id 1 :ui/locale-conflict-pair]) => nil
+        ":ui/open-modal = :none"
+        (get-in db [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "is client-only (no remote)"
+    (server/seed!)
+    (let [spa (sut/init)
+          server-before @server/SERVER-DB
+          _ (comp/transact! spa [(sut/keep-locale {:value :ja})])]
+      (assertions
+        "server-db unchanged"
+        @server/SERVER-DB => server-before))))
+
+(specification "Locale-conflict modal renders both locale labels (Phase 18)"
+  (component "open modal shows the saved + URL locale labels in their own scripts"
+    (server/seed!)
+    (let [spa (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom
+              #(-> %
+                 (assoc-in [:list/id 1 :ui/locale-conflict-pair]
+                   {:saved :en :url :es})
+                 (assoc-in [:list/id 1 :ui/open-modal] :locale-conflict)))
+          _ (h/render-frame! spa)]
+      (assertions
+        "English label visible (the saved choice)"
+        (h/text-exists? spa "English") => true
+        "Español label visible (the URL choice)"
+        (h/text-exists? spa "Español") => true
+        "English question appears"
+        (h/text-exists? spa "Which language") => true
+        "Spanish question appears"
+        (h/text-exists? spa "¿Qué idioma") => true))))
+
 (specification "set-share-with-locale*"
   (let [before (fixture-state)]
     (assertions

@@ -421,6 +421,40 @@
       (sut/locale-from-url-search search))
     => :ja))
 
+;; ============================================================================
+;; Phase 18 — locale-conflict modal (S-language-conflict-modal).
+;; ============================================================================
+
+(specification "replace-lang-param"
+  (assertions
+    "appends lang when absent"
+    (sut/replace-lang-param "?list=abc" :es) => "?list=abc&lang=es"
+    "overwrites existing lang"
+    (sut/replace-lang-param "?list=abc&lang=ja" :es) => "?list=abc&lang=es"
+    "removes lang when locale is nil"
+    (sut/replace-lang-param "?list=abc&lang=ja" nil) => "?list=abc"
+    "adds lang to empty query"
+    (sut/replace-lang-param "" :es) => "?lang=es"
+    "nil input treated as empty"
+    (sut/replace-lang-param nil :es) => "?lang=es"
+    "removes lang from query that only had lang"
+    (sut/replace-lang-param "?lang=es" nil) => ""
+    "no-leading-? form also works"
+    (sut/replace-lang-param "list=abc" :ja) => "?list=abc&lang=ja"))
+
+(specification "locale-decision"
+  (assertions
+    "first-time visitor — URL hint applies silently"
+    (sut/locale-decision nil :es) => {:action :apply :locale :es}
+    "saved present, URL absent — no-op (just use saved)"
+    (sut/locale-decision :en nil) => {:action :no-op}
+    "saved equals URL — no-op (nothing to resolve)"
+    (sut/locale-decision :es :es) => {:action :no-op}
+    "saved differs from URL — open the conflict modal"
+    (sut/locale-decision :en :es) => {:action :conflict :saved :en :url :es}
+    "neither present — no-op"
+    (sut/locale-decision nil nil) => {:action :no-op}))
+
 (specification "MAX_URL_LENGTH"
   (assertions
     "matches the JS port's constant"

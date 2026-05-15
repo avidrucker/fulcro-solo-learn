@@ -155,6 +155,15 @@
   (action [{:keys [state]}]
     (swap! state state/set-share-with-locale* [:list/id 1] value)))
 
+;; Phase 18 — user picked a locale in the conflict modal. Pure
+;; state-map change handled by `state/keep-locale*`; the CLJS-only
+;; side effect updates the address bar's `?lang=` so reloads don't
+;; reopen the modal.
+(defmutation learn.client/keep-locale [{:keys [value]}]
+  (action [{:keys [state]}]
+    (swap! state state/keep-locale* [:list/id 1] value)
+    #?(:cljs (url-encoding/update-current-url-lang! value))))
+
 ;; Phase 7.9: page-level error setter. `nil` clears, string sets.
 (defmutation learn.client/set-err-msg [{:ui/keys [err-msg]}]
   (action [{:keys [state]}]
