@@ -68,16 +68,32 @@
      :close-label — a11y text for that close button (e.g. \"Close Save Modal\").
      :theme       — :theme/light (default) or :theme/dark; drives the
                     `bg-white-90` / `bg-black-90` overlay tint.
+     :labelled-by — Phase 19a11y: DOM id of an element inside the body
+                    (typically the modal's `<h2>`). Wired to
+                    `aria-labelledby` so screen readers announce the
+                    modal's title when focus enters. Optional; omit if
+                    the modal has no canonical heading (the locale-
+                    conflict modal doesn't, for example — its question
+                    is bilingual and not a heading).
 
    `children` are positional DOM nodes for the modal body."
-  [{:keys [on-close close-label theme] :or {theme :theme/light}} & children]
+  [{:keys [on-close close-label theme labelled-by]
+    :or   {theme :theme/light}}
+   & children]
   ;; Anchor the overlay to all four edges of `.app-container` (its
   ;; nearest positioned ancestor) so it stretches to whatever height
   ;; the containing block actually has. `top-0 bottom-0` does this
   ;; without relying on `h-100`, which resolves to 100% of an
   ;; ill-defined parent height when `<main>` uses min-height + flex.
-  (dom/section {:className (str "absolute f5 top-0 bottom-0 left-0 right-0 "
-                                (theme/theme-modal-bg-class theme))}
+  ;;
+  ;; Phase 19a11y: role=dialog + aria-modal=true so screen readers
+  ;; treat this as a modal interaction surface. `aria-labelledby`
+  ;; points to the modal's <h2> id when provided.
+  (dom/section (cond-> {:className (str "absolute f5 top-0 bottom-0 left-0 right-0 "
+                                        (theme/theme-modal-bg-class theme))
+                        :role        "dialog"
+                        :aria-modal  "true"}
+                 labelled-by (assoc :aria-labelledby labelled-by))
     ;; Inner section mirrors the JS port: `measure-narrow ml-auto mr-auto`
     ;; ONLY — no `pa3` (would squeeze the text into a narrower column).
     ;; `relative z-1` is kept so the inner section sits above the
@@ -162,8 +178,10 @@
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label (i18n/tr locale :close/info)
-                :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/info))
+                :theme       theme
+                :labelled-by "info-modal-title"}
+    (dom/h2 {:id "info-modal-title" :className "pb2 ma0"}
+      (i18n/tr locale :modal/info))
     (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} (i18n/tr locale :info/heading-about))
     (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/about-1))
     (dom/p {:className "pb2 ma0 lh-135"} (i18n/tr locale :info/about-2))
@@ -193,8 +211,10 @@
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label (i18n/tr locale :close/settings)
-                :theme       theme}
-    (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/settings))
+                :theme       theme
+                :labelled-by "settings-modal-title"}
+    (dom/h2 {:id "settings-modal-title" :className "pb2 ma0"}
+      (i18n/tr locale :modal/settings))
     (dom/div {:className "pt2 pb2 flex items-center"}
       (dom/label {:htmlFor   "settings-locale"
                   :className "fw6 mr2"}
@@ -334,8 +354,10 @@
   [this theme locale todos textarea-import-text submit-import! share-with-locale?]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label (i18n/tr locale :close/save)
-                :theme       theme}
-    (dom/h2 {:className "pb2 ph3 ma0"} (i18n/tr locale :modal/import-export))
+                :theme       theme
+                :labelled-by "save-modal-title"}
+    (dom/h2 {:id "save-modal-title" :className "pb2 ph3 ma0"}
+      (i18n/tr locale :modal/import-export))
     ;; Phase 17 — "Include language in URL" checkbox sits ABOVE the
     ;; Copy List URL button so the user toggles intent first, then
     ;; clicks Copy. When checked, the URL gains `&lang=<locale>`.
@@ -472,8 +494,10 @@
   (let [copy-btn-class (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
                             (theme/theme-primary-btn-suffix theme)
                             " pa2 pointer ma1")]
-    (modal-shell {:theme theme}  ; no :on-close — must choose
-      (dom/p {:className "ma0 pb2 lh-135"} (i18n/tr locale :conflict/mismatch))
+    (modal-shell {:theme theme  ; no :on-close — must choose
+                  :labelled-by "list-conflict-question"}
+      (dom/p {:id "list-conflict-question" :className "ma0 pb2 lh-135"}
+        (i18n/tr locale :conflict/mismatch))
       ;; Both list previews stacked first, so the user can read
       ;; through them before picking — no buttons interleaved.
       (dom/p {:className "fw6 ma0 pt2"} (i18n/tr locale :conflict/label-link))
@@ -527,8 +551,9 @@
    was shown to them. `keep-locale` mutation persists the choice
    and rewrites the URL (CLJS-only side effect)."
   [this theme {saved-locale :saved url-locale :url}]
-  (modal-shell {:theme theme}  ; no :on-close — must choose
-    (dom/p {:className "ma0 pb2 lh-135 tc fw6"}
+  (modal-shell {:theme theme  ; no :on-close — must choose
+                :labelled-by "locale-conflict-question"}
+    (dom/p {:id "locale-conflict-question" :className "ma0 pb2 lh-135 tc fw6"}
       (str (i18n/tr saved-locale :locale-conflict/question)
         " / "
         (i18n/tr url-locale :locale-conflict/question)))
@@ -556,8 +581,9 @@
   [_this theme locale on-yes on-no]
   (modal-shell {:on-close    on-no
                 :close-label (i18n/tr locale :close/delete)
-                :theme       theme}
-    (dom/p {:className "ma0 pb3 lh-135 tc"}
+                :theme       theme
+                :labelled-by "delete-confirm-question"}
+    (dom/p {:id "delete-confirm-question" :className "ma0 pb3 lh-135 tc"}
       (i18n/tr locale :modal/confirm-delete))
     (dom/div {:className "tc"}
       (dom/button {:type      "button"
