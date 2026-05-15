@@ -1816,20 +1816,35 @@ each key resolves to a real translation (not the keyword-as-string
 fallback) in :en/:es/:ja, plus an exact-match assertion on the
 locked include-lang en string.
 
-**⬜ 19f — Status-icon accessible names** (queued). Now that the
-status SVG itself is `aria-hidden`, the wrapping `<span>` has no
-announceable text, so screen reader users get no status info per
-row. Move to a `role="img"` + localized `aria-label` for the
-status indicator span. Cancelled rows announce both state and
-prior-state.
+**✅ 19f — Status-icon accessible names.** New
+`learn.i18n.core/tr-status [locale status was]` (pure, JVM-
+testable) produces a localized accessible name for each todo
+row's status indicator. Cancelled rows surface the prior status
+in parentheses ("cancelled (was ready)" / "cancelado (antes:
+listo)" / "キャンセル済み（元：準備完了）"). The wrapping span on
+each row (in TodoItem AND the list-conflict modal preview) now
+has `role="img"` + localized `aria-label`, with the inner SVG
+still aria-hidden — single, meaningful announcement per row.
+Spec: `tr-status (parameterized — Phase 19f)` with 4 components.
 
-**⬜ 19g — Focus management on modal open / close** (queued). On
-open, move focus inside the modal; on close, restore. Lowest-cost
-first pass: focus-the-heading + restore.
+**✅ 19g — Focus management on modal open/close.** New
+`learn.client.lifecycle/install-modal-focus-sync!` watches the
+state-atom and, on `:none → modal-id` transition, snapshots
+`document.activeElement` then focuses the modal's heading
+element (looked up by id from a new `modal-id->heading-id`
+table; ids reused from 19b's `aria-labelledby`). Deferred via
+`setTimeout 0` so React mounts the modal DOM first. On modal
+close, focus restores to the snapshotted element. Covers the
+six `:ui/open-modal`-driven modals; review modal stays a
+follow-up.
 
-**⬜ 19h — Escape-to-close on dismissible modals** (queued).
-Info / Settings / Save / Delete-confirm. List-conflict and
-locale-conflict remain non-dismissible by design.
+**✅ 19h — Escape-to-close on dismissible modals.** New
+`install-escape-to-close!` window-keydown listener fires
+`set-open-modal :none` when Escape is pressed AND the active
+modal is in `#{:info :settings :save :delete-confirm}`. The
+two conflict modals stay non-dismissible by design. Routes
+through the existing mutation so any future side effects of
+closing stay consistent.
 
 **⬜ 19i — Keyboard-only navigation sweep** (queued — partly user
 work, see Section B-5).

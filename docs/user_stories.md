@@ -506,6 +506,129 @@ preference:
 
 ---
 
+## Accessibility (Phase 19)
+
+Stories covering screen reader, keyboard, and a11y semantics work
+landed in Phase 19. The mechanical pass split as 19a–19j; user-facing
+outcomes below. Browser-manual checks live in `docs/manual_tests.md`.
+
+### S-a11y-localized-button-labels — Every button announces its purpose in the active locale
+**Phase:** 19a
+**Status:** 🟢 (browser-manual — verified by inspecting `aria-label` /
+`title` in DevTools; screen reader confirmation lives in manual_tests
+§19a)
+
+Every interactive button — header icons, primary action buttons, per-
+row cancel/clone, modal close-buttons — has both `:title` (mouse
+hover tooltip) and `:aria-label` (screen reader announcement) pulled
+from `learn.i18n.core` so the wording flips with `:ui/locale`. Tab-
+focusing any control announces the same text the hover tooltip shows,
+in the same language as the rest of the UI.
+
+### S-a11y-modal-semantics — Modals announce as dialogs with their visible title as the accessible name
+**Phase:** 19b
+**Status:** 🟢 (browser-manual; manual_tests §19b)
+
+Every modal carries `role="dialog"` + `aria-modal="true"`, plus an
+opt-in `aria-labelledby` pointing to the visible heading or question
+element (with a stable id). On open, AT announces "<modal title>,
+dialog" instead of generic structure.
+
+### S-a11y-html-lang-sync — `<html lang>` follows the active locale
+**Phase:** 19c
+**Status:** 🟢 (browser-manual; manual_tests §19c)
+
+When the user switches language in Settings, the page's `<html lang>`
+attribute updates immediately (no reload). Screen readers use this to
+pick the right voice/pronunciation per locale, so Spanish UI is read
+with the Spanish voice, Japanese with the Japanese voice.
+
+### S-a11y-decorative-icons — SVG icons don't double-announce alongside their button labels
+**Phase:** 19d
+**Status:** 🟢 (browser-manual; manual_tests §19d)
+
+Every inline SVG icon has `aria-hidden="true"` + `focusable="false"`
+applied via the shared `svg-attrs`. The parent button's accessible
+name is the sole announcement; AT no longer reads "<label>, graphic"
+on every focus.
+
+### S-a11y-bare-control-tooltips — Controls that previously had no name announce localized hints
+**Phase:** 19e
+**Status:** 🟢 (browser-manual; manual_tests §19e)
+
+The four interactive controls in the Save/Settings modals that had
+no accessible name beyond their visible label (the include-language
+checkbox, the JSON import button, the text-list submit button, the
+language `<select>`) now carry localized `:title` + `:aria-label`.
+The include-language checkbox's en wording was locked with the user:
+"When checked, the share link will open in this app's current
+language for whoever clicks it." es / ja translations are equivalents.
+
+### S-a11y-status-announced — Per-row status is read aloud, including the prior status of cancelled rows
+**Phase:** 19f
+**Status:** ✅ (i18n function tested in spec; render-tree wiring browser-manual)
+**Tests:** `i18n.core-test:tr-status (parameterized — Phase 19f)`
+
+The status indicator span on each todo row now carries
+`role="img"` + a localized `aria-label` produced by
+`learn.i18n.core/tr-status`. Plain statuses announce as "new" /
+"ready" / "done" / "cancelled" (plus the es/ja equivalents).
+Cancelled rows surface the prior state in parentheses
+("cancelled (was ready)" / "cancelado (antes: listo)" /
+"キャンセル済み（元：準備完了）") so the user can hear what was
+cancelled.
+
+### S-a11y-modal-focus-management — Opening a modal moves focus into it; closing restores focus
+**Phase:** 19g
+**Status:** 🟢 (browser-manual; manual_tests §19g)
+
+When any of the six `:ui/open-modal`-driven modals opens (info,
+settings, save, delete-confirm, list-conflict, locale-conflict),
+keyboard focus moves to the modal's heading/question element on the
+next tick. The previously-focused element is snapshotted; on close,
+focus returns to it. Without this, tabbing from a now-dismissed
+modal landed back on `<body>` and the user lost context.
+
+Limitation: the review modal is statechart-driven (not via
+`:ui/open-modal`) and is NOT yet covered. Tracked for future work.
+
+### S-a11y-escape-to-close — Escape closes dismissible modals
+**Phase:** 19h
+**Status:** 🟢 (browser-manual; manual_tests §19h)
+
+Pressing Escape with the Info / Settings / Save / Delete-confirm
+modal open dispatches `set-open-modal :none` — same code path as
+background-click or the close-button. The two conflict modals (list-
+conflict, locale-conflict) are deliberately excluded: the user must
+resolve the conflict, and silent dismissal would leave the app in an
+ambiguous state. The review modal also stays Quit-only for now.
+
+### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
+**Phase:** 19a–19h together
+**Status:** 🟢 (browser-manual sweep; manual_tests §19i)
+
+As a user who can't or doesn't want to use a mouse, I can complete
+every primary action — add items, prioritize, mark done, delete the
+list, switch language, toggle theme, import/export — using only Tab
+/ Shift-Tab / Enter / Space / Escape / arrow keys.
+
+Builds on Phase 7.3 (Enter submits Add Item; input refocus after
+delete) and Phase 19g/h (modal focus + Escape). Modal close is
+keyboard-reachable both via Escape (where applicable) and via the
+explicit close button at the modal foot.
+
+### S-a11y-contrast-aa — Dark theme meets WCAG AA contrast
+**Phase:** 19j
+**Status:** ⬜ (measurement pending — manual_tests §19j; agent fixes any
+failing pair once measured)
+
+All text and UI elements in dark mode meet WCAG AA contrast targets
+(4.5:1 normal text, 3:1 large text and UI components / icons). Light
+mode is presumed fine by default but spot-check covered by the same
+manual_tests step.
+
+---
+
 ## Inputs and keyboard
 
 ### S-input-enter-submit — Enter key submits Add Item
@@ -798,6 +921,40 @@ service worker state, cache contents, offline status, and a
 general-info JSON dump. Useful once `S-pwa-offline` is live and we
 need to debug install/cache behaviour. Until then there's nothing
 to debug.
+
+### S-ux-a11y-review-pass — Qualitative UX + content-copy review of all modals
+**Phase:** —
+**Status:** 🆒
+**Tests:** N/A (qualitative; outcome is doc + small commits if changes warranted)
+
+Separate from the mechanical a11y audit (Phase 19), this is a
+QUALITATIVE pass over the user-facing copy and overall UX. Things
+to question:
+
+- **Info modal**: is the About copy concise? Does the
+  "Instructions" section read well in all three locales, or do
+  the translations sound awkward? Is the GitHub-issues link
+  prominent enough?
+- **Import/Export modal**: are the section headers / button
+  labels self-explanatory? Does the "paste raw text"
+  affordance compete with the JSON file-upload?
+- **Settings modal**: as more preferences land (Phase 17's
+  share-locale checkbox is already there), does the modal need
+  visual grouping / dividers?
+- **Review flow**: is "Prioritize" the right verb for the
+  outer button, vs. "Start prioritizing" / "Begin review"?
+  The Japanese 優先する shipped in B-13 prep is concise but
+  could be more action-explicit.
+- **Conflict modals** (list + locale): are the bilingual /
+  side-by-side patterns intuitive on first encounter?
+- **Error messages**: the strings are now localized (B-8 /
+  B-13) but are they user-friendly? "The list isn't
+  prioritizable right now." — does the user know WHY?
+
+**Decide when to promote ⬜**: when 2+ users besides the
+author have walked the app end-to-end and reported specific
+copy / UX friction, OR when the project is being prepared for
+a wider audience.
 
 ### S-import-confirmation — Ask before importing into a non-empty list
 **Phase:** —
