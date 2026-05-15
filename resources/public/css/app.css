@@ -245,3 +245,32 @@ body.bg-black .skip-link {
   color: white;
   border-color: white;
 }
+
+/* Phase 19p a11y — respect `prefers-reduced-motion`.
+ *
+ * WCAG 2.3.3 (Animation from Interactions) recommends disabling
+ * non-essential animations when the user has expressed a reduced-
+ * motion preference at the OS level (Windows: Settings → Ease of
+ * Access → Display → Show animations; macOS: System Prefs →
+ * Accessibility → Display → Reduce motion; Linux: varies by DE).
+ *
+ * Our only transitions are the 0.2s button background fades
+ * (`.hover-bg-light-gray`, `.hover-bg-dark-gray`, `.modal-input`
+ * variants). They're purely decorative — the visual state is
+ * equally communicated by the rest/hover/focus background change
+ * itself. Setting `transition: none !important` keeps the end
+ * state but skips the animation.
+ *
+ * `animation: none` is included for future-proofing — we don't
+ * use CSS keyframes today, but if we add any, this guard will
+ * cover them too without a separate change. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

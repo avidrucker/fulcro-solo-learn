@@ -383,6 +383,32 @@ With NVDA / VoiceOver running and the page in English:
 
 ---
 
+## Phase 19p — respect prefers-reduced-motion
+
+WCAG 2.3.3 (Animation from Interactions). The 0.2s button-bg
+transitions suppress when the user prefers reduced motion.
+
+### 19p.1 DevTools emulation
+- [ ] DevTools → Rendering panel → Emulate CSS media feature
+      `prefers-reduced-motion: reduce`.
+- [ ] Hover any header icon button (light theme): the bg fade
+      is gone — the new color appears immediately, no
+      `.2s` ease.
+- [ ] Same in dark theme.
+
+### 19p.2 OS-level preference (optional)
+For higher-confidence verification:
+- Windows: Settings → Ease of Access → Display → "Show
+  animations in Windows" OFF.
+- macOS: System Preferences → Accessibility → Display →
+  "Reduce motion" ON.
+- Linux: varies by DE.
+
+Reload the page. Hover behavior should match §19p.1 without
+DevTools emulation.
+
+---
+
 ## Phase 19i — keyboard-only navigation sweep
 
 Walk the golden path with **keyboard only** (no mouse). Each
@@ -463,6 +489,7 @@ Tooling that needs to run against the live app (not the codebase):
 - **B-6 Zoom 200%**: page remains usable down to 320 CSS px viewport
   width with no horizontal scroll.
 - **B-7 `prefers-reduced-motion: reduce`**: no animations play.
+  Phase 19p added the CSS guard; §19p above is the test.
 - **B-8 Contrast measurement**: §19j above.
 
 ---

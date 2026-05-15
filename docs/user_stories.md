@@ -665,6 +665,16 @@ header icon buttons directly to the main content section. WCAG
 2.1 §2.4.1 (Bypass Blocks). The label is localized via
 `:nav/skip-to-main`.
 
+### S-a11y-reduced-motion — Respect prefers-reduced-motion
+**Phase:** 19p
+**Status:** 🟢 (browser-manual; manual_tests §19p)
+
+When the user has set `prefers-reduced-motion: reduce` at the
+OS level, the 0.2s button-background transitions suppress. WCAG
+2.3.3 (Animation from Interactions). The state still updates
+visually (hover/focus background change is preserved) — only
+the *animation* between states is skipped.
+
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
 **Phase:** 19a–19h together
 **Status:** 🟢 (browser-manual sweep; manual_tests §19i)
