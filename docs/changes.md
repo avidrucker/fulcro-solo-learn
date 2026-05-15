@@ -258,6 +258,31 @@ option style is the de-facto cross-browser fix.
 
 **Where:** `learn.client.ui.modals/settings-modal`.
 
+### URL freezes (no unsharable links) when the encoded list exceeds 8000 chars
+
+**Difference:** When the user's list grows large enough that
+the encoded `?list=<segment>` would exceed 8000 chars
+(`MAX_URL_LENGTH`), our URL-sync watch SKIPS the
+`history.replaceState` call — the URL stays at its last
+fitting value. The JS port lets the URL grow unbounded and
+produces truncated / unsharable links.
+
+**Why:** Phase 15 (`S-max-url-length`). Predictability:
+either the URL in your address bar is a valid shareable
+encoding of your list, or you've been told it's no longer
+syncing. Never both / never broken. localStorage continues
+normally — the list keeps growing locally; users back up to
+JSON (Export) or paste-as-text via copy/paste before pruning.
+
+The error surfaces as `:err/url-too-long` ("Current list
+cannot be saved as URL: Please back up your list to text or
+JSON.") in the user's selected locale.
+
+**Where:** `learn.util.url-encoding/MAX_URL_LENGTH`,
+`learn.util.url-encoding/items-encode-fits?`,
+`learn.util.url-encoding/install-url-sync!` (3-arity with
+the over-limit callback wired by default in production).
+
 ### Locale can be hinted via `?lang=<code>` URL parameter
 
 **Difference:** First-time visitors following a URL like

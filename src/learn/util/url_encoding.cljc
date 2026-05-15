@@ -459,25 +459,73 @@
      []
      (locale-from-url-search (.-search js/window.location))))
 
+;; ============================================================================
+;; Phase 15 — URL-length safeguard (S-max-url-length).
+;;
+;; The JS port's `MAX_URL_LENGTH = 8000` was a defensive cap on the
+;; encoded `?list=` segment. Our divergence: when the encoded segment
+;; would exceed this, we FREEZE the URL at its last-fitting value and
+;; surface an error message via a caller-injected callback. The list
+;; keeps growing in app state + localStorage; only URL-sharing is
+;; affected.
+;;
+;; This differs from the OG, which lets the URL grow unbounded and
+;; produces unsharable links. See `docs/changes.md` for the rationale.
+;; ============================================================================
+
+(def MAX_URL_LENGTH
+  "Maximum length of the encoded `?list=<segment>` value (the
+   base64-url-segment part, NOT including the `?list=` prefix). 8000
+   matches the JS port's constant — practical browsers/servers accept
+   ~2-8KB URLs reliably; 8000 is a safe upper bound across most
+   modern stacks."
+  8000)
+
+(defn items-encode-fits?
+  "Pure: would the URL-encoded representation of `items` fit within
+   `MAX_URL_LENGTH`? Returns true if the encoded segment is short
+   enough to safely write to the URL, false otherwise. Used by the
+   URL-sync watch to decide whether to skip `history.replaceState`."
+  [items]
+  (<= (count (items->base64-url-segment items)) MAX_URL_LENGTH))
+
 (defn install-url-sync!
   "Watch `fulcro-state-atom`. When the denormalized items at
    `[:list/id 1]` change, call `url-setter` with the new items
-   vector.
+   vector — unless the encoded segment would exceed
+   `MAX_URL_LENGTH`, in which case `url-setter` is skipped (URL
+   freezes) and `on-over-limit` is invoked so the caller can
+   surface an error.
 
    - 1-arity (production): defaults `url-setter` to
-     `replace-url-with-items!` in CLJS; no-op on JVM.
-   - 2-arity (tests): inject a recording setter to assert what would
-     have been written.
+     `replace-url-with-items!` in CLJS; `on-over-limit` swaps the
+     URL-too-long error string into `:ui/err-msg`. JVM: no-op
+     install (returns the atom unchanged).
+   - 2-arity (legacy tests): inject `url-setter` only;
+     `on-over-limit` defaults to no-op so older tests that
+     don't exercise the over-limit path continue to work.
+   - 3-arity (tests): inject both callbacks for full
+     observability.
 
    Returns the atom for fluent composition."
   ([fulcro-state-atom]
-   #?(:cljs (install-url-sync! fulcro-state-atom replace-url-with-items!)
-      :clj  fulcro-state-atom))
+   #?(:cljs
+      (install-url-sync! fulcro-state-atom
+        replace-url-with-items!
+        (fn [state-atom]
+          (let [locale (get-in @state-atom [:list/id 1 :ui/locale] :en)]
+            (swap! state-atom assoc-in [:list/id 1 :ui/err-msg]
+              (i18n/tr locale :err/url-too-long)))))
+      :clj fulcro-state-atom))
   ([fulcro-state-atom url-setter]
+   (install-url-sync! fulcro-state-atom url-setter (constantly nil)))
+  ([fulcro-state-atom url-setter on-over-limit]
    (add-watch fulcro-state-atom ::url-sync
      (fn [_k _ref old-state new-state]
        (let [old-items (extract-items old-state)
              new-items (extract-items new-state)]
          (when (not= old-items new-items)
-           (url-setter new-items)))))
+           (if (items-encode-fits? new-items)
+             (url-setter new-items)
+             (on-over-limit fulcro-state-atom))))))
    fulcro-state-atom))

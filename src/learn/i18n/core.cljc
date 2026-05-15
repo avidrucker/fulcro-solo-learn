@@ -105,7 +105,12 @@
         :save/info-1                "You can import and export JSON lists into and out of AutoFocus."
         :save/info-2                "You can also import a list by pasting in raw text below, and then clicking the 'Submit' button."
         :save/textarea-placeholder  "Paste your list here, with each item on a new line"
-        :save/click-disk            "Click on the 'disk' icon above to close this window."}
+        :save/click-disk            "Click on the 'disk' icon above to close this window."
+        ;; Phase 15 — URL-length-safeguard error (S-max-url-length).
+        ;; Surfaced when the encoded list would exceed MAX_URL_LENGTH;
+        ;; the URL freezes at its last fitting value, localStorage
+        ;; continues normally.
+        :err/url-too-long           "Current list cannot be saved as URL: Please back up your list to text or JSON."}
 
    :es {:btn/add-item       "Añadir Tarea"
         :btn/delete-list    "Eliminar Lista"
@@ -160,7 +165,8 @@
         :save/info-1                "Puedes importar y exportar listas JSON dentro y fuera de AutoFocus."
         :save/info-2                "También puedes importar una lista pegando texto sin formato a continuación y haciendo clic en el botón 'Enviar'."
         :save/textarea-placeholder  "Pega tu lista aquí, con cada elemento en una nueva línea"
-        :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."}
+        :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."
+        :err/url-too-long           "La lista actual no se puede guardar como URL: respalda tu lista en formato texto o JSON."}
 
    :ja {:btn/add-item       "項目を追加"
         :btn/delete-list    "リストを削除"
@@ -211,7 +217,8 @@
         :save/info-1                "AutoFocus に JSON リストをインポート／エクスポートできます。"
         :save/info-2                "下のテキストエリアに生のテキストを貼り付けて「送信」ボタンをクリックすることでも、リストをインポートできます。"
         :save/textarea-placeholder  "リストをここに貼り付けてください。1 行につき 1 項目です。"
-        :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"}})
+        :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"
+        :err/url-too-long           "現在のリストはURLとして保存できません。リストをテキストまたはJSONにバックアップしてください。"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:

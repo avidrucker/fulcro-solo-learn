@@ -605,17 +605,38 @@ a hidden `<a download>` click. Companion to `S-import-json-file` —
 together they close the `S-import-export` story.
 
 ### S-max-url-length — URL-length safeguard
-**Phase:** TBD
-**Status:** ⬜
-**Tests:** TBD
+**Phase:** 15
+**Status:** ✅ (predicate + watch over-limit branch tested); 🟢 (real browser uses `history.replaceState` — confirm by manual scroll)
+**Tests:** `url-encoding-test:MAX_URL_LENGTH` (constant), `url-encoding-test:items-encode-fits?` (pure predicate, empty/small/200-item cases), `url-encoding-test:install-url-sync! — over-limit handling` (watch skips url-setter and triggers on-over-limit callback).
 
-As a user adding many items, when the encoded URL would exceed
-8000 characters (`MAX_URL_LENGTH` in the JS port), the URL-sync
-watch should silently skip the `history.replaceState` call AND
-surface `max-list-length-err` ("Maximum list length reached.
-Please create a new list to continue adding items.") — already in
-`strings.cljc`. localStorage persistence continues normally; only
-the URL is affected.
+**As a user**, when my list grows past the URL-encodable limit
+(~8000 chars of encoded JSON), I want the app to keep working —
+my items stay in the browser's localStorage and I can keep
+adding, cancelling, marking done, etc. — but the URL should
+freeze at its last valid value so I don't end up with a
+truncated / unsharable link. The app should also tell me what's
+happening so I can back up my list (text or JSON) if I want to
+preserve a particular state.
+
+**Implementation** (`learn.util.url-encoding`):
+- `MAX_URL_LENGTH` constant = 8000 (matches the OG JS port).
+- `items-encode-fits?` pure predicate — encodes via the
+  existing `items->base64-url-segment` chain, returns whether
+  the result is short enough.
+- `install-url-sync!` extended to a 3-arity: 1-arity production
+  default uses `replace-url-with-items!` + an `on-over-limit`
+  callback that swaps the i18n `:err/url-too-long` string into
+  `:ui/err-msg`. 2-arity remains for legacy tests; 3-arity for
+  observability.
+
+**Divergence from OG**: the JS port lets the URL grow unbounded
+and produces unsharable links. We freeze instead — predictable,
+no broken URLs, error message points the user to recovery
+(text-copy or JSON Export). See `docs/changes.md`.
+
+**Note**: the error message is currently the only fully-localized
+error string. Other errors (empty-input, nothing-to-delete, etc.)
+remain English-only — tracked as `bugs.md` B-8.
 
 ---
 

@@ -7,6 +7,7 @@
    the JSON-shape compatibility for non-empty items is a later phase."
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
+    [learn.util.normalized :as norm]
     [learn.util.url-encoding :as sut]))
 
 (specification "base64-encode"
@@ -384,6 +385,91 @@
       "non-letter code (defensive — caller never builds these but we
        guard anyway)"
       (sut/locale-from-url-search "?lang=42") => nil)))
+
+;; ============================================================================
+;; Phase 15 — URL-length safeguard (S-max-url-length).
+;;
+;; When the encoded `?list=` segment would exceed
+;; `learn.util.url-encoding/MAX_URL_LENGTH` (8000, matching the OG
+;; JS port's constant), the URL-sync watch freezes the URL at its
+;; last-fitting value and surfaces an error message. localStorage
+;; persistence continues normally — the user's list keeps growing
+;; locally; only URL-sharing is affected.
+;; ============================================================================
+
+(specification "MAX_URL_LENGTH"
+  (assertions
+    "matches the JS port's constant"
+    sut/MAX_URL_LENGTH => 8000))
+
+(specification "items-encode-fits?"
+  (component "empty / small lists fit"
+    (assertions
+      "empty list fits (encodes to JTVCJTVE = `[]`, 8 chars)"
+      (sut/items-encode-fits? []) => true
+      "single small item fits"
+      (sut/items-encode-fits?
+        [{:todo/id id-uuid :todo/text "a" :todo/status :status/new}]) => true))
+
+  (component "very long lists exceed the limit"
+    ;; 200 items of 50-char text each — JSON ~13kb, base64-encoded
+    ;; segment well over 8000. Deterministic seed (no randomness in
+    ;; the test fixture) so the assertion is stable.
+    (let [items (mapv (fn [i]
+                        {:todo/id     (java.util.UUID/fromString
+                                        (format "00000000-0000-0000-0000-%012d" i))
+                         :todo/text   (apply str (repeat 50 (char (+ 97 (mod i 26)))))
+                         :todo/status :status/new})
+                  (range 200))]
+      (assertions
+        "200×50-char items overflow the URL limit"
+        (sut/items-encode-fits? items) => false))))
+
+(specification "install-url-sync! — over-limit handling"
+  (component "fitting items still call url-setter"
+    (let [fulcro-state (atom {:list/id {1 {:list/id 1
+                                            :list/todos [[:todo/id id-uuid]]}}
+                              :todo/id {id-uuid {:todo/id id-uuid
+                                                 :todo/text "x"
+                                                 :todo/status :status/new}}})
+          writes (atom [])
+          over-limit-calls (atom 0)
+          _ (sut/install-url-sync! fulcro-state
+              (fn [items] (swap! writes conj items))
+              (fn [_state-atom] (swap! over-limit-calls inc)))
+          ;; Trigger a no-op change so the watch fires once.
+          _ (swap! fulcro-state assoc :unrelated/key 1)]
+      (assertions
+        "url-setter NOT called on no-items-change swaps"
+        (count @writes) => 0
+        "on-over-limit NOT called on no-items-change swaps"
+        @over-limit-calls => 0)))
+
+  (component "over-limit items SKIP url-setter and trigger on-over-limit"
+    (let [;; Generate 200 items inline (same construction as the fits? test)
+          ;; and put them in the fulcro-state-atom so the watch sees an
+          ;; items-change to the over-limit state.
+          big-items (mapv (fn [i]
+                            {:todo/id     (java.util.UUID/fromString
+                                            (format "00000000-0000-0000-0000-%012d" i))
+                             :todo/text   (apply str (repeat 50 (char (+ 97 (mod i 26)))))
+                             :todo/status :status/new})
+                      (range 200))
+          fulcro-state (atom {:list/id {1 {:list/id 1
+                                            :list/todos []}}
+                              :todo/id {}})
+          writes (atom [])
+          over-limit-calls (atom 0)
+          _ (sut/install-url-sync! fulcro-state
+              (fn [items] (swap! writes conj items))
+              (fn [_state-atom] (swap! over-limit-calls inc)))
+          ;; Push the items into the state directly via sync-items.
+          _ (swap! fulcro-state norm/sync-items [:list/id 1] big-items)]
+      (assertions
+        "url-setter was NOT called (URL frozen at last fitting value)"
+        (count @writes) => 0
+        "on-over-limit WAS called exactly once (so caller can surface error)"
+        @over-limit-calls => 1))))
 
 (specification "items-from-query-string"
   (component "happy path round-trip"

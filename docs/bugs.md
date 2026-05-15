@@ -332,6 +332,61 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
+## B-8 — Error messages aren't translated (mostly English-only)
+
+**Status:** 🐛 Open — partial; one error key translated, rest pending
+**Reported:** 2026-05-14 by user
+
+### Symptom
+
+Phase 12.4's i18n integration translated buttons, headers,
+tooltips, modal body copy, and footer lines — but the error
+messages that surface in `:ui/err-msg` are still pulled from
+`learn.ui.strings` (English only). When a user has the app in
+Spanish or Japanese and an error fires, the rest of the UI is
+localized but the error text reads in English.
+
+Phase 15 (`:err/url-too-long`) was the first error key to ship
+with full `:en` / `:es` / `:ja` translations; the existing
+errors below haven't been migrated:
+
+| Source key in `learn.ui.strings` | Surfaced when |
+|---|---|
+| `empty-input-err` | Adding a blank-text item |
+| `nothing-to-delete-err` | Delete List on an empty list |
+| `cannot-take-action-err` | Mark Done with no `:status/ready` item |
+| `not-prioritizable-err` | Prioritize on a non-prioritizable list |
+| `empty-textarea-err` | Submit on the import textarea when blank |
+| `bad-json-import-err` | JSON import — structure invalid |
+| `non-json-import-err` | JSON import — file isn't JSON |
+| `max-list-length-err` | (OG-port string; unused post-Phase-15) |
+| `invalid-query-params-err` | Reserved; not currently surfaced |
+| `non-json-import-err` | (dup, already above) |
+| `export-fail-err` | Reserved; not currently surfaced |
+
+### Likely fix
+
+For each English string above, add an `:err/<name>` key to the
+three `learn.i18n.core/translations` maps, then route the
+existing `set-err!` call sites through `(i18n/tr locale
+:err/<key>)` instead of `s/<name>`. The call sites are in
+`learn.client.ui.components/TodoList` (most page-level errors)
+and `learn.client.ui.modals/import-json-file!` (import errors).
+
+`learn.ui.strings` entries for these can either stay as
+historical / canonical-English references OR be deleted once
+i18n has full coverage. Phase 12.4's docstring on
+`learn.ui.strings` already notes the migration intent.
+
+### Scope discipline
+
+Surfacing every error in three languages adds ~30 translation
+strings. Probably worth a dedicated mini-phase rather than
+folding into Phase 15. Track as `B-8` until promoted into a
+phase.
+
+---
+
 ## B-7 — Modal-internal textarea bg snaps instantly, doesn't match the new-todo input
 
 **Status:** ✅ Fixed in Phase 12.6 (same commit that logged the bug)
