@@ -1,0 +1,16 @@
+{
+  "name": "autofocus-fulcro-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phase 20b minimal Playwright + axe-core suite for the AutoFocus Fulcro port. See docs/e2e_test_research.md for the strategy write-up.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@playwright/test": "^1.48.0"
+  }
+}
