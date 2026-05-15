@@ -1962,6 +1962,59 @@ keyboard, zoom, reduced-motion, contrast measurement) lives in
 
 ---
 
+## 🟡 Phase 20 — testing-pyramid fill-in
+
+Strategy: `docs/e2e_test_research.md` synthesizes the prior-iteration
+testing approaches from fp-autofocus (Mocha + mocha-steps, pure-fn
+"long E2E") and pwa-autofocus-app (bash + Lighthouse + axe) and
+proposes how to extend this Fulcro port's pyramid. User scoped this
+phase to two sub-phases — Lighthouse shell scripts deliberately
+deferred ("cut through the noise"):
+
+**✅ 20a — Long-form algorithm cross-validation scenarios.** New
+`test/learn/model/scenarios_test.cljc`. Three stepped scenarios
+that walk a list through 5-10 model operations and assert on
+intermediate AND terminal state. Helpers mirror fp-autofocus's
+`af-test-utils.ts`: `items->marks` ≅ `expectMarksString`,
+`add-many` ≅ `populateDemoAppByList`, `simulate-yes/no` ≅ chart
+yes/no actions at the model layer, `simulate-answers` ≅
+`SIMenterMarkAndReviewState`.
+
+Scenarios:
+  1. Simple 3-item add/review/complete — cross-port of fp-autofocus's
+     "Simple E2E test". Documents the SCHEMA.md §7 add-rule
+     divergence (our `add-todo` auto-promotes item 0 to `:ready`).
+  2. Mark-Done auto-mark promotion — validates SCHEMA.md §6
+     under the complete-benchmark path.
+  3. Cancel-and-auto-mark — confirms `cancel-todo` composes
+     `auto-mark` just like `complete-benchmark`.
+
+Joins the existing master test runner; no new deps.
+127 specs / 843 assertions (+3 / +14), all green.
+
+**✅ 20b — Playwright + axe-core keyboard a11y scaffold.** New
+top-level `e2e/` directory. Plain JS, Chromium only, single
+spec covering things only a real browser can verify: skip-link
+visibility / Enter behavior (19o), header tab order (19i),
+modal focus management + Escape-to-close for the four
+dismissible modals (19g + 19h), `<html lang>` runtime sync
+(19c), plus axe-core scans at 5 page states (initial + each
+modal open). 13 test blocks total.
+
+Files: `package.json`, `playwright.config.js`,
+`keyboard-and-a11y.spec.js`, `.gitignore`, `README.md`. Local-
+dev focused (no CI yet, no Lighthouse, no golden-path
+duplication). Assumes `npx shadow-cljs watch app` running on
+:8000 before `npx playwright test`. Conflict-modal coverage
+queued as a follow-up (needs URL + localStorage setup).
+
+**⬜ 20c — Deferred.** Lighthouse + axe shell scripts and any
+expanded Playwright coverage (conflict modals, review-modal
+focus, more locales). Revisit only if 20a + 20b leave specific
+gaps that warrant the additional tooling.
+
+---
+
 ## Optional / out of arc
 
 - **DataScript swap.** Replace the atom-as-database with DataScript.
