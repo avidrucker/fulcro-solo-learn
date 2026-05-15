@@ -355,6 +355,34 @@ With NVDA / VoiceOver running and the page in English:
 
 ---
 
+## Phase 19o — skip link
+
+### 19o.1 Skip link is the first focusable element + becomes visible on focus
+- [ ] Open the app, click somewhere neutral (or reload), then
+      press Tab. The "Skip to main content" link slides into
+      view at the top-left of the viewport.
+- [ ] Press Tab again. Focus moves to the first header button
+      (the link is no longer visible).
+- [ ] In Spanish: link reads "Saltar al contenido principal".
+- [ ] In Japanese: link reads "メインコンテンツへスキップ".
+
+### 19o.2 Pressing Enter jumps to main content
+- [ ] Reload, press Tab to focus the skip link, press Enter.
+      Focus lands on the `#main-content` `<section>`. Pressing
+      Tab next moves to the new-todo input (or whichever
+      element is first inside the main content).
+
+### 19o.3 Skip link not visible to mouse users
+- [ ] Reload, do NOT press Tab. The skip link should NOT be
+      visible anywhere on the page.
+
+### 19o.4 Dark theme variant
+- [ ] Switch to dark mode, then Tab to focus the skip link.
+      Background is black, text and border are white (high
+      contrast against the dark page).
+
+---
+
 ## Phase 19i — keyboard-only navigation sweep
 
 Walk the golden path with **keyboard only** (no mouse). Each

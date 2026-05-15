@@ -654,6 +654,17 @@ such element has its own `lang` attribute so the screen reader
 voices the text with the right pronunciation. Without this, a
 Spanish UI reading "日本語" would use the Spanish voice.
 
+### S-a11y-skip-link — Bypass the header with a skip link
+**Phase:** 19o
+**Status:** 🟢 (browser-manual; manual_tests §19o)
+
+A "Skip to main content" link is the first focusable element on
+the page — hidden off-screen by default, slides into view when
+Tab-focused. Pressing Enter sends keyboard focus past the four
+header icon buttons directly to the main content section. WCAG
+2.1 §2.4.1 (Bypass Blocks). The label is localized via
+`:nav/skip-to-main`.
+
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
 **Phase:** 19a–19h together
 **Status:** 🟢 (browser-manual sweep; manual_tests §19i)
