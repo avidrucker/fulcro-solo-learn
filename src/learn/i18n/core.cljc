@@ -147,7 +147,21 @@
         :tooltip/copy-link-url      "Copy the link list URL to clipboard"
         :tooltip/copy-local-url     "Copy the local storage list URL to clipboard"
         :tooltip/keep-link          "keep the list from the link"
-        :tooltip/keep-local         "keep the list from local storage"}
+        :tooltip/keep-local         "keep the list from local storage"
+        ;; Phase 19 — a11y audit. Migrating the last batch of
+        ;; English-only tooltip / aria-label strings to i18n.
+        :tooltip/cancel-task        "Cancel Task"
+        :tooltip/clone-task         "Clone Task"
+        :tooltip/add-item           "add a new item to your list"
+        :tooltip/delete-list        "delete all tasks from your list"
+        :tooltip/prioritize         "start a list prioritizing session"
+        :tooltip/mark-done          "mark the next actionable item as complete"
+        :tooltip/copy-list-url      "Copy the current URL to clipboard for sharing"
+        :tooltip/export-json        "Export your list to a JSON file"
+        :close/info                 "Close Info Modal"
+        :close/settings             "Close Settings Modal"
+        :close/save                 "Close Save Modal"
+        :close/delete               "Close Delete Modal"}
 
    :es {:btn/add-item       "Añadir Tarea"
         :btn/delete-list    "Eliminar Lista"
@@ -229,7 +243,19 @@
         :tooltip/copy-link-url      "Copiar la URL de la lista del enlace al portapapeles"
         :tooltip/copy-local-url     "Copiar la URL de la lista local al portapapeles"
         :tooltip/keep-link          "conservar la lista del enlace"
-        :tooltip/keep-local         "conservar la lista del almacenamiento local"}
+        :tooltip/keep-local         "conservar la lista del almacenamiento local"
+        :tooltip/cancel-task        "Cancelar Tarea"
+        :tooltip/clone-task         "Clonar Tarea"
+        :tooltip/add-item           "añadir un nuevo elemento a tu lista"
+        :tooltip/delete-list        "eliminar todas las tareas de tu lista"
+        :tooltip/prioritize         "iniciar una sesión de priorización de la lista"
+        :tooltip/mark-done          "marcar el siguiente elemento accionable como completado"
+        :tooltip/copy-list-url      "Copiar la URL actual al portapapeles para compartir"
+        :tooltip/export-json        "Exportar tu lista a un archivo JSON"
+        :close/info                 "Cerrar Modal de Información"
+        :close/settings             "Cerrar Modal de Ajustes"
+        :close/save                 "Cerrar Modal de Guardado"
+        :close/delete               "Cerrar Modal de Eliminación"}
 
    :ja {:btn/add-item       "項目を追加"
         :btn/delete-list    "リストを削除"
@@ -307,7 +333,19 @@
         :tooltip/copy-link-url      "リンクリストのURLをクリップボードにコピー"
         :tooltip/copy-local-url     "ローカル保存リストのURLをクリップボードにコピー"
         :tooltip/keep-link          "リンクのリストを保存する"
-        :tooltip/keep-local         "ローカル保存のリストを保存する"}})
+        :tooltip/keep-local         "ローカル保存のリストを保存する"
+        :tooltip/cancel-task        "タスクをキャンセル"
+        :tooltip/clone-task         "タスクを複製"
+        :tooltip/add-item           "リストに新しい項目を追加"
+        :tooltip/delete-list        "リストからすべてのタスクを削除"
+        :tooltip/prioritize         "リストの優先順位付けセッションを開始"
+        :tooltip/mark-done          "次の実行可能な項目を完了としてマーク"
+        :tooltip/copy-list-url      "現在のURLをクリップボードにコピーして共有"
+        :tooltip/export-json        "リストをJSONファイルにエクスポート"
+        :close/info                 "情報モーダルを閉じる"
+        :close/settings             "設定モーダルを閉じる"
+        :close/save                 "保存モーダルを閉じる"
+        :close/delete               "削除モーダルを閉じる"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:

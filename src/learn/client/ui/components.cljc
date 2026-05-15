@@ -73,7 +73,10 @@
 ;; TodoItem — one row in the list
 ;; ============================================================================
 
-(defsc TodoItem [this {:todo/keys [id text status was]} {:keys [benchmark? theme]}]
+(defsc TodoItem [this
+                 {:todo/keys [id text status was]}
+                 {:keys [benchmark? theme locale]
+                  :or   {locale :en}}]
   {:query [:todo/id :todo/text :todo/status :todo/was]
    :ident :todo/id}
   ;; No :initial-state — TodoItems are populated by loads or by add-todo,
@@ -99,13 +102,13 @@
       (dom/div {:className "relative ml1 h-15 w3"}
         (if actionable?
           (dom/button {:className (theme/btn-icon-class theme)
-                       :title     s/title-cancel-task
-                       :aria-label s/title-cancel-task
+                       :title     (i18n/tr locale :tooltip/cancel-task)
+                       :aria-label (i18n/tr locale :tooltip/cancel-task)
                        :onClick   #(comp/transact! this [(cancel-todo {:todo/id id})])}
             icons/cancel-x)
           (dom/button {:className (theme/btn-icon-class theme)
-                       :title     s/title-clone-task
-                       :aria-label s/title-clone-task
+                       :title     (i18n/tr locale :tooltip/clone-task)
+                       :aria-label (i18n/tr locale :tooltip/clone-task)
                        :onClick   #(comp/transact! this [(clone-todo {:todo/id id})])}
             icons/repeat-arrow))))))
 
@@ -329,14 +332,14 @@
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? add-dim?))
-                         :title     s/tooltip-add-item
+                         :title     (i18n/tr locale :tooltip/add-item)
                          :disabled  active?
                          :onClick   #(submit-add!)}
               (i18n/tr locale :btn/add-item)))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? delete-dim?))
-                         :title     s/tooltip-delete-list
+                         :title     (i18n/tr locale :tooltip/delete-list)
                          :disabled  active?
                          :onClick   #(submit-delete!)}
               (i18n/tr locale :btn/delete-list))))
@@ -347,14 +350,14 @@
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? prioritize-dim?))
-                         :title     s/tooltip-prioritize
+                         :title     (i18n/tr locale :tooltip/prioritize)
                          :disabled  active?
                          :onClick   #(submit-prioritize!)}
               (i18n/tr locale :btn/prioritize)))
           (dom/div {:className "ma1 dib"}
             (dom/button {:type      "button"
                          :className (btn-cls (or active? mark-done-dim?))
-                         :title     s/tooltip-mark-done
+                         :title     (i18n/tr locale :tooltip/mark-done)
                          :disabled  active?
                          :onClick   #(submit-mark-done!)}
               (i18n/tr locale :btn/mark-done)))))
@@ -367,7 +370,8 @@
                       (ui-todo-item
                         (comp/computed item
                           {:benchmark? (= (:todo/id item) benchmark-id)
-                           :theme      theme})))
+                           :theme      theme
+                           :locale     locale})))
                 todos)))))
       ;; List footer — count + next-actionable preview
       (dom/div {:className "ph3 pt2 pb3"}

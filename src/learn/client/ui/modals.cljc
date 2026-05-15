@@ -161,7 +161,7 @@
    locales; only the surrounding sentence is translated."
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-info-modal
+                :close-label (i18n/tr locale :close/info)
                 :theme       theme}
     (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/info))
     (dom/h3 {:className "f5 fw6 ma0 mb2 pt2"} (i18n/tr locale :info/heading-about))
@@ -192,7 +192,7 @@
    each language's own script (English / Español / 日本語)."
   [this theme locale]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-settings-modal
+                :close-label (i18n/tr locale :close/settings)
                 :theme       theme}
     (dom/h2 {:className "pb2 ma0"} (i18n/tr locale :modal/settings))
     (dom/div {:className "pt2 pb2 flex items-center"}
@@ -333,7 +333,7 @@
 (defn save-modal
   [this theme locale todos textarea-import-text submit-import! share-with-locale?]
   (modal-shell {:on-close    #(close-current-modal! this)
-                :close-label s/close-save-modal
+                :close-label (i18n/tr locale :close/save)
                 :theme       theme}
     (dom/h2 {:className "pb2 ph3 ma0"} (i18n/tr locale :modal/import-export))
     ;; Phase 17 — "Include language in URL" checkbox sits ABOVE the
@@ -351,7 +351,7 @@
         (i18n/tr locale :save/include-lang)))
     (dom/div {:className "ph3 pb2"}
       (dom/button {:className (theme/save-modal-wide-btn-class theme)
-                   :title     s/tooltip-copy-list-url
+                   :title     (i18n/tr locale :tooltip/copy-list-url)
                    :onClick   (fn [_]
                                 #?(:cljs (copy-list-url! todos
                                            (when share-with-locale? locale))
@@ -375,7 +375,7 @@
                                #?(:cljs (import-json-file! this e locale)
                                   :clj  nil))})
       (dom/button {:className (theme/save-modal-btn-class theme)
-                   :title     s/tooltip-export-json
+                   :title     (i18n/tr locale :tooltip/export-json)
                    :onClick   (fn [_]
                                 #?(:cljs (export-items-json! todos)
                                    :clj  nil))}
@@ -555,7 +555,7 @@
    `locale` (Phase 12.4) translates the Yes/No button text."
   [_this theme locale on-yes on-no]
   (modal-shell {:on-close    on-no
-                :close-label s/close-delete-modal
+                :close-label (i18n/tr locale :close/delete)
                 :theme       theme}
     (dom/p {:className "ma0 pb3 lh-135 tc"}
       (i18n/tr locale :modal/confirm-delete))
