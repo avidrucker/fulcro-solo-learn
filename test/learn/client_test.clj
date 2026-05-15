@@ -1643,6 +1643,48 @@
         (h/text-exists? spa "完了にする")      => true))))
 
 ;; ============================================================================
+;; Phase 16 — error messages translate with :ui/locale (closes B-8)
+;; ============================================================================
+
+(specification "TodoList errors — translate with :ui/locale (Phase 16)"
+  (component "blank Add-Item in :es renders Spanish empty-input error"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          ;; Switch to Spanish, then trigger an empty add (no text typed).
+          ;; The Spanish "Add Item" button label is "Añadir Tarea".
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/locale] :es)
+          _ (h/render-frame! spa)
+          _ (h/click-on-text! spa "Añadir Tarea")
+          _ (h/render-frame! spa)
+          db (app/current-state spa)]
+      (assertions
+        ":ui/err-msg is in Spanish (matches :en :err/empty-input translated)"
+        (get-in db [:list/id 1 :ui/err-msg])
+        => "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
+        "English error text is NOT rendered"
+        (h/text-exists? spa "New items cannot be empty") => false)))
+
+  (component "Delete-List on empty list in :ja renders Japanese error"
+    (server/seed!)
+    (let [spa        (sut/init)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          ;; Empty the server's list, switch locale, then click Delete List.
+          _ (reset! server/SERVER-DB server/empty-state)
+          _ (sut/init)  ; re-init to pull the now-empty list
+          spa (deref sut/SPA)
+          state-atom (:com.fulcrologic.fulcro.application/state-atom spa)
+          _ (swap! state-atom assoc-in [:list/id 1 :ui/locale] :ja)
+          _ (h/render-frame! spa)
+          _ (h/click-on-text! spa "リストを削除")  ; Japanese "Delete List"
+          _ (h/render-frame! spa)
+          db (app/current-state spa)]
+      (assertions
+        ":ui/err-msg is in Japanese"
+        (get-in db [:list/id 1 :ui/err-msg])
+        => "削除するものがありません。"))))
+
+;; ============================================================================
 ;; Phase 12.5 — Language dropdown in Settings modal
 ;; ============================================================================
 

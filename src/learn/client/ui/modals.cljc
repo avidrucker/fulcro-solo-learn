@@ -259,8 +259,11 @@
       result through `tasks-io/parse-tasks-json`, and either
       dispatches the import-from-json mutation (success) or sets
       `:ui/err-msg` to the matching error string (failure). Stays
-      a thin wrapper — all validation logic lives in tasks-io."
-     [this evt]
+      a thin wrapper — all validation logic lives in tasks-io.
+
+      `locale` (Phase 16) translates the error messages — caller
+      passes the active locale from TodoList props."
+     [this evt locale]
      (let [files  (-> evt .-target .-files)
            file   (when files (aget files 0))]
        (when file
@@ -276,12 +279,13 @@
                      [(set-err-msg
                         {:ui/err-msg
                          (case (:error/type result)
-                           :error/non-json s/non-json-import-err
-                           s/bad-json-import-err)})])))))
+                           :error/non-json (i18n/tr locale :err/non-json-import)
+                           (i18n/tr locale :err/bad-json-import))})])))))
            (set! (.-onerror reader)
              (fn [_]
                (comp/transact! this
-                 [(set-err-msg {:ui/err-msg s/bad-json-import-err})])))
+                 [(set-err-msg
+                    {:ui/err-msg (i18n/tr locale :err/bad-json-import)})])))
            (.readAsText reader file)))
        ;; Clear the input's value so the user can re-select the SAME
        ;; file after a parse error (browsers suppress onChange when the
@@ -342,7 +346,7 @@
                   :accept    ".json"
                   :className "dn input-reset"
                   :onChange  (fn [e]
-                               #?(:cljs (import-json-file! this e)
+                               #?(:cljs (import-json-file! this e locale)
                                   :clj  nil))})
       (dom/button {:className (theme/save-modal-btn-class theme)
                    :title     s/tooltip-export-json

@@ -110,7 +110,18 @@
         ;; Surfaced when the encoded list would exceed MAX_URL_LENGTH;
         ;; the URL freezes at its last fitting value, localStorage
         ;; continues normally.
-        :err/url-too-long           "Current list cannot be saved as URL: Please back up your list to text or JSON."}
+        :err/url-too-long           "Current list cannot be saved as URL: Please back up your list to text or JSON."
+        ;; Phase 16 — translated error messages (B-8 closure). English
+        ;; text is verbatim from `learn.ui.strings/<name>-err` so
+        ;; existing tests that assert exact strings keep passing in
+        ;; :en. Other locales are new.
+        :err/empty-input            "New items cannot be empty or only whitespace."
+        :err/nothing-to-delete      "There is nothing to delete."
+        :err/cannot-take-action     "There are no actionable tasks in your list."
+        :err/not-prioritizable      "The list isn't prioritizable right now."
+        :err/empty-textarea         "New items cannot be empty or whitespace only."
+        :err/bad-json-import        "Failed to import tasks. Ensure the JSON file has the correct format."
+        :err/non-json-import        "Please select a valid JSON file."}
 
    :es {:btn/add-item       "Añadir Tarea"
         :btn/delete-list    "Eliminar Lista"
@@ -166,7 +177,14 @@
         :save/info-2                "También puedes importar una lista pegando texto sin formato a continuación y haciendo clic en el botón 'Enviar'."
         :save/textarea-placeholder  "Pega tu lista aquí, con cada elemento en una nueva línea"
         :save/click-disk            "Haz clic en el icono de 'disco' arriba para cerrar esta ventana."
-        :err/url-too-long           "La lista actual no se puede guardar como URL: respalda tu lista en formato texto o JSON."}
+        :err/url-too-long           "La lista actual no se puede guardar como URL: respalda tu lista en formato texto o JSON."
+        :err/empty-input            "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
+        :err/nothing-to-delete      "No hay nada que eliminar."
+        :err/cannot-take-action     "No hay tareas accionables en tu lista."
+        :err/not-prioritizable      "La lista no se puede priorizar en este momento."
+        :err/empty-textarea         "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
+        :err/bad-json-import        "Error al importar tareas. Asegúrate de que el archivo JSON tenga el formato correcto."
+        :err/non-json-import        "Por favor selecciona un archivo JSON válido."}
 
    :ja {:btn/add-item       "項目を追加"
         :btn/delete-list    "リストを削除"
@@ -218,7 +236,14 @@
         :save/info-2                "下のテキストエリアに生のテキストを貼り付けて「送信」ボタンをクリックすることでも、リストをインポートできます。"
         :save/textarea-placeholder  "リストをここに貼り付けてください。1 行につき 1 項目です。"
         :save/click-disk            "上の「ディスク」アイコンをクリックすると、このウィンドウを閉じます。"
-        :err/url-too-long           "現在のリストはURLとして保存できません。リストをテキストまたはJSONにバックアップしてください。"}})
+        :err/url-too-long           "現在のリストはURLとして保存できません。リストをテキストまたはJSONにバックアップしてください。"
+        :err/empty-input            "新しい項目は空または空白のみにすることはできません。"
+        :err/nothing-to-delete      "削除するものがありません。"
+        :err/cannot-take-action     "リストに実行可能なタスクがありません。"
+        :err/not-prioritizable      "現在、リストは優先順位を付けられません。"
+        :err/empty-textarea         "新しい項目は空または空白のみにすることはできません。"
+        :err/bad-json-import        "タスクのインポートに失敗しました。JSONファイルの形式が正しいことを確認してください。"
+        :err/non-json-import        "有効なJSONファイルを選択してください。"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:

@@ -334,7 +334,14 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ## B-8 — Error messages aren't translated (mostly English-only)
 
-**Status:** 🐛 Open — partial; one error key translated, rest pending
+**Status:** ✅ Fixed in Phase 16 (same conversation that logged it).
+The seven actively-surfaced error strings now route through
+`(i18n/tr locale :err/<key>)` with full `:en` / `:es` / `:ja`
+translations. The unused reserved strings (`max-list-length-err`,
+`invalid-query-params-err`, `export-fail-err`) stay in
+`learn.ui.strings` as historical artefacts; they're not surfaced
+and would be removed when their respective features land (or get
+formally cut).
 **Reported:** 2026-05-14 by user
 
 ### Symptom

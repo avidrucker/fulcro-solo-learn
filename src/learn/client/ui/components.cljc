@@ -228,7 +228,7 @@
         ;; clears the prior error" path matches the JS port's behaviour.
         submit-add!        (fn []
                              (if blank-input?
-                               (set-err! s/empty-input-err)
+                               (set-err! (i18n/tr locale :err/empty-input))
                                (do (comp/transact! this
                                      [(add-todo {:todo/text new-todo-text})])
                                    (clear-err!)
@@ -240,7 +240,7 @@
         ;; to confirm).
         submit-delete!     (fn []
                              (if no-todos?
-                               (set-err! s/nothing-to-delete-err)
+                               (set-err! (i18n/tr locale :err/nothing-to-delete))
                                (comp/transact! this
                                  [(set-open-modal {:ui/open-modal :delete-confirm})])))
         confirm-delete!    (fn []
@@ -251,17 +251,17 @@
         cancel-delete!     (fn [] (modals/close-current-modal! this))
         submit-mark-done!  (fn []
                              (if (not actionable?)
-                               (set-err! s/cannot-take-action-err)
+                               (set-err! (i18n/tr locale :err/cannot-take-action))
                                (do (comp/transact! this [(complete-benchmark-item)])
                                    (clear-err!))))
         submit-prioritize! (fn []
                              (if (not prioritizable?)
-                               (set-err! s/not-prioritizable-err)
+                               (set-err! (i18n/tr locale :err/not-prioritizable))
                                (do (send-and-pump! this chart/event-start)
                                    (clear-err!))))
         ;; Phase 7.12 batch import. The textarea content `textarea-import-text`
         ;; is the controlled value. On Submit:
-        ;;   - blank → surface `empty-textarea-err`.
+        ;;   - blank → surface `:err/empty-textarea`.
         ;;   - non-blank → run the import-from-text mutation, clear the
         ;;     textarea, clear the prior error. The modal stays open
         ;;     (B-2 fix) so the user can verify the import or paste a
@@ -271,7 +271,7 @@
         textarea-blank?    (str/blank? (or textarea-import-text ""))
         submit-import!     (fn []
                              (if textarea-blank?
-                               (set-err! s/empty-textarea-err)
+                               (set-err! (i18n/tr locale :err/empty-textarea))
                                (do (comp/transact! this
                                      [(import-from-text
                                         {:ui/textarea-import-text textarea-import-text})])
