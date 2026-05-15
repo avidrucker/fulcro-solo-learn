@@ -378,23 +378,29 @@
             (i18n/tr-next-actionable locale (:todo/text benchmark)))))
       ;; Review modal — `on-close` is intentionally absent: the JS port
       ;; (and our chart) requires Quit to dismiss, no background click.
+      ;; B-13: question is now data ({:cursor-text :benchmark-text}) →
+      ;; format via `tr-review-question` so the prompt itself is
+      ;; locale-appropriate.
       (when active?
         (modals/modal-shell {:theme theme}
           (when question
-            (dom/p {:className "ma0 pb3 lh-135 tc"} question))
+            (dom/p {:className "ma0 pb3 lh-135 tc"}
+              (i18n/tr-review-question locale
+                (:cursor-text question)
+                (:benchmark-text question))))
           (dom/div {:className "tc"}
             (dom/button {:className (theme/review-btn-class theme)
-                         :title     s/tooltip-quit-review
+                         :title     (i18n/tr locale :tooltip/quit-review)
                          :tabIndex  0
                          :onClick   #(send-and-pump! this chart/event-quit)}
               (i18n/tr locale :btn/quit))
             (dom/button {:className (theme/review-btn-class theme)
-                         :title     s/tooltip-review-no
+                         :title     (i18n/tr locale :tooltip/review-no)
                          :tabIndex  1
                          :onClick   #(send-and-pump! this chart/event-no)}
               (i18n/tr locale :btn/no))
             (dom/button {:className (theme/review-btn-class theme)
-                         :title     s/tooltip-review-yes
+                         :title     (i18n/tr locale :tooltip/review-yes)
                          :tabIndex  2
                          :onClick   #(send-and-pump! this chart/event-yes)}
               (i18n/tr locale :btn/yes)))))

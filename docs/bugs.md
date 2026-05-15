@@ -332,6 +332,77 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
+## B-13 — Modal body copy not translated (delete-confirm / review / list-conflict)
+
+**Status:** ✅ Fixed in the same conversation that logged it.
+**Reported:** 2026-05-15 by user
+
+### Symptom
+
+After Phase 16 (B-8) closed the page-level error strings, three
+modals still rendered visible English body copy / buttons /
+tooltips regardless of `:ui/locale`:
+
+- **Delete-confirm modal** — "Are you sure you want to delete
+  your list? This action cannot be undone."
+- **Review modal** — the prompt template "In this moment, are
+  you more ready to '<X>' than '<Y>'?" (parameterized, so
+  needs a localized constructor, not just a key lookup).
+- **List-conflict modal** — "The link list and local storage
+  list do not match. Which will you keep?" plus both list
+  labels, the four buttons (Copy / Keep × Link / Local), and
+  the four tooltips.
+
+A Spanish or Japanese user opening any of these saw mostly
+translated UI with an English island in the middle.
+
+### Root cause
+
+These strings were the last ones still pulled from
+`learn.ui.strings` directly (rather than via
+`(i18n/tr locale :key)`). Phase 16 deliberately scoped the
+migration to err-msg strings; modal body copy was deferred and
+this bug formally closes that deferral.
+
+The review prompt was a special case — its English template
+was string-concatenated inside
+`learn.model.review/current-question` rather than living in a
+strings file. Localizing it required refactoring that function
+to return DATA (`{:cursor-text :benchmark-text}`) and adding a
+new `learn.i18n.core/tr-review-question` to format the data
+per-locale.
+
+### Fix
+
+- 12 new i18n keys × 3 locales added to
+  `learn.i18n.core/translations`:
+    - `:modal/confirm-delete`, `:tooltip/cancel-delete`,
+      `:tooltip/confirm-delete`
+    - `:tooltip/quit-review`, `:tooltip/review-no`,
+      `:tooltip/review-yes`
+    - `:conflict/mismatch`, `:conflict/label-link`,
+      `:conflict/label-local`
+    - `:btn/copy-link-url`, `:btn/copy-local-url`,
+      `:btn/keep-link`, `:btn/keep-local`
+    - Plus tooltip variants
+- New `i18n/tr-review-question` parameterized fn (sibling to
+  `tr-list-count` / `tr-next-actionable`). Japanese phrasing
+  reverses the order to read naturally ("X yori mo Y wo suru
+  junbi…").
+- `learn.model.review/current-question` now returns
+  `{:cursor-text "..." :benchmark-text "..."}` or nil (was a
+  pre-formatted string). The model stays locale-agnostic; the
+  UI calls `tr-review-question` to format.
+- All three modal call sites in
+  `learn.client.ui.modals` / `learn.client.ui.components`
+  switched from `s/<name>` to `(i18n/tr locale :<key>)`.
+
+`learn.ui.strings` entries for these strings stay as
+historical references — they're no longer the source of
+truth for surfacing.
+
+---
+
 ## B-12 — Changing language via Settings left `?lang=` in URL, re-firing the conflict modal on reload
 
 **Status:** ✅ Fixed in the same conversation that logged it.

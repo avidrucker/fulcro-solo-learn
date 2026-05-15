@@ -126,7 +126,28 @@
         :err/not-prioritizable      "The list isn't prioritizable right now."
         :err/empty-textarea         "New items cannot be empty or whitespace only."
         :err/bad-json-import        "Failed to import tasks. Ensure the JSON file has the correct format."
-        :err/non-json-import        "Please select a valid JSON file."}
+        :err/non-json-import        "Please select a valid JSON file."
+        ;; B-13 — delete-confirm modal body + tooltips.
+        :modal/confirm-delete       "Are you sure you want to delete your list? This action cannot be undone."
+        :tooltip/cancel-delete      "cancel the delete list action"
+        :tooltip/confirm-delete     "confirm the delete list action"
+        ;; B-13 — review modal tooltips. The prompt itself is built
+        ;; via `tr-review-question` below.
+        :tooltip/quit-review        "quit the prioritization session"
+        :tooltip/review-no          "answer no to the question"
+        :tooltip/review-yes         "answer yes to the question"
+        ;; B-13 — list-conflict modal text + buttons + tooltips.
+        :conflict/mismatch          "The link list and local storage list do not match. Which will you keep?"
+        :conflict/label-link        "1. List from the link address:"
+        :conflict/label-local       "2. List from local storage:"
+        :btn/copy-link-url          "Copy Link URL"
+        :btn/copy-local-url         "Copy Local URL"
+        :btn/keep-link              "1. Keep link list"
+        :btn/keep-local             "2. Keep local list"
+        :tooltip/copy-link-url      "Copy the link list URL to clipboard"
+        :tooltip/copy-local-url     "Copy the local storage list URL to clipboard"
+        :tooltip/keep-link          "keep the list from the link"
+        :tooltip/keep-local         "keep the list from local storage"}
 
    :es {:btn/add-item       "Añadir Tarea"
         :btn/delete-list    "Eliminar Lista"
@@ -191,7 +212,24 @@
         :err/not-prioritizable      "La lista no se puede priorizar en este momento."
         :err/empty-textarea         "Los elementos nuevos no pueden estar vacíos o contener solo espacios en blanco."
         :err/bad-json-import        "Error al importar tareas. Asegúrate de que el archivo JSON tenga el formato correcto."
-        :err/non-json-import        "Por favor selecciona un archivo JSON válido."}
+        :err/non-json-import        "Por favor selecciona un archivo JSON válido."
+        :modal/confirm-delete       "¿Estás seguro de que quieres eliminar tu lista? Esta acción no se puede deshacer."
+        :tooltip/cancel-delete      "cancelar la acción de eliminar la lista"
+        :tooltip/confirm-delete     "confirmar la acción de eliminar la lista"
+        :tooltip/quit-review        "salir de la sesión de priorización"
+        :tooltip/review-no          "responder no a la pregunta"
+        :tooltip/review-yes         "responder sí a la pregunta"
+        :conflict/mismatch          "La lista del enlace y la lista del almacenamiento local no coinciden. ¿Cuál quieres conservar?"
+        :conflict/label-link        "1. Lista desde la dirección del enlace:"
+        :conflict/label-local       "2. Lista desde el almacenamiento local:"
+        :btn/copy-link-url          "Copiar URL del Enlace"
+        :btn/copy-local-url         "Copiar URL Local"
+        :btn/keep-link              "1. Conservar lista del enlace"
+        :btn/keep-local             "2. Conservar lista local"
+        :tooltip/copy-link-url      "Copiar la URL de la lista del enlace al portapapeles"
+        :tooltip/copy-local-url     "Copiar la URL de la lista local al portapapeles"
+        :tooltip/keep-link          "conservar la lista del enlace"
+        :tooltip/keep-local         "conservar la lista del almacenamiento local"}
 
    :ja {:btn/add-item       "項目を追加"
         :btn/delete-list    "リストを削除"
@@ -252,7 +290,24 @@
         :err/not-prioritizable      "現在、リストは優先順位を付けられません。"
         :err/empty-textarea         "新しい項目は空または空白のみにすることはできません。"
         :err/bad-json-import        "タスクのインポートに失敗しました。JSONファイルの形式が正しいことを確認してください。"
-        :err/non-json-import        "有効なJSONファイルを選択してください。"}})
+        :err/non-json-import        "有効なJSONファイルを選択してください。"
+        :modal/confirm-delete       "リストを本当に削除しますか？この操作は元に戻せません。"
+        :tooltip/cancel-delete      "リスト削除をキャンセル"
+        :tooltip/confirm-delete     "リスト削除を確定"
+        :tooltip/quit-review        "優先順位付けセッションを終了"
+        :tooltip/review-no          "質問に「いいえ」と答える"
+        :tooltip/review-yes         "質問に「はい」と答える"
+        :conflict/mismatch          "リンクのリストとローカルのリストが一致しません。どちらを保存しますか？"
+        :conflict/label-link        "1. リンクアドレスからのリスト:"
+        :conflict/label-local       "2. ローカル保存からのリスト:"
+        :btn/copy-link-url          "リンクURLをコピー"
+        :btn/copy-local-url         "ローカルURLをコピー"
+        :btn/keep-link              "1. リンクのリストを保存"
+        :btn/keep-local             "2. ローカルのリストを保存"
+        :tooltip/copy-link-url      "リンクリストのURLをクリップボードにコピー"
+        :tooltip/copy-local-url     "ローカル保存リストのURLをクリップボードにコピー"
+        :tooltip/keep-link          "リンクのリストを保存する"
+        :tooltip/keep-local         "ローカル保存のリストを保存する"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:
@@ -286,3 +341,21 @@
     :es (str "El próximo elemento accionable es '" text "'.")
     :ja (str "次の実行可能な項目は '" text "' です。")
     (str "The next actionable item is '" text "'.")))
+
+(defn tr-review-question
+  "B-13 — review modal prompt, parameterized over the cursor item's
+   text and the benchmark item's text.
+   - English / Spanish: cursor-first phrasing ('more ready to <cursor>
+     than <benchmark>?').
+   - Japanese: reverses the order so it reads naturally — literally
+     'than <benchmark>, are you ready to <cursor>?'.
+   Caller (`learn.client.ui.components` TodoList review branch)
+   pulls the two texts from `learn.model.review/current-question`."
+  [locale cursor-text benchmark-text]
+  (case locale
+    :es (str "En este momento, ¿estás más listo/a para '"
+          cursor-text "' que para '" benchmark-text "'?")
+    :ja (str "今この瞬間、「" benchmark-text "」よりも「"
+          cursor-text "」をする準備ができていますか？")
+    (str "In this moment, are you more ready to '"
+      cursor-text "' than '" benchmark-text "'?")))

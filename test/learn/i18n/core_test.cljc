@@ -68,3 +68,26 @@
     (assertions
       (sut/tr-list-count :ja 1) => "リストに1個の項目があります。"
       (sut/tr-list-count :ja 5) => "リストに5個の項目があります。")))
+
+(specification "tr-review-question (parameterized — B-13)"
+  ;; Counterpart to `learn.model.review/current-question` (which now
+  ;; returns the two texts as data). The UI calls this to format the
+  ;; locale-appropriate review prompt.
+  (component "English"
+    (assertions
+      "quotes both texts, cursor first"
+      (sut/tr-review-question :en "Walk the dog" "Read the Fulcro book")
+      => "In this moment, are you more ready to 'Walk the dog' than 'Read the Fulcro book'?"))
+
+  (component "Spanish"
+    (assertions
+      "uses inverted ¿…? punctuation"
+      (sut/tr-review-question :es "Pasear al perro" "Leer el libro de Fulcro")
+      => "En este momento, ¿estás más listo/a para 'Pasear al perro' que para 'Leer el libro de Fulcro'?"))
+
+  (component "Japanese"
+    (assertions
+      "reverses cursor/benchmark order to read naturally in Japanese
+       (literally 'than benchmark, are you ready to cursor?')"
+      (sut/tr-review-question :ja "犬の散歩" "Fulcroの本を読む")
+      => "今この瞬間、「Fulcroの本を読む」よりも「犬の散歩」をする準備ができていますか？")))

@@ -468,46 +468,46 @@
    interleaved between the previews, which made the modal feel
    taller than it needed to and visually fragmented the
    decision surface."
-  [this theme _locale local-items url-items]
+  [this theme locale local-items url-items]
   (let [copy-btn-class (str "br3 f6 fw6 ba dib bw1 grow b--gray button-reset "
                             (theme/theme-primary-btn-suffix theme)
                             " pa2 pointer ma1")]
     (modal-shell {:theme theme}  ; no :on-close — must choose
-      (dom/p {:className "ma0 pb2 lh-135"} s/mismatch-detected)
+      (dom/p {:className "ma0 pb2 lh-135"} (i18n/tr locale :conflict/mismatch))
       ;; Both list previews stacked first, so the user can read
       ;; through them before picking — no buttons interleaved.
-      (dom/p {:className "fw6 ma0 pt2"} s/label-link-list)
+      (dom/p {:className "fw6 ma0 pt2"} (i18n/tr locale :conflict/label-link))
       (conflict-list-preview url-items)
-      (dom/p {:className "fw6 ma0 pt2"} s/label-local-list)
+      (dom/p {:className "fw6 ma0 pt2"} (i18n/tr locale :conflict/label-local))
       (conflict-list-preview local-items)
       ;; Row 1 — Copy URL buttons, side-by-side.
       (dom/div {:className "tc pt3 pb1"}
         (dom/button {:type      "button"
                      :className copy-btn-class
-                     :title     s/tooltip-copy-link-url
+                     :title     (i18n/tr locale :tooltip/copy-link-url)
                      :onClick   (fn [_]
                                   #?(:cljs (copy-list-url! url-items)
                                      :clj  nil))}
-          s/btn-copy-link-url)
+          (i18n/tr locale :btn/copy-link-url))
         (dom/button {:type      "button"
                      :className copy-btn-class
-                     :title     s/tooltip-copy-local-url
+                     :title     (i18n/tr locale :tooltip/copy-local-url)
                      :onClick   (fn [_]
                                   #?(:cljs (copy-list-url! local-items)
                                      :clj  nil))}
-          s/btn-copy-local-url))
+          (i18n/tr locale :btn/copy-local-url)))
       ;; Row 2 — Keep <side> list buttons, side-by-side.
       (dom/div {:className "tc pb3"}
         (dom/button {:type      "button"
                      :className (theme/delete-confirm-btn-class theme)
-                     :title     s/tooltip-keep-link-list
+                     :title     (i18n/tr locale :tooltip/keep-link)
                      :onClick   #(comp/transact! this [(keep-link-list)])}
-          s/btn-keep-link)
+          (i18n/tr locale :btn/keep-link))
         (dom/button {:type      "button"
                      :className (theme/delete-confirm-btn-class theme)
-                     :title     s/tooltip-keep-local-list
+                     :title     (i18n/tr locale :tooltip/keep-local)
                      :onClick   #(comp/transact! this [(keep-local-list)])}
-          s/btn-keep-local)))))
+          (i18n/tr locale :btn/keep-local))))))
 
 ;; ============================================================================
 ;; Delete-confirm modal (Phase 7.12)
@@ -557,15 +557,16 @@
   (modal-shell {:on-close    on-no
                 :close-label s/close-delete-modal
                 :theme       theme}
-    (dom/p {:className "ma0 pb3 lh-135 tc"} s/confirm-list-delete)
+    (dom/p {:className "ma0 pb3 lh-135 tc"}
+      (i18n/tr locale :modal/confirm-delete))
     (dom/div {:className "tc"}
       (dom/button {:type      "button"
                    :className (theme/delete-confirm-btn-class theme)
-                   :title     s/tooltip-cancel-delete
+                   :title     (i18n/tr locale :tooltip/cancel-delete)
                    :onClick   #(on-no)}
         (i18n/tr locale :btn/no))
       (dom/button {:type      "button"
                    :className (theme/delete-confirm-btn-class theme)
-                   :title     s/tooltip-confirm-delete
+                   :title     (i18n/tr locale :tooltip/confirm-delete)
                    :onClick   #(on-yes)}
         (i18n/tr locale :btn/yes)))))

@@ -237,24 +237,29 @@
       (sut/current-question [(todo id-1 "A" :status/new)] 0)
       => nil))
 
-  (component "formats the question with cursor item text and benchmark text"
+  (component "returns the two relevant item texts as a data map (B-13)"
+    ;; B-13 refactor: current-question is now LOCALE-AGNOSTIC. It
+    ;; returns the data the prompt needs (cursor item's text +
+    ;; benchmark item's text); the UI layer calls
+    ;; `learn.i18n.core/tr-review-question` to format the localized
+    ;; prompt. The model stays a pure data layer.
     (assertions
-      "single :ready + :new — quotes both texts"
+      "single :ready + :new — returns the texts of both items"
       (sut/current-question [(todo id-1 "Read the Fulcro book" :status/ready)
                              (todo id-2 "Walk the dog" :status/new)]
         1)
-      => "In this moment, are you more ready to 'Walk the dog' than 'Read the Fulcro book'?"
+      => {:cursor-text "Walk the dog" :benchmark-text "Read the Fulcro book"}
 
       "multiple :ready — benchmark is the LAST :ready"
       (sut/current-question [(todo id-1 "First ready" :status/ready)
                              (todo id-2 "Last ready" :status/ready)
                              (todo id-3 "Cursor target" :status/new)]
         2)
-      => "In this moment, are you more ready to 'Cursor target' than 'Last ready'?"
+      => {:cursor-text "Cursor target" :benchmark-text "Last ready"}
 
-      ":done/:cancelled between benchmark and cursor are ignored in question"
+      ":done/:cancelled between benchmark and cursor are ignored"
       (sut/current-question [(todo id-1 "Anchor" :status/ready)
                              (todo id-2 "Skip me" :status/done)
                              (todo id-3 "Pick me" :status/new)]
         2)
-      => "In this moment, are you more ready to 'Pick me' than 'Anchor'?")))
+      => {:cursor-text "Pick me" :benchmark-text "Anchor"})))

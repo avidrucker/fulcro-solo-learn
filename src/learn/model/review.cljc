@@ -51,16 +51,19 @@
     -1))
 
 (>defn current-question
-  "Returns the review prompt comparing the cursor item to the benchmark
-   (last `:status/ready`). Returns `nil` if the cursor is out of range or
-   the list has no benchmark — the UI/statechart should treat that as
-   'no question to ask'."
+  "B-13 refactor — returns the DATA needed to render the review
+   prompt: the cursor item's text and the benchmark item's text.
+   The UI calls `learn.i18n.core/tr-review-question` to format the
+   locale-appropriate prompt; this function stays pure of i18n
+   concerns.
+
+   Returns `nil` when there's no question to ask:
+   - cursor is out of range (-1, past end, etc.)
+   - the list has no `:status/ready` benchmark"
   [items cursor]
-  [:learn.model.schema/items :learn.model.schema/review-cursor => [:maybe :string]]
+  [:learn.model.schema/items :learn.model.schema/review-cursor
+   => [:maybe [:map [:cursor-text :string] [:benchmark-text :string]]]]
   (when (and (nat-int? cursor) (< cursor (count items)))
     (when-let [benchmark (model.list/benchmark-item items)]
-      (str "In this moment, are you more ready to '"
-        (:todo/text (nth items cursor))
-        "' than '"
-        (:todo/text benchmark)
-        "'?"))))
+      {:cursor-text    (:todo/text (nth items cursor))
+       :benchmark-text (:todo/text benchmark)})))
