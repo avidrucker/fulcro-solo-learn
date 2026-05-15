@@ -145,9 +145,16 @@
 ;; Phase 12.5 — set the i18n locale. Client-only: locale lives in
 ;; `:ui/locale` which is in `storage/ui-prefs-whitelist`, so the
 ;; storage watch persists it; the server never sees it.
+;;
+;; B-12 fix: also strip `?lang=` from the address bar. Once the user
+;; has made an explicit choice (via the Settings dropdown), the URL
+;; hint has done its job — keeping it around just risks re-triggering
+;; the locale-conflict modal on the next reload if the user's choice
+;; differs from the URL's value.
 (defmutation learn.client/set-locale [{:ui/keys [locale]}]
   (action [{:keys [state]}]
-    (swap! state state/set-locale* [:list/id 1] locale)))
+    (swap! state state/set-locale* [:list/id 1] locale)
+    #?(:cljs (url-encoding/update-current-url-lang! nil))))
 
 ;; Phase 17 — set the "Include language in URL" checkbox state.
 ;; Client-only, like set-locale; persisted via ui-prefs-whitelist.
@@ -157,12 +164,19 @@
 
 ;; Phase 18 — user picked a locale in the conflict modal. Pure
 ;; state-map change handled by `state/keep-locale*`; the CLJS-only
-;; side effect updates the address bar's `?lang=` so reloads don't
-;; reopen the modal.
+;; side effect strips `?lang=` from the address bar so reloads
+;; don't reopen the modal.
+;;
+;; B-12 (same change as `set-locale` above): always STRIP after an
+;; explicit user choice. We don't write `?lang=<chosen>` to match
+;; because (a) the choice is now in localStorage and survives
+;; reloads, and (b) keeping the URL stripped means the user's bare
+;; share URL doesn't carry their language preference unless they
+;; opted in via the Phase 17 'Include language in URL' checkbox.
 (defmutation learn.client/keep-locale [{:keys [value]}]
   (action [{:keys [state]}]
     (swap! state state/keep-locale* [:list/id 1] value)
-    #?(:cljs (url-encoding/update-current-url-lang! value))))
+    #?(:cljs (url-encoding/update-current-url-lang! nil))))
 
 ;; Phase 7.9: page-level error setter. `nil` clears, string sets.
 (defmutation learn.client/set-err-msg [{:ui/keys [err-msg]}]

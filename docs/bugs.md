@@ -332,6 +332,58 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
+## B-12 — Changing language via Settings left `?lang=` in URL, re-firing the conflict modal on reload
+
+**Status:** ✅ Fixed in the same conversation that logged it.
+**Reported:** 2026-05-14 by user
+
+### Symptom
+
+Workflow that surfaced the bug:
+1. Receive a list URL from someone else carrying `?lang=es`.
+2. The Phase 18 locale-conflict modal opens, user picks (or
+   the user dismisses by changing language via Settings later).
+3. The address bar's `?lang=es` stays in place.
+4. On reload, `locale-decision` sees saved-locale ≠ URL-lang
+   again and re-opens the conflict modal even though the user
+   has already made their explicit choice.
+
+The Phase 18 `keep-locale` mutation tried to fix this by
+writing `?lang=<chosen>` to match, but that only handled the
+conflict-modal path. A user changing language via the Settings
+dropdown (`set-locale`) had no corresponding URL update — so
+the URL stayed stale and the modal re-fired on reload.
+
+### Root cause + fix
+
+Two mutations needed parallel CLJS side effects.
+
+Both `set-locale` and `keep-locale` now call
+`url-encoding/update-current-url-lang!` with `nil` (strip the
+lang param entirely) after the state swap. Reasoning:
+
+- The user has just made an explicit choice. Their preference
+  is now in `localStorage :ui/locale`. The URL hint has done
+  its job; keeping it around risks future conflict-modal
+  re-fires.
+- Stripping (rather than rewriting to match) keeps bare share
+  URLs locale-neutral. If a user wants their language preference
+  embedded in their copy URL, that's the Phase 17
+  "Include language in URL" checkbox — opt-in, not automatic.
+
+After this fix the locale-conflict modal fires exactly once
+per share URL with a language mismatch. The user's resolution
+sticks across reloads.
+
+### Tests
+
+State-level tests for `set-locale*` / `keep-locale*` are
+unaffected (the CLJS side effect is browser-only). Manual
+verification: change language in Settings, observe URL bar
+stripped of `?lang=`; reload, no modal.
+
+---
+
 ## B-11 — Empty-vs-non-empty list conflict modal can trigger on refresh
 
 **Status:** ✅ Fixed in the same conversation that logged it.
