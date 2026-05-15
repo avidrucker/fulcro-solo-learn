@@ -97,6 +97,60 @@
       (sut/tr :en :tooltip/include-lang)
       => "When checked, the share link will open in this app's current language for whoever clicks it.")))
 
+(specification "tr-status (parameterized — Phase 19f)"
+  ;; Locale-aware accessible name for a todo's status indicator.
+  ;; Used on the wrapping `<span role=\"img\">` in TodoItem and the
+  ;; review-confirm preview so screen readers can announce per-row
+  ;; status. When the row is cancelled, the pre-cancel status
+  ;; (`:todo/was`) is surfaced — matches the JS port's
+  ;; `statusToSymbol(task.was)` recursion.
+  (component "simple statuses"
+    (assertions
+      "English"
+      (sut/tr-status :en :status/new       nil) => "new"
+      (sut/tr-status :en :status/ready     nil) => "ready"
+      (sut/tr-status :en :status/done      nil) => "done"
+      (sut/tr-status :en :status/cancelled nil) => "cancelled"
+      "Spanish"
+      (sut/tr-status :es :status/new       nil) => "nuevo"
+      (sut/tr-status :es :status/ready     nil) => "listo"
+      (sut/tr-status :es :status/done      nil) => "hecho"
+      (sut/tr-status :es :status/cancelled nil) => "cancelado"
+      "Japanese"
+      (sut/tr-status :ja :status/new       nil) => "新規"
+      (sut/tr-status :ja :status/ready     nil) => "準備完了"
+      (sut/tr-status :ja :status/done      nil) => "完了"
+      (sut/tr-status :ja :status/cancelled nil) => "キャンセル"))
+
+  (component "cancelled with prior state surfaces both"
+    (assertions
+      "English: 'cancelled (was X)'"
+      (sut/tr-status :en :status/cancelled :status/ready)
+      => "cancelled (was ready)"
+      (sut/tr-status :en :status/cancelled :status/new)
+      => "cancelled (was new)"
+      "Spanish: 'cancelado (antes: X)'"
+      (sut/tr-status :es :status/cancelled :status/ready)
+      => "cancelado (antes: listo)"
+      "Japanese: 'キャンセル済み（元：X）'"
+      (sut/tr-status :ja :status/cancelled :status/ready)
+      => "キャンセル済み（元：準備完了）"))
+
+  (component "cancelled without prior state falls back to plain cancelled"
+    (assertions
+      "no `was` → plain cancelled"
+      (sut/tr-status :en :status/cancelled nil) => "cancelled"
+      (sut/tr-status :es :status/cancelled nil) => "cancelado"
+      (sut/tr-status :ja :status/cancelled nil) => "キャンセル"))
+
+  (component "unknown locale falls back to English"
+    (assertions
+      "matches :en for simple statuses"
+      (sut/tr-status :fr :status/ready nil) => "ready"
+      "matches :en for cancelled-with-was"
+      (sut/tr-status :fr :status/cancelled :status/ready)
+      => "cancelled (was ready)")))
+
 (specification "tr-review-question (parameterized — B-13)"
   ;; Counterpart to `learn.model.review/current-question` (which now
   ;; returns the two texts as data). The UI calls this to format the

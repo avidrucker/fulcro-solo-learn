@@ -392,6 +392,37 @@
     :ja (str "次の実行可能な項目は '" text "' です。")
     (str "The next actionable item is '" text "'.")))
 
+(defn tr-status
+  "Phase 19f a11y — locale-aware accessible name for a todo's
+   status indicator. Used on the wrapping `<span role=\"img\">` in
+   TodoItem and the review-confirm preview so screen readers
+   announce per-row status.
+
+   When the row is cancelled, `was` (the pre-cancel status)
+   surfaces inside parentheses — matches the JS port's
+   `statusToSymbol(task.was)` recursion. A `nil` `was` falls back
+   to the plain cancelled label.
+
+   Pure: no side effects, no DOM. JVM-testable."
+  [locale status was]
+  (let [simple (fn [s]
+                 (case s
+                   :status/new
+                   (case locale :es "nuevo" :ja "新規" "new")
+                   :status/ready
+                   (case locale :es "listo" :ja "準備完了" "ready")
+                   :status/done
+                   (case locale :es "hecho" :ja "完了" "done")
+                   :status/cancelled
+                   (case locale :es "cancelado" :ja "キャンセル" "cancelled")
+                   nil))]
+    (if (and (= status :status/cancelled) was)
+      (case locale
+        :es (str "cancelado (antes: " (simple was) ")")
+        :ja (str "キャンセル済み（元：" (simple was) "）")
+        (str "cancelled (was " (simple was) ")"))
+      (simple status))))
+
 (defn tr-review-question
   "B-13 — review modal prompt, parameterized over the cursor item's
    text and the benchmark item's text.

@@ -459,8 +459,12 @@
    Same icon-fallback recursion as TodoItem (the JS port's
    `statusToSymbol(task.was)`). B-4-related: cancelled rows were
    previously rendered without the visual marker, so URL and local
-   lists looked identical even when statuses differed."
-  [items]
+   lists looked identical even when statuses differed.
+
+   Phase 19f a11y — accepts `locale` so the status indicator span
+   gets a localized `aria-label` / `title` (cancelled rows surface
+   the prior status in the label)."
+  [locale items]
   (dom/ul {:className "ph0 todo-list list ma0 tl measure-narrow ml-auto mr-auto"}
     (for [item items]
       (let [status      (:todo/status item)
@@ -474,8 +478,10 @@
                              (when cancelled? " strike"))]
         (dom/li {:key (str (:todo/id item))
                  :className li-class}
-          (dom/span {:title     (name status)
-                     :className "mr1 dib h-15"}
+          (dom/span {:className  "mr1 dib h-15"
+                     :role       "img"
+                     :title      (i18n/tr-status locale status was)
+                     :aria-label (i18n/tr-status locale status was)}
             (icons/status-icon icon-status))
           (dom/span {:className text-class}
             (:todo/text item)))))))
@@ -510,9 +516,9 @@
       ;; Both list previews stacked first, so the user can read
       ;; through them before picking — no buttons interleaved.
       (dom/p {:className "fw6 ma0 pt2"} (i18n/tr locale :conflict/label-link))
-      (conflict-list-preview url-items)
+      (conflict-list-preview locale url-items)
       (dom/p {:className "fw6 ma0 pt2"} (i18n/tr locale :conflict/label-local))
-      (conflict-list-preview local-items)
+      (conflict-list-preview locale local-items)
       ;; Row 1 — Copy URL buttons, side-by-side.
       (dom/div {:className "tc pt3 pb1"}
         (dom/button {:type      "button"

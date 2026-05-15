@@ -95,8 +95,15 @@
         text-class       (str "break-word"
                               (when (= status :status/cancelled) " strike"))]
     (dom/li {:className li-class}
-      (dom/span {:className "mr1 dib h-15"
-                 :title     (name status)}
+      ;; Phase 19f a11y — wrap the (now aria-hidden) status SVG in a
+      ;; `role="img"` span carrying a localized `aria-label`. The
+      ;; inner SVG is aria-hidden via the shared `svg-attrs`, so the
+      ;; only thing screen readers announce here is the wrapping
+      ;; span's accessible name — i.e. the row's status.
+      (dom/span {:className  "mr1 dib h-15"
+                 :role       "img"
+                 :title      (i18n/tr-status locale status was)
+                 :aria-label (i18n/tr-status locale status was)}
         (icons/status-icon effective-status))
       (dom/span {:className text-class} text)
       (dom/div {:className "relative ml1 h-15 w3"}
