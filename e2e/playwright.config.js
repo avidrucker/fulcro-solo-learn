@@ -27,7 +27,11 @@ module.exports = defineConfig({
   reporter: process.env.CI ? 'list' : 'html',
 
   use: {
-    baseURL: 'http://localhost:8000/',
+    // Shadow-cljs's :dev-http serves files by exact path — `/` doesn't
+    // auto-resolve to `/index.html`. So the baseURL points directly at
+    // index.html; tests call `page.goto('')` (empty string) to land
+    // there, or use absolute paths for anything else.
+    baseURL: 'http://localhost:8000/index.html',
     // Headless by default; override per-run with --headed.
     headless: true,
     // Useful when a test fails — opens the trace viewer to inspect
