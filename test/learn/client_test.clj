@@ -1105,7 +1105,31 @@
                   (sut/set-open-modal* [:list/id 1] :none))]
       (assertions
         "set to :none clears whatever was open"
-        (get-in after [:list/id 1 :ui/open-modal]) => :none))))
+        (get-in after [:list/id 1 :ui/open-modal]) => :none)))
+
+  (component "opening a modal clears any stale :ui/err-msg (B-9 fix)"
+    (let [before (assoc-in (fixture-state) [:list/id 1 :ui/err-msg] "old error")
+          after  (sut/set-open-modal* before [:list/id 1] :info)]
+      (assertions
+        ":ui/open-modal still gets set to the new modal"
+        (get-in after [:list/id 1 :ui/open-modal]) => :info
+        ":ui/err-msg is cleared (key dissoc'd or nil)"
+        (get-in after [:list/id 1 :ui/err-msg]) => nil)))
+
+  (component "closing a modal (transition to :none) preserves :ui/err-msg"
+    ;; If the user dismisses a modal, we don't second-guess whether
+    ;; the error before they opened it is still relevant — leave it.
+    ;; The clearing on OPEN is what matches the user's mental model
+    ;; (S-modal-open-clears-error).
+    (let [before (-> (fixture-state)
+                   (assoc-in [:list/id 1 :ui/err-msg] "stale error from before")
+                   (assoc-in [:list/id 1 :ui/open-modal] :info))
+          after  (sut/set-open-modal* before [:list/id 1] :none)]
+      (assertions
+        ":ui/open-modal is :none"
+        (get-in after [:list/id 1 :ui/open-modal]) => :none
+        ":ui/err-msg is NOT cleared on close"
+        (get-in after [:list/id 1 :ui/err-msg]) => "stale error from before"))))
 
 (specification "toggle-open-modal*"
   (component "opens the modal when closed"

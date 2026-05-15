@@ -150,6 +150,28 @@ falls back to seed silently.
 
 ## Modals — toggle behavior
 
+### S-modal-open-clears-error — Opening a menu modal clears the page-level error
+**Phase:** B-9 fix (post-Phase-17)
+**Status:** ✅
+**Tests:** `client_test:set-open-modal* — opening a modal clears any stale :ui/err-msg`, `client_test:set-open-modal* — closing a modal preserves :ui/err-msg`.
+
+**As a user**, when I have a transient error showing
+(e.g. "New items cannot be empty…" after clicking Add Item
+with no text) and I then open a menu modal (Save / Info /
+Settings / etc.), I expect the stale error message to clear —
+I've moved on to a new action.
+
+**Closing a modal does NOT clear** the page-level error. If
+the user dismisses a modal, we don't second-guess whether
+their pre-modal error is still relevant. The clearing
+behaviour is intentionally asymmetric: opening clears, closing
+preserves.
+
+`learn.client.state/set-open-modal*` is the single mutation
+point — it dissocs `:ui/err-msg` when the new modal-id is
+non-`:none`. `toggle-open-modal*` inherits the behaviour via
+delegation. See B-9 in `bugs.md` for the surfacing report.
+
 ### S-modal-mutex — Only one modal open at a time
 **Phase:** 7.4 (state) / 7.5–7.6 (UI wiring)
 **Status:** ✅ (state-helpers); UI exercised in 7.5/7.6 specs

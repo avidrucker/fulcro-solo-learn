@@ -179,9 +179,19 @@
 ;; ============================================================================
 
 (defn set-open-modal*
-  "Mutex setter — overwrites whatever modal is currently open."
+  "Mutex setter — overwrites whatever modal is currently open.
+
+   B-9 fix (S-modal-open-clears-error): when opening any non-`:none`
+   modal, also dissoc `:ui/err-msg`. The user's mental model:
+   acting on the app (= opening a menu modal) moves them past
+   whatever transient error was showing, so the page-level error
+   should clear with the transition. Closing (transition to `:none`)
+   does NOT clear — if a user dismisses a modal, we don't
+   second-guess whether their pre-modal error is still relevant."
   [state-map list-ident modal-id]
-  (assoc-in state-map (conj list-ident :ui/open-modal) modal-id))
+  (cond-> (assoc-in state-map (conj list-ident :ui/open-modal) modal-id)
+    (not= modal-id :none)
+    (update-in list-ident dissoc :ui/err-msg)))
 
 (defn toggle-open-modal*
   "If `modal-id` is currently open at `list-ident`, close it (set to

@@ -332,6 +332,43 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ---
 
+## B-9 — Stale error message persists when a menu modal opens
+
+**Status:** ✅ Fixed in the same conversation that logged it.
+**Reported:** 2026-05-14 by user
+
+### Symptom
+
+When the user triggers a page-level error
+(e.g. clicking Add Item with blank input → "New items cannot
+be empty…") and then opens a menu modal (Save / Info /
+Settings via the header icons), the error message stays
+visible behind the modal overlay. The user's mental model:
+once they've moved on to interact with the modal, the
+previous transient error should clear.
+
+### Root cause
+
+`learn.client.state/set-open-modal*` only mutated
+`:ui/open-modal`. `:ui/err-msg` was left untouched by modal
+transitions; only explicit `(clear-err!)` calls in TodoList's
+action handlers cleared it.
+
+### Fix
+
+`set-open-modal*` now also dissocs `:ui/err-msg` when the new
+modal-id is non-`:none`. Closing a modal (transition to
+`:none`) is deliberately NOT a clear trigger — if a user
+dismisses a modal we don't second-guess whether their
+pre-modal error is still relevant. Because `toggle-open-modal*`
+delegates to `set-open-modal*`, the toggle path picks the
+clear-on-open behaviour up for free.
+
+See `S-modal-open-clears-error` in `user_stories.md` for the
+user-facing contract.
+
+---
+
 ## B-8 — Error messages aren't translated (mostly English-only)
 
 **Status:** ✅ Fixed in Phase 16 (same conversation that logged it).
