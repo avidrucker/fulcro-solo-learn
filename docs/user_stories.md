@@ -641,6 +641,19 @@ Backed up by `aria-pressed="true"` when dark is active,
 `"false"` when light is active, so screen readers also announce
 the explicit toggle state alongside the action.
 
+### S-a11y-cross-locale-pronunciation — Cross-locale text gets the right voice
+**Phase:** 19n
+**Status:** 🟢 (browser-manual; manual_tests §19n)
+
+Sister story to S-a11y-html-lang-sync. When an element contains
+text in a language different from the page's `<html lang>` (the
+settings dropdown options always show "English" / "Español" /
+"日本語" regardless of UI language; the locale-conflict modal's
+buttons and bilingual question similarly mix scripts), each
+such element has its own `lang` attribute so the screen reader
+voices the text with the right pronunciation. Without this, a
+Spanish UI reading "日本語" would use the Spanish voice.
+
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
 **Phase:** 19a–19h together
 **Status:** 🟢 (browser-manual sweep; manual_tests §19i)

@@ -323,6 +323,38 @@ With NVDA / VoiceOver:
 
 ---
 
+## Phase 19n — per-element `lang` attrs for cross-locale text
+
+Three spots display text whose language differs from `<html lang>`.
+Each carries its own `lang` attribute so AT picks the right voice.
+
+### 19n.1 Settings dropdown options
+Open Settings, inspect the `<select>` element via DevTools:
+- [ ] The "English" `<option>` has `lang="en"`.
+- [ ] The "Español" `<option>` has `lang="es"`.
+- [ ] The "日本語" `<option>` has `lang="ja"`.
+
+### 19n.2 Locale-conflict modal buttons + question
+Trigger the locale-conflict modal (save a locale, then visit
+`?lang=<different-locale>`). Inspect the modal:
+- [ ] The bilingual question splits into two `<span lang>`
+      elements (one per locale's translation), not a single
+      mixed-script string.
+- [ ] Each of the two choice buttons has a `lang` attribute
+      matching the locale it represents.
+
+### 19n.3 Screen reader pronounces each segment correctly
+With NVDA / VoiceOver running and the page in English:
+- [ ] Tab to the Settings dropdown, navigate through options.
+      "English" reads with the English voice; "Español" reads
+      with the Spanish voice; "日本語" reads with the Japanese
+      voice — not the English voice trying to pronounce them.
+- [ ] Open the locale-conflict modal. The bilingual question
+      reads each half in its own voice. Each button announces
+      with the right voice.
+
+---
+
 ## Phase 19i — keyboard-only navigation sweep
 
 Walk the golden path with **keyboard only** (no mouse). Each
