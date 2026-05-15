@@ -177,9 +177,22 @@
         - Focus the new modal's heading; previous snapshot survives.
 
       Covers the six `:ui/open-modal`-driven modals. The review modal
-      is statechart-driven and is NOT covered — future work."
+      is statechart-driven, covered by
+      `install-review-modal-focus-sync!`.
+
+      Catch-up case: if a modal is ALREADY open when this fn is
+      called (e.g. the URL/local list-conflict swap that runs after
+      `mount!` but before the lifecycle installs in
+      `learn.client/init`), focus immediately. The transition itself
+      pre-dates the watcher, but we still want the modal to receive
+      focus on first render."
      [fulcro-state-atom]
-     (let [open-of (fn [s] (get-in s [:list/id 1 :ui/open-modal] :none))]
+     (let [open-of (fn [s] (get-in s [:list/id 1 :ui/open-modal] :none))
+           initial (open-of @fulcro-state-atom)]
+       (when (not= initial :none)
+         ;; Don't snapshot prev-focus — the "before" state pre-dates us
+         ;; and restoring to it would be a meaningless target.
+         (focus-modal-heading! initial))
        (add-watch fulcro-state-atom ::modal-focus
          (fn [_k _ref old-state new-state]
            (let [old-modal (open-of old-state)

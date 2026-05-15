@@ -242,6 +242,18 @@
        ;; correct from the very first frame the user sees.
        (storage/install-ui-prefs-persistence!
          (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Phase 19g a11y: focus management on modal open/close.
+       ;; MUST run BEFORE `install-url-locale-fallback!` —
+       ;; locale-fallback can open the locale-conflict modal during
+       ;; init, and if the focus watcher isn't already attached, the
+       ;; :none → :locale-conflict transition fires unobserved.
+       (lifecycle/install-modal-focus-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
+       ;; Same precedence reasoning for the review-modal focus watcher,
+       ;; though `install-url-locale-fallback!` itself never enters
+       ;; review-state — keeps the two focus syncs grouped.
+       (lifecycle/install-review-modal-focus-sync!
+         (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Phase 14 — apply ?lang= ONLY when localStorage has no
        ;; :ui/locale yet (first-time visitor). localStorage > URL > :en.
        ;; Runs AFTER install-ui-prefs-persistence! so the save-watch
@@ -257,13 +269,6 @@
        ;; Phase 19 a11y: keep `<html lang>` in sync with :ui/locale so
        ;; screen readers pick the right voice / pronunciation.
        (lifecycle/install-html-lang-sync!
-         (:com.fulcrologic.fulcro.application/state-atom spa))
-       ;; Phase 19g a11y: focus management on modal open/close.
-       (lifecycle/install-modal-focus-sync!
-         (:com.fulcrologic.fulcro.application/state-atom spa))
-       ;; Phase 19g a11y (extension): same for the statechart-driven
-       ;; review modal.
-       (lifecycle/install-review-modal-focus-sync!
          (:com.fulcrologic.fulcro.application/state-atom spa))
        ;; Phase 19h a11y: Escape closes dismissible modals.
        (lifecycle/install-escape-to-close! spa)
