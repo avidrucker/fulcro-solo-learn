@@ -39,6 +39,7 @@
     [learn.client.session :as session]
     [learn.client.state :as state]
     [learn.client.ui.components :as components]
+    [learn.client.ui.modals :as modals]
     [learn.parser :as parser]
     [learn.server :as server]
     [learn.util.remote :as remote]
@@ -63,6 +64,13 @@
 
 (def Root     components/Root)
 (def TodoItem components/TodoItem)
+
+;; DOM-id constant — headless tests target the import textarea via
+;; `h/type-into!` which needs the id. Re-exported here so existing
+;; `sut/textarea-import-id` references in client_test keep resolving
+;; (without this the CI test compile fails with `No such var:
+;; sut/textarea-import-id`).
+(def textarea-import-id modals/textarea-import-id)
 
 ;; ============================================================================
 ;; Pure state helpers — Phase 12.7 moved to `learn.client.state`. The
