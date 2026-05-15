@@ -22,8 +22,13 @@
 
 (def supported-locales
   "The set of locales we currently ship translations for. Driving the
-   Settings modal's dropdown reads from this set."
-  #{:en :es :ja})
+   Settings modal's dropdown reads from this set.
+
+   Phase 21 — `:pt` added as a fourth locale. Strings are Brazilian/
+   neutral Portuguese (the most widely understood form). If a future
+   ask differentiates `:pt-BR` from `:pt-PT`, the locale keywords can
+   keep their `name` shape and the values diverge."
+  #{:en :es :ja :pt})
 
 (def default-locale
   "Fallback locale when none is set in app state or user prefs."
@@ -32,7 +37,8 @@
 (def ^:private locale-labels
   {:en "English"
    :es "Español"
-   :ja "日本語"})
+   :ja "日本語"
+   :pt "Português"})
 
 (defn locale-label
   "Human-readable display name for a locale (used by the Settings
@@ -372,7 +378,111 @@
         :close/info                 "情報モーダルを閉じる"
         :close/settings             "設定モーダルを閉じる"
         :close/save                 "保存モーダルを閉じる"
-        :close/delete               "削除モーダルを閉じる"}})
+        :close/delete               "削除モーダルを閉じる"}
+
+   :pt {:btn/add-item       "Adicionar Tarefa"
+        :btn/delete-list    "Excluir Lista"
+        :btn/prioritize     "Priorizar"
+        :btn/mark-done      "Marcar como Feita"
+        :btn/yes            "Sim"
+        :btn/no             "Não"
+        :btn/quit           "Sair"
+        :btn/copy-list-url  "Copiar URL da Lista"
+        :btn/import         "Importar"
+        :btn/export         "Exportar"
+        :btn/submit         "Enviar"
+        :tooltip/import-export "Importar/Exportar"
+        :tooltip/info          "Informações"
+        :tooltip/settings      "Configurações"
+        :tooltip/toggle-theme  "Alternar Tema"
+        :modal/info           "Informações"
+        :modal/settings       "Configurações"
+        :modal/import-export  "Importar/Exportar"
+        :info/heading-about         "Sobre o AutoFocus"
+        :info/heading-help          "Instruções e Ajuda"
+        :info/about-1
+        (str "O algoritmo AutoFocus foi criado por Mark Forster como um "
+             "método de papel e caneta para ajudar a aumentar a "
+             "produtividade. Ele faz isso limitando a interação com a "
+             "lista e fornecendo uma estrutura simples (binária) para "
+             "tomada de decisão.")
+        :info/about-2
+        (str "Este aplicativo web é uma adaptação Fulcro da implementação "
+             "original em ReactJS de Avi Drucker. A adaptação foi "
+             "construída com Fulcro 3.9, Pathom 2 (em processo), "
+             "com.fulcrologic/statecharts, shadow-cljs, Font Awesome "
+             "(SVG) e Tachyons CSS.")
+        :info/version-label         "Versão"
+        :info/instructions
+        (str "Adicione novos itens à sua lista digitando na caixa de "
+             "texto e clicando em 'Adicionar Tarefa'. Para priorizar "
+             "sua lista, clique em 'Priorizar'. Para marcar o próximo "
+             "item acionável como concluído, clique em 'Marcar como "
+             "Feita'. Para excluir todos os itens da sua lista, clique "
+             "em 'Excluir Lista'.")
+        :info/instructions-2
+        (str "Clique no ícone de 'disco' para ver as opções de "
+             "importação/exportação da lista. Clique no ícone de 'i' "
+             "para obter informações sobre o AutoFocus e estas "
+             "instruções. Clique no ícone de 'engrenagem' para alterar "
+             "as configurações (incluindo o idioma). Clique no ícone de "
+             "'lâmpada' para alternar entre os modos claro/escuro.")
+        :info/report-issues         "Para relatar problemas/erros, por favor abra um ticket na página 'Issues' do repositório GitHub aqui: "
+        :info/click-i-circle        "Clique no ícone de 'i' acima para fechar esta janela."
+        :settings/language          "Idioma"
+        :settings/click-gear        "Clique no ícone de 'engrenagem' acima para fechar esta janela."
+        :save/info-1                "Você pode importar e exportar listas JSON do AutoFocus."
+        :save/info-2                "Você também pode importar uma lista colando texto sem formatação abaixo e clicando no botão 'Enviar'."
+        :save/textarea-placeholder  "Cole sua lista aqui, com cada item em uma nova linha"
+        :save/click-disk            "Clique no ícone de 'disco' acima para fechar esta janela."
+        :save/include-lang          "Incluir idioma na URL"
+        :locale-conflict/question   "Qual idioma você quer usar?"
+        :err/url-too-long           "A lista atual não pode ser salva como URL. Faça backup da sua lista em texto ou JSON."
+        :err/empty-input            "Novos itens não podem estar vazios ou conter apenas espaços em branco."
+        :err/nothing-to-delete      "Não há nada para excluir."
+        :err/cannot-take-action     "Não há tarefas acionáveis na sua lista."
+        :err/not-prioritizable      "A lista não pode ser priorizada no momento."
+        :err/empty-textarea         "Novos itens não podem estar vazios ou conter apenas espaços em branco."
+        :err/bad-json-import        "Falha ao importar tarefas. Verifique se o arquivo JSON está no formato correto."
+        :err/non-json-import        "Por favor, selecione um arquivo JSON válido."
+        :modal/confirm-delete       "Tem certeza de que deseja excluir sua lista? Esta ação não pode ser desfeita."
+        :tooltip/cancel-delete      "cancelar a exclusão da lista"
+        :tooltip/confirm-delete     "confirmar a exclusão da lista"
+        :tooltip/quit-review        "sair da sessão de priorização"
+        :tooltip/review-no          "responder não à pergunta"
+        :tooltip/review-yes         "responder sim à pergunta"
+        :conflict/mismatch          "A lista do link e a lista do armazenamento local não coincidem. Qual você quer manter?"
+        :conflict/label-link        "1. Lista do endereço do link:"
+        :conflict/label-local       "2. Lista do armazenamento local:"
+        :btn/copy-link-url          "Copiar URL do Link"
+        :btn/copy-local-url         "Copiar URL Local"
+        :btn/keep-link              "1. Manter lista do link"
+        :btn/keep-local             "2. Manter lista local"
+        :tooltip/copy-link-url      "Copiar a URL da lista do link para a área de transferência"
+        :tooltip/copy-local-url     "Copiar a URL da lista local para a área de transferência"
+        :tooltip/keep-link          "manter a lista do link"
+        :tooltip/keep-local         "manter a lista do armazenamento local"
+        :tooltip/cancel-task        "Cancelar Tarefa"
+        :tooltip/clone-task         "Clonar Tarefa"
+        :tooltip/add-item           "adicionar um novo item à sua lista"
+        :tooltip/delete-list        "excluir todas as tarefas da sua lista"
+        :tooltip/prioritize         "iniciar uma sessão de priorização da lista"
+        :tooltip/mark-done          "marcar o próximo item acionável como concluído"
+        :tooltip/copy-list-url      "Copiar a URL atual para a área de transferência para compartilhar"
+        :tooltip/export-json        "Exportar sua lista para um arquivo JSON"
+        :tooltip/include-lang       "Quando marcado, o link de compartilhamento abrirá no idioma atual deste aplicativo para quem clicar nele."
+        :tooltip/import-json        "Clique aqui para importar um arquivo JSON de tarefas."
+        :tooltip/submit-text-import "Clique aqui para importar uma lista de tarefas em formato de texto."
+        :tooltip/language-dropdown  "Selecione um idioma desta lista para alterar o idioma deste aplicativo."
+        :tooltip/switch-to-dark     "Alternar para modo escuro"
+        :tooltip/switch-to-light    "Alternar para modo claro"
+        :input/new-todo-placeholder "Digite uma nova tarefa aqui"
+        :input/new-todo-label       "Nova Tarefa:"
+        :nav/skip-to-main           "Ir para o conteúdo principal"
+        :close/info                 "Fechar Janela de Informações"
+        :close/settings             "Fechar Janela de Configurações"
+        :close/save                 "Fechar Janela de Importar/Exportar"
+        :close/delete               "Fechar Janela de Confirmação de Exclusão"}})
 
 (defn tr
   "Look up a translation for `key` in `locale`. Fallback order:
@@ -395,6 +505,7 @@
   (case locale
     :es (str "Tienes " n " tarea" (when (not= 1 n) "s") " en tu lista.")
     :ja (str "リストに" n "個の項目があります。")
+    :pt (str "Você tem " n " tarefa" (when (not= 1 n) "s") " na sua lista.")
     ;; :en default
     (str "You have " n " item" (when (not= 1 n) "s") " in your list.")))
 
@@ -405,6 +516,7 @@
   (case locale
     :es (str "El próximo elemento accionable es '" text "'.")
     :ja (str "次の実行可能な項目は '" text "' です。")
+    :pt (str "O próximo item acionável é '" text "'.")
     (str "The next actionable item is '" text "'.")))
 
 (defn tr-status
@@ -423,18 +535,19 @@
   (let [simple (fn [s]
                  (case s
                    :status/new
-                   (case locale :es "nuevo" :ja "新規" "new")
+                   (case locale :es "nuevo" :ja "新規" :pt "novo" "new")
                    :status/ready
-                   (case locale :es "listo" :ja "準備完了" "ready")
+                   (case locale :es "listo" :ja "準備完了" :pt "pronto" "ready")
                    :status/done
-                   (case locale :es "hecho" :ja "完了" "done")
+                   (case locale :es "hecho" :ja "完了" :pt "feito" "done")
                    :status/cancelled
-                   (case locale :es "cancelado" :ja "キャンセル" "cancelled")
+                   (case locale :es "cancelado" :ja "キャンセル" :pt "cancelado" "cancelled")
                    nil))]
     (if (and (= status :status/cancelled) was)
       (case locale
         :es (str "cancelado (antes: " (simple was) ")")
         :ja (str "キャンセル済み（元：" (simple was) "）")
+        :pt (str "cancelado (antes: " (simple was) ")")
         (str "cancelled (was " (simple was) ")"))
       (simple status))))
 
@@ -451,6 +564,8 @@
   (case locale
     :es (str "En este momento, ¿estás más listo/a para '"
           cursor-text "' que para '" benchmark-text "'?")
+    :pt (str "Neste momento, você está mais preparado(a) para '"
+          cursor-text "' do que para '" benchmark-text "'?")
     :ja (str "今この瞬間、「" benchmark-text "」よりも「"
           cursor-text "」をする準備ができていますか？")
     (str "In this moment, are you more ready to '"

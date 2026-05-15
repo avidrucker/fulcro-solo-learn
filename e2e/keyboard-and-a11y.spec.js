@@ -429,6 +429,29 @@ test.describe('19i — keyboard-only golden path', () => {
 // 19c — <html lang> reflects active locale
 // ---------------------------------------------------------------------------
 
+test.describe('locale dropdown wiring (phase 21 sanity)', () => {
+  test('Settings dropdown lists all 4 supported locales', async ({ page }) => {
+    await page.goto('');
+    await page.getByRole('button', { name: /^Settings$/i }).click();
+    const options = await page.locator('#settings-locale option').allTextContents();
+    expect(options).toEqual(['English', 'Español', '日本語', 'Português']);
+  });
+
+  test('selecting Português flips html lang to pt and UI labels translate', async ({ page }) => {
+    await page.goto('');
+    await page.getByRole('button', { name: /^Settings$/i }).click();
+    await page.locator('#settings-locale').selectOption('pt');
+
+    // Phase 19c html-lang sync — also a regression check.
+    expect(await page.locator('html').getAttribute('lang')).toBe('pt');
+
+    // Close the modal (Escape works for Settings — phase 19h) so we can
+    // see the page-level Portuguese button label.
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: /Adicionar Tarefa/i })).toBeVisible();
+  });
+});
+
 test.describe('19c — html lang sync', () => {
   test('<html lang> starts at "en" and flips when locale changes', async ({ page }) => {
     await page.goto('');
