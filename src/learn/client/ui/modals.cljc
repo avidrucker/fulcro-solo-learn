@@ -241,9 +241,13 @@
                                    (let [v (-> e .-target .-value)]
                                      (comp/transact! this
                                        [(set-locale {:ui/locale (keyword v)})])))}
+          ;; Phase 19n a11y: each option carries its own `lang` so
+          ;; screen readers pronounce "Español" / "日本語" with the
+          ;; right voice, regardless of the page-level `<html lang>`.
           (for [loc (sort i18n/supported-locales)]
             (dom/option (cond-> {:key   (name loc)
-                                 :value (name loc)}
+                                 :value (name loc)
+                                 :lang  (name loc)}
                           option-style (assoc :style option-style))
               (i18n/locale-label loc))))))
     (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
@@ -568,18 +572,29 @@
   [this theme {saved-locale :saved url-locale :url}]
   (modal-shell {:theme theme  ; no :on-close — must choose
                 :labelled-by "locale-conflict-question"}
+    ;; Phase 19n a11y: split the bilingual question into two
+    ;; `<span lang>` segments so the screen reader voices each in
+    ;; its own pronunciation rather than reading the off-locale
+    ;; half with whatever the page-level voice happens to be.
     (dom/p {:id "locale-conflict-question" :className "ma0 pb2 lh-135 tc fw6"}
-      (str (i18n/tr saved-locale :locale-conflict/question)
-        " / "
+      (dom/span {:lang (name saved-locale)}
+        (i18n/tr saved-locale :locale-conflict/question))
+      (dom/span " / ")
+      (dom/span {:lang (name url-locale)}
         (i18n/tr url-locale :locale-conflict/question)))
     (dom/div {:className "tc pt2 pb3"}
+      ;; Each button's content is the locale's own label ("English"
+      ;; / "Español" / "日本語"), always shown in its own script —
+      ;; so `:lang` on the button gives AT the right voice.
       (dom/button {:type      "button"
                    :className (theme/delete-confirm-btn-class theme)
+                   :lang      (name saved-locale)
                    :onClick   #(comp/transact! this
                                  [(keep-locale {:value saved-locale})])}
         (i18n/locale-label saved-locale))
       (dom/button {:type      "button"
                    :className (theme/delete-confirm-btn-class theme)
+                   :lang      (name url-locale)
                    :onClick   #(comp/transact! this
                                  [(keep-locale {:value url-locale})])}
         (i18n/locale-label url-locale)))))
