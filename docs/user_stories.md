@@ -579,18 +579,23 @@ Cancelled rows surface the prior state in parentheses
 cancelled.
 
 ### S-a11y-modal-focus-management — Opening a modal moves focus into it; closing restores focus
-**Phase:** 19g
+**Phase:** 19g (+ extension)
 **Status:** 🟢 (browser-manual; manual_tests §19g)
 
 When any of the six `:ui/open-modal`-driven modals opens (info,
-settings, save, delete-confirm, list-conflict, locale-conflict),
-keyboard focus moves to the modal's heading/question element on the
-next tick. The previously-focused element is snapshotted; on close,
-focus returns to it. Without this, tabbing from a now-dismissed
-modal landed back on `<body>` and the user lost context.
+settings, save, delete-confirm, list-conflict, locale-conflict)
+**or the statechart-driven review modal**, keyboard focus moves to
+the modal's heading/question element on the next tick. The
+previously-focused element is snapshotted; on close, focus returns
+to it. Without this, tabbing from a now-dismissed modal landed back
+on `<body>` and the user lost context.
 
-Limitation: the review modal is statechart-driven (not via
-`:ui/open-modal`) and is NOT yet covered. Tracked for future work.
+The review modal coverage is a separate watcher
+(`install-review-modal-focus-sync!`) that reads
+`:review.state/active` entry/exit from the statechart session
+configuration. The two watchers share the prev-focus snapshot ref,
+which is safe because the modal families are mutually exclusive by
+construction.
 
 ### S-a11y-escape-to-close — Escape closes dismissible modals
 **Phase:** 19h
@@ -602,6 +607,20 @@ background-click or the close-button. The two conflict modals (list-
 conflict, locale-conflict) are deliberately excluded: the user must
 resolve the conflict, and silent dismissal would leave the app in an
 ambiguous state. The review modal also stays Quit-only for now.
+
+### S-a11y-error-live-region — Refused actions announce via an ARIA live region
+**Phase:** 19k
+**Status:** 🟢 (browser-manual; manual_tests §19k)
+
+When a user-triggered action is refused (add-blank, delete-empty,
+mark-done-no-actionable, prioritize-not-prioritizable, bad-json
+import, etc.), the page-level error `<p>` flips `:ui/err-msg` from
+nil to a localized string. The `<p>` carries `role="alert"`
+(shorthand for `aria-live="assertive" aria-atomic="true"`) so
+screen readers announce the new error immediately — no manual
+re-navigation needed.
+
+Sighted users see the red copy; AT users hear it.
 
 ### S-a11y-keyboard-only — Use the AutoFocus app fully with the keyboard
 **Phase:** 19a–19h together

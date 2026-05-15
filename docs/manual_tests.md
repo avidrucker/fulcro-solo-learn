@@ -198,6 +198,9 @@ Keyboard only (no mouse):
       moves to the conflict question.
 - [ ] Trigger the locale-conflict modal (save a locale, visit
       `?lang=<other>`) → focus moves to the conflict question.
+- [ ] **Review modal** (Phase 19g extension): with 2+ items in the
+      list, tab to "Prioritize" → Enter → focus moves to the review
+      question.
 
 ### 19g.2 Focus restores on close
 - [ ] Tab to the gear icon, open Settings, then close (via Escape or
@@ -236,9 +239,41 @@ flag for retest when modal-to-modal is allowed.
 
 ### 19h.4 Review modal
 The review modal is statechart-driven, separate from `:ui/open-modal`,
-and currently NOT wired for Escape-to-close. Confirm:
+and is NOT wired for Escape-to-close (Quit is the only dismissal
+path; the review chart has explicit state transitions that we don't
+want bypassed). Confirm:
 - [ ] Review modal open → Escape does not close it (must use Quit).
       If this changes in a future phase, update this test.
+
+---
+
+## Phase 19k — error banner is an ARIA live region
+
+`:ui/err-msg` flips from nil to a string when a refused action
+needs to surface (e.g. adding a blank item, deleting an empty
+list). The `<p>` rendering the error now has `role="alert"`, so
+screen readers announce the new error immediately on render.
+
+### 19k.1 Screen reader announces a new error
+With NVDA / VoiceOver running:
+- [ ] Tab to the new-todo input. Without typing anything, tab to
+      "Add Item" and press Enter. The screen reader should
+      announce something like "Alert: New items cannot be empty
+      or only whitespace." (NVDA's "alert" preamble is verbose;
+      VoiceOver may just read the text.)
+- [ ] Repeat with each error source: Delete List on empty list,
+      Mark Done with no actionable items, Prioritize on
+      non-prioritizable list. All four announce automatically.
+- [ ] Repeat in Spanish and Japanese — the announcement reads in
+      the active locale.
+
+### 19k.2 Error inspectable in DevTools
+- [ ] When an error is showing, inspect the red `<p>`. It should
+      have `role="alert"`.
+- [ ] When no error is showing (after dismissing or completing a
+      valid action), the element is gone entirely (we render
+      `(when err-msg ...)`), which is correct: the alert region
+      shouldn't be empty-and-present.
 
 ---
 

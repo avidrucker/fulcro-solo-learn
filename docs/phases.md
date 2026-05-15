@@ -1835,8 +1835,16 @@ element (looked up by id from a new `modal-id->heading-id`
 table; ids reused from 19b's `aria-labelledby`). Deferred via
 `setTimeout 0` so React mounts the modal DOM first. On modal
 close, focus restores to the snapshotted element. Covers the
-six `:ui/open-modal`-driven modals; review modal stays a
-follow-up.
+six `:ui/open-modal`-driven modals.
+
+Extension: `install-review-modal-focus-sync!` does the same
+for the statechart-driven review modal, watching for
+`:review.state/active` entering/leaving the review session
+configuration in the state-atom. Shares the `prev-focus-element`
+ref with the menu-modal sync — safe because the two modal
+families are mutually exclusive by construction (Prioritize is
+disabled while menu modals are open, and menu modals are
+disabled while review is active).
 
 **✅ 19h — Escape-to-close on dismissible modals.** New
 `install-escape-to-close!` window-keydown listener fires
@@ -1845,6 +1853,16 @@ modal is in `#{:info :settings :save :delete-confirm}`. The
 two conflict modals stay non-dismissible by design. Routes
 through the existing mutation so any future side effects of
 closing stay consistent.
+
+**✅ 19k — Error banner is an ARIA live region.** Found while
+extending 19g/h to the review modal: the page-level error `<p>`
+that renders when `:ui/err-msg` is truthy had no `role` /
+`aria-live`. Screen readers silently see the new node and skip
+it. Added `role="alert"` (shorthand for `aria-live="assertive"
+aria-atomic="true"`) so any new error announces immediately.
+The render condition `(when err-msg ...)` is unchanged — the
+node only exists while there's an error, which is the correct
+shape for `role="alert"`.
 
 **⬜ 19i — Keyboard-only navigation sweep** (queued — partly user
 work, see Section B-5).
