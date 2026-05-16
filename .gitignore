@@ -20,6 +20,7 @@ resources/public/js/test/
 .idea/
 .clj-kondo/
 .cpcache/
+.claude/
 *.iml
 .DS_Store
 Thumbs.db
