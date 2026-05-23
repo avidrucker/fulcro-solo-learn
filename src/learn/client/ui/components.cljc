@@ -486,25 +486,40 @@
         toggle-theme-lbl (i18n/tr locale (if (theme/dark? theme)
                                            :tooltip/switch-to-light
                                            :tooltip/switch-to-dark))]
-    (dom/main {:className (str "app min-vh-100 flex flex-column f5 montserrat "
-                               ;; Phase 12.1 (B-6 fix): bottom padding so the
-                               ;; user can tell they've scrolled to the end of
-                               ;; the page when content overflows. Goes on
-                               ;; <main> so the theme bg extends through the
-                               ;; padding zone.
-                               "pb4 "
-                               (theme/theme-text-class theme)
-                               " "
-                               (theme/theme-page-bg-class theme))}
-      ;; Phase 19o a11y: skip-link as the first focusable element on
-      ;; the page so keyboard users can bypass the four header icon
-      ;; buttons and land directly in the main content. Hidden
-      ;; off-screen by default; becomes visible on `:focus` via CSS
-      ;; in `app.css`. WCAG 2.1 §2.4.1 (Bypass Blocks).
+    ;; B-14 fix (H1 experiment): the page used to be wrapped in a
+    ;; single `<main>` containing header + a `<section>` that held
+    ;; the list. Modal-shell anchored to that section, whose
+    ;; `flex-1` height was effectively viewport-capped, so the
+    ;; overlay never reached the page bottom when content
+    ;; overflowed. Restructure: fragment-root → skip-link +
+    ;; page-wrapper (carries theme + font); page-wrapper holds
+    ;; `<header>` + `<main>` as siblings; modal renders inside
+    ;; `<main>`, anchored to it via the existing `relative` class.
+    ;; `<main>` now grows tightly with content, so the overlay
+    ;; covers everything below the header at any scroll position.
+    (comp/fragment
+      ;; Phase 19o a11y: skip-link as the first focusable element
+      ;; on the page so keyboard users can bypass the four header
+      ;; icon buttons and land directly in the main content. Hidden
+      ;; off-screen by default; becomes visible on `:focus` via
+      ;; CSS in `app.css`. WCAG 2.1 §2.4.1 (Bypass Blocks). Lives
+      ;; at fragment root so it precedes `<header>` in tab order
+      ;; (post-restructure header is a sibling of main, not its
+      ;; child).
       (dom/a {:className "skip-link"
               :href      "#main-content"}
         (i18n/tr locale :nav/skip-to-main))
-      (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
+      ;; Page wrapper — carries font family, theme text/bg, and a
+      ;; flex column so `<main>` can grow with content while
+      ;; `<header>` stays content-sized at the top. `#app` (in
+      ;; app.css) is already `display: flex; flex-direction: column;
+      ;; min-height: 100dvh`, so this wrapper takes `flex-1` and
+      ;; fills it.
+      (dom/div {:className (str "flex-1 flex flex-column f5 montserrat "
+                                (theme/theme-text-class theme)
+                                " "
+                                (theme/theme-page-bg-class theme))}
+        (dom/header {:className "app-header pa3 pb2 flex justify-center items-center"}
         (dom/h1 {:className "ma0 f2-ns f3 fw8 tracked-custom dib gray"}
           s/app-name)
         (modals/header-icon-button this {:icon      icons/save-disk
@@ -544,11 +559,23 @@
                        :onClick      #(comp/transact! this [(toggle-theme)])}
             (if (theme/dark? theme) icons/lightbulb-regular icons/lightbulb-solid)
             (dom/span {:className "clip"} toggle-theme-lbl))))
-      ;; Phase 19o a11y: id + tabindex make this the skip-link
-      ;; target. `tabindex="-1"` keeps the section out of the
-      ;; natural tab cycle but allows programmatic `.focus()`
-      ;; when the user activates the skip link.
-      (dom/section {:id        "main-content"
-                    :tabIndex  -1
-                    :className "app-container relative flex flex-column flex-1"}
-        (when list (ui-todo-list list))))))
+      ;; Phase 19o a11y: id + tabindex make `<main>` the skip-link
+      ;; target. `tabindex="-1"` keeps it out of the natural tab
+      ;; cycle but allows programmatic `.focus()` when the user
+      ;; activates the skip link. `relative` makes it the
+      ;; positioned ancestor for modal-shell; `flex-1` lets it
+      ;; fill the wrapper below the header; `pb4` keeps the B-6
+      ;; bottom-padding so the user can tell they've scrolled to
+      ;; the end of an overflowing list.
+      (dom/main {:id        "main-content"
+                 :tabIndex  -1
+                 ;; `flex-auto` (= `flex: 1 1 auto`) instead of
+                 ;; `flex-1` (= `flex: 1 1 0%`): with basis 0, Chrome
+                 ;; lets content overflow the flex item rather than
+                 ;; growing the box, so the modal-shell (absolute to
+                 ;; main) was capped at the basis-0 size and items
+                 ;; rendered past it. `flex: 1 1 auto` keeps the
+                 ;; "fill available when short" behaviour while
+                 ;; letting main grow with content when overflowing.
+                 :className "relative flex flex-column flex-auto pb4"}
+        (when list (ui-todo-list list)))))))
