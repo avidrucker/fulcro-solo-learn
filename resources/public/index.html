@@ -24,9 +24,13 @@
   <!-- Tachyons CSS — switched from CDN to local during B-14 debugging
        (2026-05-23). Same 4.12.0 pin, just served from
        resources/public/css/. Local control lets us pair Tachyons
-       with the Pesticide rainbow-outline debug stylesheet
-       (`css/pesticide.css`), which is loaded from CLJS init when
-       `learn.client/debug-css?` is set to `true`. -->
+       with the optional Pesticide debug stylesheets
+       (`css/pesticide.css` for rainbow outlines per element tag,
+       `css/pesticide-depth.css` for translucent backgrounds keyed
+       to nesting depth). Both are loaded from CLJS init when the
+       matching key in `learn.client/debug-css-options` is `true` —
+       dev only; release builds drop the loader entirely via
+       `goog.DEBUG` dead-code elimination. -->
   <link rel="stylesheet" href="css/tachyons.min.css" />
 
   <!-- App-specific custom rules (Phase 6.5.5). Ported verbatim from the

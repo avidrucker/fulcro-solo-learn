@@ -57,18 +57,32 @@
 (def review-chart-key  session/review-chart-key)
 
 ;; ============================================================================
-;; Dev-config — flip these flags to toggle dev-only visuals. Default to
-;; off so the deployed app is never affected. Production builds shouldn't
-;; commit a flag flipped to `true`.
+;; Dev-config — flip these options to toggle dev-only visuals.
+;;
+;; SAFETY: `install-debug-css!` (below) gates the WHOLE installer on
+;; `^boolean goog.DEBUG`. In a release build, `goog.DEBUG` is replaced
+;; with `false` at compile time and Google Closure Compiler's advanced
+;; optimisation drops the `(when ...)` block as dead code. So even if
+;; an option is accidentally committed `true`, RELEASE builds will
+;; never load any debug CSS. Dev (`shadow-cljs watch`) honours the
+;; options as written.
 ;; ============================================================================
 
-(def debug-css?
-  "When true, the CLJS init function injects a `<link>` to
-   `css/pesticide.css` — outlines every element with a colour keyed
-   to its tag (rainbow debug view). When false, the page renders
-   without any debug visuals. Browser-side only; the headless JVM
-   `init` ignores this flag."
-  false)
+(def debug-css-options
+  "Each option, when `true`, injects a `<link>` to the matching
+   stylesheet via the CLJS `init` function:
+
+     :rainbow — `css/pesticide.css` — different OUTLINE colour per
+                element tag (rainbow outlines).
+     :depth   — `css/pesticide-depth.css` — translucent BACKGROUND
+                colour keyed to nesting depth.
+
+   Combinable. Hot-reload picks up edits to this map, but the
+   browser must be refreshed for the new options to apply (init
+   only runs on page load). Browser-side only; headless JVM
+   `init` ignores this entirely."
+  {:rainbow true
+   :depth   true})
 
 ;; ============================================================================
 ;; UI components — Phase 12.7 moved to `learn.client.ui.components`. The
@@ -145,22 +159,33 @@
 (m/declare-mutation toggle-theme             learn.client/toggle-theme)
 
 #?(:cljs
+   (defn- ensure-debug-link!
+     "Idempotent: append a `<link rel=\"stylesheet\" href=...>` to
+      `<head>` with the given marker id. No-op if a tag with that
+      marker already exists (so hot-reload runs don't duplicate)."
+     [marker-id href]
+     (when-not (.getElementById js/document marker-id)
+       (let [link (.createElement js/document "link")]
+         (set! (.-id link)   marker-id)
+         (set! (.-rel link)  "stylesheet")
+         (set! (.-href link) href)
+         (.appendChild (.-head js/document) link)))))
+
+#?(:cljs
    (defn install-debug-css!
-     "When `debug-css?` is true, append a `<link rel=\"stylesheet\">`
-      to the document head that loads `css/pesticide.css`. Idempotent
-      via a marker id — re-running this on hot-reload won't duplicate
-      the link. No-op when the flag is false."
+     "Inspect `debug-css-options` and inject one `<link>` per enabled
+      option. Gated on `^boolean goog.DEBUG` so RELEASE builds drop
+      the entire body via dead-code elimination — debug CSS can NEVER
+      ship to prod, even if an option is accidentally committed
+      `true`. No-op when all options are false."
      []
-     (when debug-css?
-       (let [head    (.-head js/document)
-             marker  "debug-css-pesticide"
-             exists? (.getElementById js/document marker)]
-         (when-not exists?
-           (let [link (.createElement js/document "link")]
-             (set! (.-id link)   marker)
-             (set! (.-rel link)  "stylesheet")
-             (set! (.-href link) "css/pesticide.css")
-             (.appendChild head link)))))))
+     (when ^boolean goog.DEBUG
+       (when (:rainbow debug-css-options)
+         (ensure-debug-link! "debug-css-pesticide-rainbow"
+                             "css/pesticide.css"))
+       (when (:depth debug-css-options)
+         (ensure-debug-link! "debug-css-pesticide-depth"
+                             "css/pesticide-depth.css")))))
 
 ;; ============================================================================
 ;; App construction
