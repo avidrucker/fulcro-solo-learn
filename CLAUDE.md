@@ -122,3 +122,17 @@ Send this via clj-nrepl-eval to verify green-ness.
 - Active-status ordering invariant: in any Phase 5I/5J-reachable list,
   all `:status/ready` items precede all `:status/new` items
   (see SCHEMA.md �5)
+
+## Agent skills
+
+### Domain docs
+
+This project does not follow the standard CONTEXT.md + docs/adr/
+layout. Skills that expect a domain glossary should read
+`docs/SCHEMA.md`; skills that expect ADRs should consult
+`docs/learned_while_making_this.md` and the relevant phase in
+`docs/phases.md`. Full mapping: see `docs/agents/domain.md`.
+
+(Issue-tracker and triage-labels sections are deliberately omitted —
+this project tracks work in `docs/phases.md` + `docs/bugs.md`, not in
+GitHub Issues or a triage state machine.)

@@ -104,7 +104,12 @@
       {:className "measure-narrow ml-auto mr-auto relative z-1"}
       children)
     (when on-close
-      (dom/button {:className "absolute z-0 top-0 left-0 w-100 o-0 min-h-100"
+      ;; B-14 dev probe: close-gutter button sized to the exact same
+      ;; box as the outer dialog <section> (top/bottom/left/right all
+      ;; pinned to its edges), and TEMPORARILY rendered solid blue
+      ;; (`bg-blue`, no `o-0`) so the actual coverage is visible in
+      ;; the browser. Revert to `o-0` before merging.
+      (dom/button {:className "absolute z-0 top-0 bottom-0 left-0 right-0 bg-blue"
                    :onClick   on-close}
         close-label))))
 
