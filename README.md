@@ -82,6 +82,17 @@ duplication. From there:
   `benefits-of-*.md` / `when-to-*.md` docs in `docs/` capture the
   "why we did / didn't reach for X" for RAD, statecharts, i18n,
   Pathom production patterns, and RAD forms/reports.
+- **Picking up where another Claude / agent session left off?** A
+  `handoffs` branch (sibling of `main`) holds cross-session handoff
+  docs in `handoffs/`. Read the latest one without switching
+  branches:
+  ```
+  git ls-tree origin/handoffs handoffs/         # list available docs
+  git show origin/handoffs:handoffs/<doc>.md    # read one in place
+  ```
+  Handoffs carry the ephemeral context (recent decisions,
+  ruled-out approaches, in-flight branches, running background
+  processes) that the code + `docs/` don't capture.
 
 ## Project layout
 

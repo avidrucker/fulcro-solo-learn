@@ -15,6 +15,18 @@ Multi-phase learning project; **never skip phases, always TDD red-green-refactor
   decision that touches schema, invariants, or operation contracts.
 - `docs/learned_while_making_this.md` � past mistakes by category. Skim
   before starting work; consult when stuck.
+- **Handoff docs** live on the `handoffs` branch (NOT `main`) under
+  `handoffs/`. Read the most recent one BEFORE starting a session
+  if you're picking up another session's work — handoffs carry
+  ephemeral context (recent decisions, ruled-out approaches,
+  in-flight branches, running background processes) that isn't
+  captured in the code or in `docs/`. No branch switch needed:
+  ```
+  git ls-tree origin/handoffs handoffs/         # list available docs
+  git show origin/handoffs:handoffs/<doc>.md    # read without switching
+  ```
+  Run `/handoff` at the end of your own sessions and commit the
+  resulting doc to the `handoffs` branch.
 
 ## Hard rules
 
