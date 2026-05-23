@@ -24,14 +24,10 @@
   <!-- Tachyons CSS — switched from CDN to local during B-14 debugging
        (2026-05-23). Same 4.12.0 pin, just served from
        resources/public/css/. Local control lets us pair Tachyons
-       with the Pesticide debug stylesheet (below) without CDN gymnastics. -->
+       with the Pesticide rainbow-outline debug stylesheet
+       (`css/pesticide.css`), which is loaded from CLJS init when
+       `learn.client/debug-css?` is set to `true`. -->
   <link rel="stylesheet" href="css/tachyons.min.css" />
-
-  <!-- B-14 dev probe: pesticide-depth outlines every element with a
-       distinct color keyed to its tag AND nesting depth — the "rainbow"
-       debug view used to visually inspect modal-shell's actual coverage
-       in dev local. Comment out (or delete) this link before merging. -->
-  <link rel="stylesheet" href="css/pesticide-depth.css" />
 
   <!-- App-specific custom rules (Phase 6.5.5). Ported verbatim from the
        JS port's App.css — the parts that AREN'T already covered by

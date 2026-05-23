@@ -57,6 +57,20 @@
 (def review-chart-key  session/review-chart-key)
 
 ;; ============================================================================
+;; Dev-config — flip these flags to toggle dev-only visuals. Default to
+;; off so the deployed app is never affected. Production builds shouldn't
+;; commit a flag flipped to `true`.
+;; ============================================================================
+
+(def debug-css?
+  "When true, the CLJS init function injects a `<link>` to
+   `css/pesticide.css` — outlines every element with a colour keyed
+   to its tag (rainbow debug view). When false, the page renders
+   without any debug visuals. Browser-side only; the headless JVM
+   `init` ignores this flag."
+  false)
+
+;; ============================================================================
 ;; UI components — Phase 12.7 moved to `learn.client.ui.components`. The
 ;; aliases below preserve `learn.client/Root` and `learn.client/TodoItem`,
 ;; which `init` and `load-todos!` reference unqualified.
@@ -130,6 +144,24 @@
 (m/declare-mutation toggle-open-modal        learn.client/toggle-open-modal)
 (m/declare-mutation toggle-theme             learn.client/toggle-theme)
 
+#?(:cljs
+   (defn install-debug-css!
+     "When `debug-css?` is true, append a `<link rel=\"stylesheet\">`
+      to the document head that loads `css/pesticide.css`. Idempotent
+      via a marker id — re-running this on hot-reload won't duplicate
+      the link. No-op when the flag is false."
+     []
+     (when debug-css?
+       (let [head    (.-head js/document)
+             marker  "debug-css-pesticide"
+             exists? (.getElementById js/document marker)]
+         (when-not exists?
+           (let [link (.createElement js/document "link")]
+             (set! (.-id link)   marker)
+             (set! (.-rel link)  "stylesheet")
+             (set! (.-href link) "css/pesticide.css")
+             (.appendChild head link)))))))
+
 ;; ============================================================================
 ;; App construction
 ;;
@@ -191,6 +223,11 @@
       Returns the spa. Exported so shadow-cljs can call it as the
       module's `:init-fn`."
      []
+     ;; Dev-only: load the Pesticide rainbow-outline stylesheet IFF
+     ;; `debug-css?` is true. Runs first so element outlines appear
+     ;; on the initial paint, not after the first render. No-op when
+     ;; the flag is false.
+     (install-debug-css!)
      (let [spa (app/fulcro-app
                  {:remotes {:remote (remote/sync-remote parser/handler)}})]
        (reset! lifecycle/SPA spa)
