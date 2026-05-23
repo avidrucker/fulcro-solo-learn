@@ -81,8 +81,8 @@
    browser must be refreshed for the new options to apply (init
    only runs on page load). Browser-side only; headless JVM
    `init` ignores this entirely."
-  {:rainbow true
-   :depth   true})
+  {:rainbow false
+   :depth   false})
 
 ;; ============================================================================
 ;; UI components — Phase 12.7 moved to `learn.client.ui.components`. The

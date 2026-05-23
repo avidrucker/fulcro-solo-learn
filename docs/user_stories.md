@@ -1000,6 +1000,28 @@ be a new button in the save modal (next to Export-JSON) and/or a
 clipboard-write action. Pairs naturally with a future
 markdown-import story (parse Markdown checklist → items).
 
+### S-dev-mode-toggles — Debug mode controls in Settings
+**Phase:** —
+**Status:** ⬜
+**Tests:** TBD — see test plan in
+[`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md).
+
+As a developer working on the AutoFocus port, I want a "Debug mode"
+section in Settings that gives me runtime control over dev-only
+visualisations and state inspection — without source-editing flags
+or restarting shadow-cljs. Four controls planned: rainbow-outlines
+toggle, depth-backgrounds toggle, app-state dump button, and a
+list-fixture cycler (actual → empty → 5-item → 26-item).
+
+The whole section is gated on `goog.DEBUG` so prod builds drop it
+via Closure dead-code elimination. The list-cycler preserves the
+user's actual data via a localStorage snapshot, so cycling through
+fixtures is non-destructive.
+
+Full design (architecture, dep graph, fixture invariants, test
+plan, coexistence of source-default flags with the runtime UI):
+[`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md).
+
 ### S-pwa-debug-modal — PWA debug info modal
 **Phase:** —
 **Status:** 🆒
