@@ -80,16 +80,23 @@
   [{:keys [on-close close-label theme labelled-by]
     :or   {theme :theme/light}}
    & children]
-  ;; Anchor the overlay to all four edges of `.app-container` (its
-  ;; nearest positioned ancestor) so it stretches to whatever height
-  ;; the containing block actually has. `top-0 bottom-0` does this
-  ;; without relying on `h-100`, which resolves to 100% of an
-  ;; ill-defined parent height when `<main>` uses min-height + flex.
+  ;; B-14 fix: anchor the overlay to `<main>` (its `position:
+  ;; relative` ancestor after the H1 DOM restructure). Use
+  ;; `top-0 left-0 right-0 min-h-100` instead of `top-0 bottom-0
+  ;; left-0 right-0`. Why: `bottom-0` caps the overlay's height to
+  ;; the containing block (= main). When the inner content section
+  ;; is taller than main (e.g. a tall Save modal in a small
+  ;; viewport), the inner spills past the overlay's bottom edge
+  ;; AND contributes to `scrollHeight` — so clicks below the
+  ;; overlay's clipped bottom miss the close-gutter. `min-h-100`
+  ;; floors the overlay at 100% of main while letting it grow to
+  ;; contain any inner overflow, restoring the "click anywhere
+  ;; visible to close" affordance at every scroll position.
   ;;
   ;; Phase 19a11y: role=dialog + aria-modal=true so screen readers
   ;; treat this as a modal interaction surface. `aria-labelledby`
   ;; points to the modal's <h2> id when provided.
-  (dom/section (cond-> {:className (str "absolute f5 top-0 bottom-0 left-0 right-0 "
+  (dom/section (cond-> {:className (str "absolute f5 top-0 left-0 right-0 min-h-100 "
                                         (theme/theme-modal-bg-class theme))
                         :role        "dialog"
                         :aria-modal  "true"}
