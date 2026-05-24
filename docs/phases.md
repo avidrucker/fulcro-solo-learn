@@ -109,4 +109,4 @@ All 16 in-codebase sub-phases (19a–19p) ✅. Yellow flag is for the user-drive
 
 ## 🟡 [Phase 21 — Dev-mode toggles (S-dev-mode-toggles)](phases/21-dev-mode-toggles.md)
 
-Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. 21.1 (dev fixtures: `items-5`, `items-26`) ✅; 21.2 (`dev-config` ns — flags atom + persistence + list-cycler), 21.3 (move `debug-css` plumbing out of `learn.client`), 21.4 (Settings UI integration) pending.
+Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. 21.1 (dev fixtures: `items-5`, `items-26`) ✅; 21.2 (`dev-config` ns — flags atom + persistence + pure list-cycler) ✅; 21.3 (move `debug-css` plumbing out of `learn.client`), 21.4 (Settings UI integration) pending.

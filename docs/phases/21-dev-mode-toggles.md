@@ -9,6 +9,6 @@ Full design — architecture, dep graph, fixture invariants, test plan, coexiste
 ## Sub-phases
 
 - ✅ [21.1 — Dev fixtures (`items-5`, `items-26`)](21-1-dev-fixtures.md)
-- ⬜ 21.2 — `learn.dev-config` namespace (flags atom + localStorage round-trip + pure list-cycler logic)
+- ✅ [21.2 — `learn.dev-config` namespace (flags + persistence + pure cycler)](21-2-dev-config.md)
 - ⬜ 21.3 — Move `debug-css-options` + `install-debug-css!` out of `learn.client.cljc` into `learn.dev-config`; rewire `init`
 - ⬜ 21.4 — Settings-UI integration (gear-modal Debug section, four affordances wired)
