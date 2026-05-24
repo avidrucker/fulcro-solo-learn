@@ -1,19 +1,22 @@
-utoFocus Fulcro project � agent context
+AutoFocus Fulcro project — agent context
 
 ## Goal & status
 
 Hands-on TDD port of the AutoFocus productivity model to Fulcro/Pathom.
 Multi-phase learning project; **never skip phases, always TDD red-green-refactor**.
 
-- `docs/phases.md` � phase tracker. Current state: **Phase 5K.5 next**
-  (client wiring — chart session lifecycle, alias wiring, mutations that
-  `scf/send!`). Read this BEFORE doing anything.
-- `docs/js_source_reference.md` � signatures + behavior summaries for every
+- `docs/phases.md` — phase tracker. Current state: **Phase 18 last
+  completed** (locale-conflict modal). Phase 19 a11y sub-phases all ✅
+  pending the Section-B browser-manual sweep (`docs/a11y_audit.md`);
+  Phase 20a/b ✅, 20c deferred. **`S-dev-mode-toggles` queued next**
+  (design in `docs/ideas.md`; handoff doc on the `handoffs` branch).
+  Read this BEFORE doing anything.
+- `docs/js_source_reference.md` — signatures + behavior summaries for every
   function in the original JS source, with divergence notes per phase.
   Consult before introducing any new model-layer function in 5J/5K.
-- `docs/SCHEMA.md` � canonical domain reference. Read before making any
+- `docs/SCHEMA.md` — canonical domain reference. Read before making any
   decision that touches schema, invariants, or operation contracts.
-- `docs/learned_while_making_this.md` � past mistakes by category. Skim
+- `docs/learned_while_making_this.md` — past mistakes by category. Skim
   before starting work; consult when stuck.
 - **Handoff docs** live on the `handoffs` branch (NOT `main`) under
   `handoffs/`. Read the most recent one BEFORE starting a session
@@ -53,11 +56,11 @@ Multi-phase learning project; **never skip phases, always TDD red-green-refactor
 
 ## Project layout (memory aid)
 
-- `src/learn/client.cljc` � Fulcro UI + mutations + state-helpers (*-suffixed)
-- `src/learn/model/schema.cljc` � Malli schemas via Guardrails registry bridge
-- `src/learn/model/list.cljc` � pure domain functions, `>defn` contracts
-- `src/learn/parser.clj` `resolvers.clj` `server.clj` � Pathom 2 backend
-- `test/learn/**` � fulcro-spec specs mirror src layout
+- `src/learn/client.cljc` — Fulcro UI + mutations + state-helpers (*-suffixed)
+- `src/learn/model/schema.cljc` — Malli schemas via Guardrails registry bridge
+- `src/learn/model/list.cljc` — pure domain functions, `>defn` contracts
+- `src/learn/parser.clj` `resolvers.clj` `server.clj` — Pathom 2 backend
+- `test/learn/**` — fulcro-spec specs mirror src layout
 
 ## REPL workflow
 
@@ -71,7 +74,7 @@ clj-nrepl-eval -p <port> <<'EOF'
 EOF
 \```
 
-ALWAYS wrap multi-form sends in `(do ...)` per the clojure-repl skill �
+ALWAYS wrap multi-form sends in `(do ...)` per the clojure-repl skill —
 without it, output gets fragmented and downstream tooling breaks.
 
 ## Master test runner
@@ -128,12 +131,12 @@ Send this via clj-nrepl-eval to verify green-ness.
 - `>defn` Guardrails contracts for all `learn.model.*` functions
 - `:learn.model.schema/...` (fully-qualified, no alias) in gspecs
 - `auto-mark` (no `*` suffix) in model layer; `*` suffix reserved for
-  state-map ? state-map helpers in `client.cljc`
+  state-map → state-map helpers in `client.cljc`
 - Inline private helpers (`defn-`) until a third caller exists; only
   then extract to a sibling namespace (e.g. `learn.model.item`)
 - Active-status ordering invariant: in any Phase 5I/5J-reachable list,
   all `:status/ready` items precede all `:status/new` items
-  (see SCHEMA.md �5)
+  (see SCHEMA.md §5)
 
 ## Agent skills
 
