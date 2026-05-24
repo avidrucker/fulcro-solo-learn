@@ -126,6 +126,29 @@ excluded:
 
 Send this via clj-nrepl-eval to verify green-ness.
 
+## Async waits — trust notifications, never `sleep && cmd`
+
+The harness BLOCKS commands that start with `sleep N &&` (or any leading
+sleep followed by something). This is intentional. If you find yourself
+typing `sleep 25 && tail …` to "let the test runner finish first",
+**stop** — the harness is telling you to use one of two correct
+patterns:
+
+1. **For a command YOU kicked off in background** (the common case
+   here — `clj-nrepl-eval` of the master runner, shadow-cljs watch,
+   etc.): **trust the harness notification.** When the background task
+   completes, you'll be notified with the task id, exit code, and
+   output path. Then `tail` the output file ONCE. Do not poll in a
+   sleep loop — you'll hit the block and waste a turn.
+2. **For external state you can't be notified about** (a CI run you
+   didn't start, a file appearing from some other process): use the
+   Monitor tool with an until-loop, e.g. `until <check>; do sleep 2;
+   done`. The harness understands that pattern.
+
+**Never** chain shorter sleeps to work around the block — diagnose the
+real wait you need first. Same rule applies to tailing a long-running
+process's output, waiting for nREPL to come up, etc.
+
 ## Conventions (locked in)
 
 - `>defn` Guardrails contracts for all `learn.model.*` functions
