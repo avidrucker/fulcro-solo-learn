@@ -4,6 +4,17 @@
 **Branch:** `main`, in sync with `origin/main` after the push at end of session.
 **Date handed off:** 2026-05-23.
 
+> **Addendum 2026-05-24:** Doc verified fresh. Core task untouched — no
+> `learn.dev-fixtures` / `learn.dev-config` ns yet; `debug-css-options` and
+> `install-debug-css!` still live in `learn.client.cljc`. All 5 commits on
+> `main` since handoff are docs-only. **One stale reference to fix mentally:**
+> `docs/phases.md` was split into per-file `docs/phases/NN-*.md` (commits
+> `c3f3d34`, `7ec575d`, `a68489d`). So the "update `docs/phases.md` with a new
+> Phase 22 entry" step below now means "add `docs/phases/22-dev-mode-toggles.md`
+> and link it from `docs/phases/README.md`." Same intent, new layout. Also: the
+> background `shadow-cljs watch` task id `bf10czokk` referenced below is dead
+> from the previous session — start your own.
+
 The previous session closed bug **B-14** (modal close-gutter not reaching page bottom on overflow) and designed — but did NOT implement — a new dev-mode feature, **`S-dev-mode-toggles`**. The next session implements it.
 
 ## What you are picking up
