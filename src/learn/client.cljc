@@ -40,6 +40,7 @@
     [learn.client.state :as state]
     [learn.client.ui.components :as components]
     [learn.client.ui.modals :as modals]
+    [learn.dev-config :as dev-config]
     [learn.parser :as parser]
     [learn.server :as server]
     [learn.util.remote :as remote]
@@ -55,34 +56,6 @@
 
 (def review-session-id session/review-session-id)
 (def review-chart-key  session/review-chart-key)
-
-;; ============================================================================
-;; Dev-config — flip these options to toggle dev-only visuals.
-;;
-;; SAFETY: `install-debug-css!` (below) gates the WHOLE installer on
-;; `^boolean goog.DEBUG`. In a release build, `goog.DEBUG` is replaced
-;; with `false` at compile time and Google Closure Compiler's advanced
-;; optimisation drops the `(when ...)` block as dead code. So even if
-;; an option is accidentally committed `true`, RELEASE builds will
-;; never load any debug CSS. Dev (`shadow-cljs watch`) honours the
-;; options as written.
-;; ============================================================================
-
-(def debug-css-options
-  "Each option, when `true`, injects a `<link>` to the matching
-   stylesheet via the CLJS `init` function:
-
-     :rainbow — `css/pesticide.css` — different OUTLINE colour per
-                element tag (rainbow outlines).
-     :depth   — `css/pesticide-depth.css` — translucent BACKGROUND
-                colour keyed to nesting depth.
-
-   Combinable. Hot-reload picks up edits to this map, but the
-   browser must be refreshed for the new options to apply (init
-   only runs on page load). Browser-side only; headless JVM
-   `init` ignores this entirely."
-  {:rainbow false
-   :depth   false})
 
 ;; ============================================================================
 ;; UI components — Phase 12.7 moved to `learn.client.ui.components`. The
@@ -158,35 +131,6 @@
 (m/declare-mutation toggle-open-modal        learn.client/toggle-open-modal)
 (m/declare-mutation toggle-theme             learn.client/toggle-theme)
 
-#?(:cljs
-   (defn- ensure-debug-link!
-     "Idempotent: append a `<link rel=\"stylesheet\" href=...>` to
-      `<head>` with the given marker id. No-op if a tag with that
-      marker already exists (so hot-reload runs don't duplicate)."
-     [marker-id href]
-     (when-not (.getElementById js/document marker-id)
-       (let [link (.createElement js/document "link")]
-         (set! (.-id link)   marker-id)
-         (set! (.-rel link)  "stylesheet")
-         (set! (.-href link) href)
-         (.appendChild (.-head js/document) link)))))
-
-#?(:cljs
-   (defn install-debug-css!
-     "Inspect `debug-css-options` and inject one `<link>` per enabled
-      option. Gated on `^boolean goog.DEBUG` so RELEASE builds drop
-      the entire body via dead-code elimination — debug CSS can NEVER
-      ship to prod, even if an option is accidentally committed
-      `true`. No-op when all options are false."
-     []
-     (when ^boolean goog.DEBUG
-       (when (:rainbow debug-css-options)
-         (ensure-debug-link! "debug-css-pesticide-rainbow"
-                             "css/pesticide.css"))
-       (when (:depth debug-css-options)
-         (ensure-debug-link! "debug-css-pesticide-depth"
-                             "css/pesticide-depth.css")))))
-
 ;; ============================================================================
 ;; App construction
 ;;
@@ -248,11 +192,13 @@
       Returns the spa. Exported so shadow-cljs can call it as the
       module's `:init-fn`."
      []
-     ;; Dev-only: load the Pesticide rainbow-outline stylesheet IFF
-     ;; `debug-css?` is true. Runs first so element outlines appear
-     ;; on the initial paint, not after the first render. No-op when
-     ;; the flag is false.
-     (install-debug-css!)
+     ;; Dev-only: hydrate dev-flags from localStorage, then sync the
+     ;; debug-CSS link tags to match. Runs first so element outlines
+     ;; appear on the initial paint, not after the first render. The
+     ;; whole `learn.dev-config` namespace is gated on
+     ;; `^boolean goog.DEBUG` at its DOM-touching call sites, so this
+     ;; is a no-op in release builds.
+     (dev-config/install-dev-config!)
      (let [spa (app/fulcro-app
                  {:remotes {:remote (remote/sync-remote parser/handler)}})]
        (reset! lifecycle/SPA spa)

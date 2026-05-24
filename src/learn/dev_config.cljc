@@ -216,3 +216,84 @@
          (fn [_k _ref _old new-flags] (save-flags! new-flags)))
        dev-flags)
      :clj dev-flags))
+
+;; ============================================================================
+;; Debug-CSS DOM sync — Phase 21.3, migrated from `learn.client.cljc`.
+;;
+;; SAFETY: `install-debug-css-from-runtime!` and `sync-debug-css!` gate
+;; ALL DOM work on `^boolean goog.DEBUG`. In a release build, the
+;; Closure Compiler substitutes `false` and advanced optimisation drops
+;; the entire body as dead code — so flipped flags in localStorage can
+;; NEVER load debug CSS in production, even if a previous dev session
+;; left them `true`.
+;; ============================================================================
+
+#?(:cljs
+   (def ^:private debug-css-links
+     "Marker-id → href map for the dev-CSS link tags this namespace
+      installs and removes. Keys correspond to flag keys in `dev-flags`."
+     {:debug-css/rainbow? {:marker-id "debug-css-pesticide-rainbow"
+                           :href      "css/pesticide.css"}
+      :debug-css/depth?   {:marker-id "debug-css-pesticide-depth"
+                           :href      "css/pesticide-depth.css"}}))
+
+#?(:cljs
+   (defn- ensure-debug-link!
+     "Idempotent: append a `<link rel=\"stylesheet\" href=...>` to
+      `<head>` with the given marker id. No-op if a tag with that
+      marker id already exists (so re-applying `sync-debug-css!`
+      doesn't duplicate)."
+     [marker-id href]
+     (when-not (.getElementById js/document marker-id)
+       (let [link (.createElement js/document "link")]
+         (set! (.-id link)   marker-id)
+         (set! (.-rel link)  "stylesheet")
+         (set! (.-href link) href)
+         (.appendChild (.-head js/document) link)))))
+
+#?(:cljs
+   (defn- remove-debug-link!
+     "Idempotent: remove the `<link>` with the given marker id, if
+      present. No-op when the tag isn't there (so a flag flipping
+      false-to-false on hot-reload doesn't error)."
+     [marker-id]
+     (when-let [link (.getElementById js/document marker-id)]
+       (.removeChild (.-parentNode link) link))))
+
+#?(:cljs
+   (defn- sync-debug-css!
+     "Reconcile the DOM with `flags`: ensure each enabled link is
+      present, remove any whose flag is now false. No-op when
+      `goog.DEBUG` is false (release builds drop the body)."
+     [flags]
+     (when ^boolean goog.DEBUG
+       (doseq [[flag-key {:keys [marker-id href]}] debug-css-links]
+         (if (get flags flag-key)
+           (ensure-debug-link! marker-id href)
+           (remove-debug-link! marker-id))))))
+
+(defn install-debug-css-from-runtime!
+  "CLJS: apply the current `dev-flags` state to the DOM, then attach a
+   watch that re-syncs whenever the atom changes (so toggling a flag
+   from the Settings UI flips the visuals immediately, no reload).
+   JVM: no-op.
+
+   Idempotent in practice — the watch key `::debug-css` is namespaced,
+   so re-running `install-debug-css-from-runtime!` replaces the
+   existing watch rather than stacking duplicates."
+  []
+  #?(:cljs
+     (do
+       (sync-debug-css! @dev-flags)
+       (add-watch dev-flags ::debug-css
+         (fn [_k _ref _old new-flags] (sync-debug-css! new-flags))))
+     :clj nil))
+
+(defn install-dev-config!
+  "One-call setup for dev-config infrastructure: hydrate flags from
+   localStorage, then sync the debug-CSS DOM to those flags and watch
+   for changes. CLJC — JVM is a no-op (the persistence install returns
+   the atom unchanged and the debug-css install does nothing)."
+  []
+  (install-dev-flags-persistence!)
+  (install-debug-css-from-runtime!))
