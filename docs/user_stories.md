@@ -1001,10 +1001,10 @@ clipboard-write action. Pairs naturally with a future
 markdown-import story (parse Markdown checklist → items).
 
 ### S-dev-mode-toggles — Debug mode controls in Settings
-**Phase:** —
-**Status:** ⬜
-**Tests:** TBD — see test plan in
-[`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md).
+**Phase:** 21
+**Status:** 🟡 (21.1 fixtures landed; 21.2–21.4 pending)
+**Tests:** see [`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md)
+for the full test plan; `learn.dev-fixtures-test` covers 21.1.
 
 As a developer working on the AutoFocus port, I want a "Debug mode"
 section in Settings that gives me runtime control over dev-only

@@ -107,8 +107,6 @@ All 16 in-codebase sub-phases (19a–19p) ✅. Yellow flag is for the user-drive
 
 20a (long-form algorithm cross-validation scenarios) ✅, 20b (Playwright + axe-core keyboard a11y scaffold) ✅, **20c deferred** — Lighthouse shell scripts + expanded Playwright coverage (conflict modals, review-modal focus, more locales). Revisit only if 20a/20b leave specific gaps that warrant the additional tooling.
 
----
+## 🟡 [Phase 21 — Dev-mode toggles (S-dev-mode-toggles)](phases/21-dev-mode-toggles.md)
 
-## Queued / next
-
-- **`S-dev-mode-toggles`** — designed in [`ideas.md`](./ideas.md) under tag `dev-mode-toggles`; handoff doc on the `handoffs` branch carries the implementation brief. Becomes the next numbered phase when work starts.
+Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. 21.1 (dev fixtures: `items-5`, `items-26`) ✅; 21.2 (`dev-config` ns — flags atom + persistence + list-cycler), 21.3 (move `debug-css` plumbing out of `learn.client`), 21.4 (Settings UI integration) pending.
