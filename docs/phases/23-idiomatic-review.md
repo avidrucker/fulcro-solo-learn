@@ -1,6 +1,6 @@
 # Phase 23 — Idiomatic-Fulcro audit
 
-**Status:** 🟡 In progress (23.1 underway)
+**Status:** 🟡 In progress (23.1 ✅, 23.2 next)
 
 A code-quality audit comparing the AutoFocus Fulcro port against Tony Kay's onboarding-rad-project curriculum (`~/Documents/Work/onboarding-rad-project/` branch `10-report-row-actions`, plus the companion `curriculum-onboarding-rad-project/` lecture path). Goal: surface where this project is or isn't idiomatically the best it could be, and where Pathom 2 / RAD / statecharts could be leveraged more (or less, if they're overkill).
 
@@ -8,7 +8,7 @@ A code-quality audit comparing the AutoFocus Fulcro port against Tony Kay's onbo
 
 ## Sub-phases
 
-- 🟡 [23.1 — Reference-repo reconnaissance](23-1-reference-recon.md) — three parallel Explore agents catalog Pathom 2 / RAD / statechart / Fulcro UI / testing / Guardrails idioms from branch 10 + the curriculum lecture path. Output: structured idioms catalog with file:line references back to the reference repos.
+- ✅ [23.1 — Reference-repo reconnaissance](23-1-reference-recon.md) — three parallel general-purpose agents (backend / UI / testing-and-quality) catalogued Pathom 2, RAD, statechart, Fulcro UI, testing, Guardrails, and dev-workflow idioms from branch 10 + the curriculum lecture path. Surfaced surprises: no statecharts, no `>defn`, no i18n, no CSS/theme system, no CI YAML in the reference — fulcro-solo-learn uses all five. That asymmetry is the central 23.2 question.
 - ⬜ [23.2 — Comparative analysis](23-2-comparative-analysis.md) — for each cataloged idiom, classify against fulcro-solo-learn as ✓ adopted / 🔄 could adopt / ❌-by-design (cite the doc) / ⊘ not applicable at this scale. Each 🔄 carries explicit cost/benefit + counterargument.
 - ⬜ [23.3 — Prioritized recommendations](23-3-recommendations.md) — the deliverable. Gap list bucketed by effort × value, with the low-hanging-fruit shortlist called out. Each item is a candidate Phase 24+ story.
 
