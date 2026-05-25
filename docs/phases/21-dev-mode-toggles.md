@@ -11,4 +11,5 @@ Full design — architecture, dep graph, fixture invariants, test plan, coexiste
 - ✅ [21.1 — Dev fixtures (`items-5`, `items-26`)](21-1-dev-fixtures.md)
 - ✅ [21.2 — `learn.dev-config` namespace (flags + persistence + pure cycler)](21-2-dev-config.md)
 - ✅ [21.3 — Migrate debug-css plumbing + runtime-watch model](21-3-debug-css-migration.md)
-- ⬜ 21.4 — Settings-UI integration (gear-modal Debug section, four affordances wired)
+- ✅ [21.4a — Pure `cycle-step` orchestrator + CLJS `cycle-list!` wrapper](21-4a-cycle-step.md)
+- ⬜ 21.4b — Settings-UI integration (gear-modal Debug section, four affordances wired) — browser-manual

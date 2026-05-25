@@ -13,7 +13,8 @@
   (:require
     [fulcro-spec.core :refer [specification component assertions =>]]
     [learn.dev-config :as sut]
-    [learn.dev-fixtures :as fixtures]))
+    [learn.dev-fixtures :as fixtures]
+    [learn.server :as server]))
 
 (specification "dev-flags-defaults"
   (assertions
@@ -103,3 +104,106 @@
 
     ":actual returns nil (sentinel — caller restores from snapshot)"
     (sut/position->items :actual) => nil))
+
+;; ============================================================================
+;; cycle-step — 21.4a pure orchestrator. Given the current cursor,
+;; current SERVER-DB, and current snapshot, returns the next world
+;; state PLUS a :snapshot-op (:save | :keep | :clear) telling the
+;; CLJS wrapper what to do with the snapshot localStorage key.
+;; ============================================================================
+
+(def ^:private user-id #uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+(def ^:private user-db
+  (server/write-items server/empty-state server/list-id
+    [{:todo/id user-id :todo/text "user task" :todo/status :status/new}]))
+
+(specification "cycle-step — orchestrator transforming world state per cycle action"
+  (component "leaving :actual (snapshot-and-apply)"
+    (let [result (sut/cycle-step :actual user-db nil)]
+      (assertions
+        "cursor advances to :empty"
+        (:cursor' result) => :empty
+
+        "snapshot captures the input server-db verbatim"
+        (:snapshot' result) => user-db
+
+        "snapshot-op is :save (snapshot needs to be persisted)"
+        (:snapshot-op result) => :save
+
+        "server-db becomes the empty fixture (items vector is [])"
+        (server/items (:server-db' result) server/list-id) => [])))
+
+  (component "fixture → fixture (apply; snapshot already exists)"
+    (let [existing-snapshot {:placeholder/key true}
+          starting-db       (server/write-items server/empty-state server/list-id [])
+          result            (sut/cycle-step :empty starting-db existing-snapshot)]
+      (assertions
+        "cursor advances to :5"
+        (:cursor' result) => :5
+
+        "snapshot is preserved unchanged"
+        (:snapshot' result) => existing-snapshot
+
+        "snapshot-op is :keep (don't touch the localStorage snapshot key)"
+        (:snapshot-op result) => :keep
+
+        "server-db has items-5 loaded (items vector matches fixtures/items-5)"
+        (server/items (:server-db' result) server/list-id) => fixtures/items-5)))
+
+  (component ":5 → :26 — apply continues"
+    (let [existing-snapshot {:placeholder/key true}
+          starting-db       (server/write-items server/empty-state server/list-id fixtures/items-5)
+          result            (sut/cycle-step :5 starting-db existing-snapshot)]
+      (assertions
+        "cursor → :26"
+        (:cursor' result) => :26
+
+        "snapshot still kept"
+        (:snapshot-op result) => :keep
+
+        "server-db has items-26"
+        (server/items (:server-db' result) server/list-id) => fixtures/items-26)))
+
+  (component ":26 → :actual (restore-and-clear)"
+    (let [restore-id     #uuid "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+          snapshot-shape (server/write-items server/empty-state server/list-id
+                           [{:todo/id restore-id :todo/text "preserved task" :todo/status :status/ready}])
+          starting-db    (server/write-items server/empty-state server/list-id fixtures/items-26)
+          result         (sut/cycle-step :26 starting-db snapshot-shape)]
+      (assertions
+        "cursor wraps back to :actual"
+        (:cursor' result) => :actual
+
+        "server-db is the restored snapshot verbatim"
+        (:server-db' result) => snapshot-shape
+
+        "snapshot' is nil (the snapshot key gets cleared)"
+        (:snapshot' result) => nil
+
+        "snapshot-op is :clear"
+        (:snapshot-op result) => :clear)))
+
+  (component "defensive: :26 → :actual with a nil snapshot"
+    (let [starting-db (server/write-items server/empty-state server/list-id fixtures/items-26)
+          result      (sut/cycle-step :26 starting-db nil)]
+      (assertions
+        "cursor still wraps to :actual"
+        (:cursor' result) => :actual
+
+        "server-db falls back to empty-state (snapshot was lost / never captured)"
+        (:server-db' result) => server/empty-state
+
+        "snapshot-op is still :clear (clearing an absent key is a no-op)"
+        (:snapshot-op result) => :clear)))
+
+  (component "defensive: nil cursor treated as :actual"
+    (let [result (sut/cycle-step nil user-db nil)]
+      (assertions
+        "cursor advances to :empty"
+        (:cursor' result) => :empty
+
+        "snapshot-op is :save (treated as leaving :actual)"
+        (:snapshot-op result) => :save
+
+        "snapshot captures the input server-db"
+        (:snapshot' result) => user-db))))

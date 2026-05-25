@@ -22,7 +22,8 @@
   (:require
     [clojure.edn :as edn]
     [clojure.string :as str]
-    [learn.dev-fixtures :as fixtures]))
+    [learn.dev-fixtures :as fixtures]
+    [learn.server :as server]))
 
 ;; ============================================================================
 ;; localStorage keys
@@ -115,6 +116,42 @@
     :26    fixtures/items-26
     :empty []
     nil))
+
+(defn cycle-step
+  "Pure world-state orchestrator. Given the current cursor, the
+   current SERVER-DB, and the current snapshot, returns the next
+   world state:
+
+     :cursor'     — the new cursor position to persist
+     :server-db'  — the new SERVER-DB value to `reset!` onto the atom
+     :snapshot'   — the new snapshot value (nil = caller should clear)
+     :snapshot-op — :save | :keep | :clear; tells the CLJS wrapper
+                    whether to write, leave alone, or remove the
+                    `dev-list-snapshot` localStorage key.
+
+   The 3-way `:snapshot-op` exists so the wrapper avoids redundant
+   localStorage writes on the :keep path (the common cycler step)."
+  [current-cursor server-db snapshot]
+  (let [{:keys [do to]} (cycle-action current-cursor)
+        next-items      (position->items to)]
+    (case do
+      :snapshot-and-apply
+      {:cursor'     to
+       :server-db'  (server/write-items server/empty-state server/list-id next-items)
+       :snapshot'   server-db
+       :snapshot-op :save}
+
+      :apply
+      {:cursor'     to
+       :server-db'  (server/write-items server/empty-state server/list-id next-items)
+       :snapshot'   snapshot
+       :snapshot-op :keep}
+
+      :restore-and-clear
+      {:cursor'     to
+       :server-db'  (or snapshot server/empty-state)
+       :snapshot'   nil
+       :snapshot-op :clear})))
 
 ;; ============================================================================
 ;; localStorage round-trip — CLJS hits `js/localStorage`; JVM has no
@@ -297,3 +334,32 @@
   []
   (install-dev-flags-persistence!)
   (install-debug-css-from-runtime!))
+
+;; ============================================================================
+;; cycle-list! — CLJS-side wrapper around `cycle-step`. Reads cursor
+;; and snapshot from localStorage, computes the new world state via
+;; the pure orchestrator, then applies all four side effects (SERVER-DB
+;; reset, cursor save, and the conditional snapshot save/clear).
+;;
+;; Called from the Settings UI's Cycle button in 21.4b. JVM is a no-op
+;; so callers (e.g. headless test glue) don't need conditional branches.
+;; ============================================================================
+
+(defn cycle-list!
+  "Advance the dev list-cycler one step. Returns the new cursor on
+   CLJS so the caller can display it / trigger a Fulcro `df/load!`
+   to refresh the UI from the new SERVER-DB. JVM returns nil."
+  []
+  #?(:cljs
+     (let [cursor                                          (load-cursor!)
+           snap                                            (load-snapshot!)
+           {:keys [cursor' server-db' snapshot' snapshot-op]}
+           (cycle-step cursor @server/SERVER-DB snap)]
+       (reset! server/SERVER-DB server-db')
+       (save-cursor! cursor')
+       (case snapshot-op
+         :save  (save-snapshot! snapshot')
+         :clear (clear-snapshot!)
+         :keep  nil)
+       cursor')
+     :clj nil))

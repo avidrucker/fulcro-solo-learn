@@ -1002,11 +1002,13 @@ markdown-import story (parse Markdown checklist → items).
 
 ### S-dev-mode-toggles — Debug mode controls in Settings
 **Phase:** 21
-**Status:** 🟡 (21.1 fixtures + 21.2 dev-config + 21.3 debug-css migration landed; 21.4 UI pending)
+**Status:** 🟡 (21.1–21.4a landed; 21.4b UI pending — browser-manual)
 **Tests:** see [`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md)
-for the full test plan; `learn.dev-fixtures-test` covers 21.1,
-`learn.dev-config-test` covers the 21.2 pure parts. 21.3 is browser-
-manual (DOM manipulation under `^boolean goog.DEBUG`).
+for the full test plan. `learn.dev-fixtures-test` covers 21.1.
+`learn.dev-config-test` covers the 21.2 pure parts + the 21.4a
+`cycle-step` orchestrator (6 components / 21 assertions for the latter
+alone). 21.3 + 21.4b are browser-manual (DOM manipulation under
+`^boolean goog.DEBUG`).
 
 As a developer working on the AutoFocus port, I want a "Debug mode"
 section in Settings that gives me runtime control over dev-only
