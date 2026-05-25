@@ -1,0 +1,33 @@
+# gitleaks -- secret-scan workflow.
+#
+# Runs on every push to main + every PR. Fails the workflow if
+# gitleaks finds any rule match outside the allowlist (see
+# .gitleaks.toml). Free for personal public repos.
+#
+# Added 2026-05-24 as part of the same defense-in-depth posture
+# applied to the sibling fulcro-book and claude-config repos.
+
+name: gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  scan:
+    name: Scan repo for secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so gitleaks scans past commits too, not
+          # just the current tip.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

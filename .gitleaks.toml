@@ -1,0 +1,31 @@
+# gitleaks config for fulcro-solo-learn.
+#
+# Extends gitleaks' default rule set (partner-format detectors: AWS,
+# GitHub tokens, Stripe, Slack, private keys, etc.). No project-
+# specific allowlist entries yet — the 2026-05-24 manual sweep found
+# zero matches across the repo, including generic patterns.
+#
+# Add to the [allowlist] block below if a future scan flags something
+# that's actually safe and intentional (e.g. a known-public address
+# in a deploy walkthrough, or an example-domain email in docs).
+
+title = "fulcro-solo-learn gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reserved for known-safe matches. Empty as of 2026-05-24."
+
+paths = [
+    # Add file paths here when a whole file needs to be skipped.
+    # Example: a committed CLJS release bundle that has BigInt
+    # math + version-string patterns that trip generic detectors.
+]
+
+regexes = [
+    # Add allowlist regexes here when a specific known-safe value
+    # would otherwise be flagged. Examples:
+    #   '''avidrucker@gmail\.com'''   (if a deliberate public email appears in docs)
+    #   '''[A-Za-z0-9._%+-]+@example\.com'''   (if RFC-2606 example.com is used in teaching content)
+]
