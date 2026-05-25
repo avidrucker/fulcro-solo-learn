@@ -89,6 +89,34 @@ it tripped, and the lesson distilled.
   same prompt. Two-REPL setups are an anti-pattern in Clojure unless you have
   specific isolation needs.
 
+**[tooling / npm-assets] — Combined upstream CSS shipped as one file; needed to derive an "isolate" variant**
+- **What happened (B-15, post-Phase 22):** `learn.dev-config/debug-css-links`
+  pointed `:debug-css/rainbow?` at upstream `pesticide.css` and
+  `:debug-css/depth?` at upstream `pesticide-depth.css`. Symptom: toggling
+  rainbow also painted the depth visuals, and depth toggling looked like
+  a no-op. Root cause: pesticide@1.3.0 ships `pesticide.css` as a
+  *combined* outlines+depth sheet — there's no outlines-only file in the
+  upstream package.
+- **Root cause:** Assumed the upstream filename `pesticide.css` was "just
+  outlines" without reading the file. Verifying once with
+  `grep -c "box-shadow" node_modules/pesticide/css/pesticide.css` would
+  have surfaced it immediately (198 hits = 99 outline blocks + 99 depth
+  blocks).
+- **Lesson:** When pairing a flag-per-concern dev-toggle to an upstream
+  CSS asset, **inspect the file before trusting the filename**. If
+  upstream bundles two concerns into one sheet, derive an isolate variant
+  via a small build script in `scripts/`, write the output to
+  `resources/public/css/`, and wire it into `package.json`'s `postinstall`
+  so the derivation regenerates on every `npm install` and survives
+  upstream version bumps. Document the derivation in the consumer's
+  docstring (here: `learn.dev-config/debug-css-links`'s docstring +
+  the generated file's header comment + a `docs/bugs.md` entry).
+- **Sub-lesson — when split-on-`}` CSS parsing is safe:** A flat
+  declarations-only CSS file has no nested blocks, so
+  `raw.split('}')` reliably yields one chunk per rule. Verify with
+  `grep -nE "@media|@supports|@import|@keyframes" file → 0 hits`
+  before relying on this. (Mixed at-rules require a real CSS parser.)
+
 ### REPL Workflow
 
 **[REPL / namespace-awareness] — Pasted a REPL form into the wrong namespace**
