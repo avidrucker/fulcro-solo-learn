@@ -1002,13 +1002,15 @@ markdown-import story (parse Markdown checklist → items).
 
 ### S-dev-mode-toggles — Debug mode controls in Settings
 **Phase:** 21
-**Status:** 🟡 (21.1–21.4a landed; 21.4b UI pending — browser-manual)
+**Status:** ✅
 **Tests:** see [`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md)
 for the full test plan. `learn.dev-fixtures-test` covers 21.1.
 `learn.dev-config-test` covers the 21.2 pure parts + the 21.4a
-`cycle-step` orchestrator (6 components / 21 assertions for the latter
-alone). 21.3 + 21.4b are browser-manual (DOM manipulation under
-`^boolean goog.DEBUG`).
+`cycle-step` orchestrator. 21.3 + 21.4b verified via Playwright
+snapshots (`docs/snapshots/ef4e9fd-dirty-phase-21.4b-*.png`) confirming
+the Debug section renders, the rainbow checkbox toggles Pesticide CSS
+live, and the cycle button advances through fixtures with the UI
+refreshing via `df/load!`.
 
 As a developer working on the AutoFocus port, I want a "Debug mode"
 section in Settings that gives me runtime control over dev-only

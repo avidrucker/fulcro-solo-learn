@@ -23,14 +23,18 @@
    `learn.client.mutations`; these aliases are pure Mutation records
    that resolve to the same wire sym `learn.client/<name>`."
   (:require
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.mutations :as m]
     [learn.client.ui.theme :as theme]
+    [learn.dev-config :as dev-config]
     [learn.i18n.core :as i18n]
     [learn.ui.icons :as icons]
     [learn.ui.strings :as s]
     [learn.util.tasks-io :as tasks-io]
     [learn.util.url-encoding :as url-encoding]
+    #?(:cljs [cljs.pprint])
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])))
 
@@ -273,6 +277,63 @@
                                  :lang  (name loc)}
                           option-style (assoc :style option-style))
               (i18n/locale-label loc))))))
+    ;; Phase 21.4b — Debug section. CLJS-only AND goog.DEBUG-gated so
+    ;; release builds drop the entire body via Closure DCE. English-only
+    ;; (dev surface; not in the i18n translation maps).
+    #?(:cljs
+       (when ^boolean goog.DEBUG
+         (let [flags @dev-config/dev-flags]
+           (dom/section {:className       "pt3 mt2 bt b--moon-gray"
+                         :aria-labelledby "settings-debug-heading"}
+             (dom/h3 {:id        "settings-debug-heading"
+                      :className "pb2 ma0 f6"}
+               "Debug mode")
+             (dom/div {:className "pb2"}
+               (dom/input {:type           "checkbox"
+                           :id             "settings-debug-rainbow"
+                           :defaultChecked (boolean (:debug-css/rainbow? flags))
+                           :onChange       (fn [e]
+                                             (swap! dev-config/dev-flags assoc
+                                               :debug-css/rainbow?
+                                               (-> e .-target .-checked)))})
+               (dom/label {:htmlFor "settings-debug-rainbow" :className "ml2"}
+                 "Rainbow element outlines"))
+             (dom/div {:className "pb3"}
+               (dom/input {:type           "checkbox"
+                           :id             "settings-debug-depth"
+                           :defaultChecked (boolean (:debug-css/depth? flags))
+                           :onChange       (fn [e]
+                                             (swap! dev-config/dev-flags assoc
+                                               :debug-css/depth?
+                                               (-> e .-target .-checked)))})
+               (dom/label {:htmlFor "settings-debug-depth" :className "ml2"}
+                 "Depth background colors"))
+             (dom/div {:className "pb2"}
+               (dom/button {:className  (theme/btn-primary-class theme)
+                            :type       "button"
+                            :title      "Dump Fulcro app state to the DevTools console"
+                            :aria-label "Dump app state to DevTools console"
+                            :onClick    (fn [_]
+                                          (let [state (app/current-state
+                                                        (comp/any->app this))]
+                                            (.log js/console
+                                              (with-out-str
+                                                (cljs.pprint/pprint state)))
+                                            (.dir js/console (clj->js state))))}
+                 "Dump app state"))
+             (dom/div {:className "pb2"}
+               (dom/button {:className  (theme/btn-primary-class theme)
+                            :type       "button"
+                            :title      "Cycle through dev list fixtures (actual → empty → 5 → 26 → actual)"
+                            :aria-label "Cycle list fixture"
+                            :onClick    (fn [_]
+                                          (dev-config/cycle-list!)
+                                          (df/load! (comp/any->app this)
+                                            :all-todos
+                                            (comp/registry-key->class
+                                              'learn.client.ui.components/TodoItem)
+                                            {:target [:list/id 1 :list/todos]}))}
+                 "Cycle list fixture"))))))
     (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
 
 ;; ============================================================================

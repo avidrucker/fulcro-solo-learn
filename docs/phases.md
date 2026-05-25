@@ -107,6 +107,16 @@ All 16 in-codebase sub-phases (19a–19p) ✅. Yellow flag is for the user-drive
 
 20a (long-form algorithm cross-validation scenarios) ✅, 20b (Playwright + axe-core keyboard a11y scaffold) ✅, **20c deferred** — Lighthouse shell scripts + expanded Playwright coverage (conflict modals, review-modal focus, more locales). Revisit only if 20a/20b leave specific gaps that warrant the additional tooling.
 
-## 🟡 [Phase 21 — Dev-mode toggles (S-dev-mode-toggles)](phases/21-dev-mode-toggles.md)
+## ✅ [Phase 21 — Dev-mode toggles (S-dev-mode-toggles)](phases/21-dev-mode-toggles.md)
 
-Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. 21.1 (dev fixtures: `items-5`, `items-26`) ✅; 21.2 (`dev-config` ns — flags atom + persistence + pure list-cycler) ✅; 21.3 (move `debug-css` plumbing out of `learn.client`, switch to runtime-watch model) ✅; 21.4a (pure `cycle-step` orchestrator + thin CLJS `cycle-list!` wrapper) ✅; 21.4b (Settings UI integration + state-dump + checkbox wiring) pending — browser-manual.
+Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. Five sub-phases: 21.1 fixtures (`items-5`, `items-26`); 21.2 `dev-config` ns (flags atom + persistence + pure list-cycler); 21.3 migrate `debug-css` plumbing out of `learn.client` to a runtime-watch model; 21.4a pure `cycle-step` orchestrator + thin CLJS `cycle-list!` wrapper; 21.4b Settings UI integration (rainbow/depth checkboxes, dump-state button, cycle button) — browser-manual verified via Playwright snapshots.
+
+---
+
+## Queued / next
+
+No specific next-phase target locked in. Candidates:
+
+- **Phase 19 Section-B browser-manual a11y sweep** — Lighthouse, axe live-run, NVDA / VoiceOver, keyboard, zoom, reduced-motion, contrast (user-driven; tracked as `S-ux-a11y-review-pass` in [`user_stories.md`](./user_stories.md)).
+- **Phase 20c** — Lighthouse shell scripts + expanded Playwright coverage. Deferred until a real gap warrants it.
+- **New feature work** from [`ideas.md`](./ideas.md) — `S-pwa-debug-modal` (sibling to S-dev-mode-toggles), markdown-export, etc.
