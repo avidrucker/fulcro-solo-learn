@@ -117,6 +117,61 @@ it tripped, and the lesson distilled.
   `grep -nE "@media|@supports|@import|@keyframes" file → 0 hits`
   before relying on this. (Mixed at-rules require a real CSS parser.)
 
+**[deploy / pwa-sw-cache] — `APP_VERSION` not bumped for 10+ phases; installed clients stranded on a stale bundle**
+- **What happened (Phase 12 through Phase 22, surfaced 2026-05-25):**
+  The PWA service worker (`resources/public/sw.js`) hardcodes
+  `APP_VERSION`, which derives `CACHE_NAME`. The version was set to
+  `'7.19'` at SW introduction (Phase 7.19) and never bumped. Every
+  user-visible change from Phase 12 (i18n / Portuguese) onward shipped
+  to `main` and was deployed, but installed PWA clients — browser tabs
+  AND "Add to Home Screen" installs alike — kept serving the cached
+  Phase 7.19 bundle indefinitely. Surfaced when Avi opened the
+  deployed app on Android DuckDuckGo and noticed Portuguese wasn't
+  available, despite Portuguese having shipped months earlier.
+- **Root cause:** The SW design itself IS correct — version bump →
+  new `CACHE_NAME` → `install` populates it → `activate` deletes old
+  caches → `skipWaiting()` + `clients.claim()` takes over immediately
+  on the next page load. But the bump is hand-edited, and the bump
+  step never made it into any phase-closure checklist. Each phase's
+  closure paperwork updated `phases.md`, `user_stories.md`,
+  sometimes `learned_while_making_this.md` — but the SW version was
+  a *deploy-discipline* item, not a docs item, so it fell between
+  the cracks. Local dev was unaffected (the SW has a localhost
+  dev-bypass for `/js/main/`), CI was unaffected (no e2e against a
+  release-cached client), and the deploy itself succeeded — so the
+  failure was invisible from every signal Avi was watching.
+- **Lesson:** When a release-runtime artifact (cache key, build SHA,
+  asset fingerprint) has to be hand-bumped, the bump must be visible
+  from the project's top-level discipline doc — not a step buried in
+  a phase template that some phases legitimately skip. The fix:
+  added a hard rule in `CLAUDE.md` (peer of the closure-docs rule)
+  requiring `APP_VERSION` bump before pushing user-visible change to
+  `main`, with an explicit skip-list for dev-only and docs-only
+  changes. Version scheme also switched from phase-number (`'7.19'`)
+  to semver (`'0.0.22'`, mirrored in `package.json`) so the version
+  can advance independently of phase numbering. See commit
+  `994c1d6`.
+- **Sub-lesson — why not auto-derive from git SHA?** Considered and
+  rejected. Tying cache invalidation to every release commit would
+  force every PWA-installed user to re-download the bundle on every
+  deploy, including docs-only or test-only deploys. The discipline
+  cost of remembering to bump on user-visible changes is lower than
+  the bandwidth cost of forced invalidation on every commit. A
+  build-step that templates `package.json`'s version into `sw.js`
+  was also considered (single source of truth, opt-in bump) but
+  deferred — try the hard-rule first; revisit if it fails within
+  the next 5 phases.
+- **Sub-lesson — diagnose stale-PWA before assuming code bug:**
+  If a user reports "feature X isn't there" but X demonstrably
+  shipped to `main` and the deploy succeeded, check the SW cache
+  before chasing ghosts. Symptoms that point to stale-SW: feature
+  works in incognito / private windows, works for first-time
+  visitors, broken only for previously-visited clients or installed
+  PWAs. Quick verification: DevTools → Application → Service Workers
+  → check the active SW's source for the expected `APP_VERSION`; if
+  it's behind, the user's client is stranded and the next-version
+  fix is to bump.
+
 ### REPL Workflow
 
 **[REPL / namespace-awareness] — Pasted a REPL form into the wrong namespace**
