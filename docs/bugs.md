@@ -18,6 +18,77 @@ ID stays stable when one is renamed or rescoped.
 
 ---
 
+## B-15 — "Rainbow element outlines" debug toggle also applies depth visuals; depth toggle becomes a no-op
+
+**Status:** 🔍 Triaged — root cause identified, fix planned
+**Reported:** 2026-05-24 by user (Phase 22 follow-up)
+**Related story:** [`S-dev-mode-toggles`](./user_stories.md)
+
+### Symptom
+
+User clicks the "Rainbow element outlines" checkbox in Settings → debug mode → checked. The expected effect is just the 1px solid colored outlines per element type. **What actually appears: the colored outlines AND the depth visuals (box-shadows + translucent backgrounds).** Subsequently, clicking the "Depth background colors" checkbox on or off has no visible effect — the depth visuals are already there from the rainbow file.
+
+Persists across Chrome service-worker / app-data reset, so it's not a caching artifact.
+
+### Root cause
+
+The upstream `pesticide` npm package v1.3.0 ships two CSS files:
+
+| File | Lines | Contents |
+|---|---|---|
+| `pesticide.css` (npm "main") | 794 | Outlines **AND** box-shadows + translucent backgrounds — combined "outlines + depth" variant |
+| `pesticide-depth.css` | 498 | Box-shadows + translucent backgrounds only — depth-only variant |
+
+There is **no outlines-only file** in the upstream package.
+
+`learn.dev-config/debug-css-links` maps:
+
+```clojure
+{:debug-css/rainbow? {:marker-id "debug-css-pesticide-rainbow"
+                      :href      "css/pesticide.css"}      ;; combined, not outlines-only
+ :debug-css/depth?   {:marker-id "debug-css-pesticide-depth"
+                      :href      "css/pesticide-depth.css"}}
+```
+
+So the "rainbow" toggle loads the combined sheet. Once that's loaded, the depth toggle becomes a no-op visually — the depth rules in `pesticide.css` are already in effect; appending `pesticide-depth.css` adds the same rules a second time (cascade resolves to the same final value).
+
+Confirmed by direct DOM + computed-style inspection — see `scripts/probe-rainbow-then-depth.mjs` (link tags present in both toggle states, correctly) and `scripts/probe-computed-styles.mjs` (the "rainbow ON" baseline already shows `boxShadow: rgba(0,0,0,0.6) 0px 0px 16px 0px` and `backgroundColor: rgba(255,255,255,0.25)` on `<main>` / `<header>` / `<section>` / `<h1>`, even though the depth toggle is still off).
+
+### Reproduction
+
+1. Fresh Chrome session (or clear `autofocus.dev-flags` from localStorage).
+2. Open the app at `http://localhost:8000`. Open the gear (Settings) modal. Click `debug mode (OFF)` to expand. Both checkboxes start unchecked.
+3. Click "Rainbow element outlines". Observe: not only do colored outlines appear on every element, but ALSO dark drop-shadows + translucent backgrounds — the depth visuals.
+4. Click "Depth background colors". Observe: nothing visually changes.
+5. Click "Depth background colors" again to uncheck. Observe: still nothing visually changes — depth visuals remain because they came from `pesticide.css`.
+
+### Suggested fix
+
+**Ship an outlines-only variant.** Derive a new file `resources/public/css/pesticide-outlines.css` from upstream `pesticide.css` by stripping every `box-shadow`, `-webkit-box-shadow`, and `background-color` declaration. ~400-ish lines retained (just the `outline: 1px solid <color> !important` rules per element).
+
+Then update `learn.dev-config/debug-css-links`:
+
+```clojure
+{:debug-css/rainbow? {:marker-id "debug-css-pesticide-rainbow"
+                      :href      "css/pesticide-outlines.css"}  ;; new derived file
+ :debug-css/depth?   {:marker-id "debug-css-pesticide-depth"
+                      :href      "css/pesticide-depth.css"}}
+```
+
+With this split, rainbow toggle adds only outlines, depth toggle adds only depth, both can be combined orthogonally, and toggling either off correctly removes only that layer.
+
+Also update the docstring on `dev-config/debug-css-links` and the bullet in `dev-flags-defaults` to clarify each flag's actual scope.
+
+A scriptable derivation (rather than a hand-edited file) keeps the asset reproducible if `pesticide` is ever bumped: e.g. a small Node script `scripts/build-pesticide-outlines.mjs` that reads `node_modules/pesticide/css/pesticide.css` and writes the stripped variant to `resources/public/css/pesticide-outlines.css`. Run it as part of the build / npm postinstall.
+
+### Probe scripts (kept for future regression checks)
+
+- `scripts/probe-rainbow-toggle.mjs` — toggles each checkbox in isolation; expected pass on the fix.
+- `scripts/probe-rainbow-then-depth.mjs` — rainbow first, then depth; expected pass on the fix.
+- `scripts/probe-computed-styles.mjs` — reads `getComputedStyle` on key elements; expected to show `boxShadow: none` and `backgroundColor: rgba(0,0,0,0)` when only rainbow is on.
+
+---
+
 ## B-1 — Theme resets to `:theme/light` on page reload
 
 **Status:** ✅ Fixed in Phase 7.10
