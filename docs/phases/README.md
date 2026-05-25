@@ -17,7 +17,9 @@ Phase 5 uses letter suffixes (5H, 5I, 5J, 5K) because those are how the source p
 
 ## What stays inline (not split)
 
-Sub-sub-pieces — e.g. 5K.5 Cycles A/B/C, Phase 6.5.1–6.5.5, Phase 7.21 sub-bullets — stay as `##` headers inside their parent sub-phase file. The 2-level depth (phase / sub-phase) is the splitting boundary.
+Sub-sub-pieces — e.g. 5K.5 Cycles A/B/C, Phase 6.5.1–6.5.5, Phase 7.21 sub-bullets — stay as `##` headers inside their parent sub-phase file. The 2-level depth (phase / sub-phase) is the default splitting boundary.
+
+**Exception** — split a sub-sub-piece into its own file when the two halves have meaningfully different verification surfaces (e.g. one is JVM-testable pure logic, the other is browser-manual UI work). Use the `NN-<sub>-<letter>-<slug>.md` form, e.g. [`21-4a-cycle-step.md`](21-4a-cycle-step.md) (pure `cycle-step` orchestrator, TDD-led) and [`21-4b-settings-ui.md`](21-4b-settings-ui.md) (Settings UI integration, browser-manual). When you do this, give each file its own status emoji in the outline's Sub-phases list and treat them as first-class sub-phases for commit + tracking purposes. Don't reach for this if the sub-sub-pieces are just incremental follow-ups (12.5b/c style) — those still belong inline.
 
 Closed-as-doc-artifact phases (8, 10, 11) don't have files here at all — they're one-line entries in the master index pointing at their standalone `docs/when-to-*.md` docs.
 
