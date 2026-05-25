@@ -7,11 +7,13 @@
 // assets, fall back to offline.html when the network is down and
 // the request can't be served from cache.
 //
-// Bump APP_VERSION when shipping a new release so clients invalidate
-// the old cache. Without that bump the SW serves the previous JS
-// bundle from cache indefinitely.
+// Bump APP_VERSION (semver, mirrored in package.json) when shipping a
+// release so clients invalidate the old cache. Without the bump, the
+// SW serves the previous JS bundle from cache indefinitely. sw.js is
+// the runtime authority; package.json's version mirrors it for human
+// reference only.
 
-const APP_VERSION = '7.19';
+const APP_VERSION = '0.0.22';
 const CACHE_NAME = `autofocus-cache-v${APP_VERSION}`;
 
 // Scope is set by where the SW is registered + its file path. The

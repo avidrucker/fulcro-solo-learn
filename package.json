@@ -1,6 +1,6 @@
 {
   "name": "fulcro-solo-learn",
-  "version": "0.0.1",
+  "version": "0.0.22",
   "private": true,
   "description": "Hands-on Fulcro learning project — AutoFocus app",
   "scripts": {

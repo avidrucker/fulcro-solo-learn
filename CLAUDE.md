@@ -74,6 +74,27 @@ Multi-phase learning project; **never skip phases, always TDD red-green-refactor
   "I'll write it up after the commit / after I push / next session."
   Deferred docs become *missing* docs.
 
+- **Bump `APP_VERSION` in `sw.js` (and mirror in `package.json`)
+  before pushing any user-visible change to `main`.** The PWA
+  service worker caches the JS bundle indefinitely until
+  `APP_VERSION` changes; without the bump, every installed client
+  (browser tab, "Add to Home Screen" PWA) is stranded on the old
+  build the next time they load the app. Bump for any change to
+  UI text, translations, visible behavior, or visible CSS. Skip
+  for dev-only changes (dev fixtures, debug-mode toggles, REPL
+  helpers) and docs-only changes. Version is semver (`X.Y.Z`):
+  patch-bump for fixes, minor for new user-visible features,
+  major when you want it. `sw.js` is the runtime authority;
+  `package.json` mirrors for human reference (this isn't a
+  published npm package).
+
+  Back-story: ten+ phases shipped between Phase 12 (i18n) and
+  Phase 22 without a single bump, leaving installed users — most
+  visibly on mobile browsers like Android DuckDuckGo — pinned to
+  a pre-Portuguese build. This is a hard rule precisely because
+  the failure mode is silent: local dev works fine, CI passes,
+  the deploy succeeds — and users see nothing change.
+
 ## Project layout (memory aid)
 
 - `src/learn/client.cljc` — Fulcro UI + mutations + state-helpers (*-suffixed)
