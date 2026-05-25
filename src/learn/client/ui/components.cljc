@@ -151,7 +151,7 @@
                        :ui/keys   [new-todo-text textarea-import-text
                                    open-modal theme locale err-msg
                                    conflict-url-items share-with-locale?
-                                   locale-conflict-pair]
+                                   locale-conflict-pair debug-mode-expanded?]
                        :or        {theme :theme/light locale :en}}]
   {:query         [:list/id
                    {:list/todos (comp/get-query TodoItem)}
@@ -189,6 +189,14 @@
                    :ui/locale-conflict-pair
                    ;; Phase 7.9: page-level error message string, or nil.
                    :ui/err-msg
+                   ;; Phase 22: is the dev-only Debug section in the
+                   ;; Settings modal expanded? Default false. Toggled by
+                   ;; the disclosure button at the top of that section
+                   ;; via `m/toggle!!`. Lives in Fulcro state (not
+                   ;; `dev-flags`) so the optimised renderer picks up
+                   ;; the change naturally. Not persisted — every fresh
+                   ;; load starts collapsed.
+                   :ui/debug-mode-expanded?
                    ;; Subscribe to the review chart's state. Without these
                    ;; ident-joins, the render reads from app state via
                    ;; `scf/current-configuration` (a side-channel Fulcro
@@ -216,7 +224,8 @@
                      :ui/locale               :en
                      :ui/share-with-locale?   false
                      :ui/locale-conflict-pair nil
-                     :ui/err-msg              nil})}
+                     :ui/err-msg              nil
+                     :ui/debug-mode-expanded? false})}
   (let [config         (scf/current-configuration this review-session-id)
         active?        (contains? config chart/active)
         cursor         (when active? (review-cursor this))
@@ -437,7 +446,8 @@
       ;; (single keyword), so at most one is visible at a time.
       (case open-modal
         :info           (modals/info-modal this theme locale)
-        :settings       (modals/settings-modal this theme locale)
+        :settings       (modals/settings-modal this theme locale
+                          (boolean debug-mode-expanded?))
         :save           (modals/save-modal this theme locale todos
                           textarea-import-text submit-import! share-with-locale?)
         :delete-confirm (modals/delete-confirm-modal this theme locale

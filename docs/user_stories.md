@@ -1028,6 +1028,39 @@ Full design (architecture, dep graph, fixture invariants, test
 plan, coexistence of source-default flags with the runtime UI):
 [`docs/ideas.md#debug-mode-controls-in-settings`](./ideas.md).
 
+### S-dev-mode-collapse-toggle — Collapsible Debug section in Settings
+**Phase:** 22
+**Status:** ✅
+**Tests:** UI render + click behaviour browser-manual via Playwright
+snapshot (`docs/snapshots/7519e5d-dirty-phase-22-collapsed-v2.png` +
+`-expanded-v3.png`). No new JVM specs — `:ui/debug-mode-expanded?` is
+just one more key in `TodoList`'s query and initial-state (the
+existing client_test specs continue to pass because the `#?(:cljs ...)`
+JVM branch renders nothing for the dev section).
+
+As a developer using the app in localhost dev, when I click the
+Settings (gear) icon, I see a button labelled `debug mode (OFF)`.
+When I click that button, the 2 CSS-toggle checkboxes
+(rainbow / depth) and the 2 buttons (Dump app state / Cycle list
+fixture) reveal below it, and the button's label flips to
+`debug mode (ON)`. Click it again to collapse, label flips back.
+
+UX intent: avoid forcing the dev-only affordances on me every time
+I open Settings. They're useful but visually noisy — most Settings
+visits don't need them. The Debug section becomes opt-in, and the
+expanded/collapsed state persists across reloads (same
+`autofocus.dev-flags` localStorage key as the existing dev
+toggles).
+
+Implementation seam: `:ui/debug-mode-expanded?` lives in Fulcro
+state on `[:list/id 1]`, added to TodoList's `:query` + `:initial-
+state` and threaded to `settings-modal` as a 4th arg. The disclosure
+toggle uses `m/toggle!!` so the synchronous local re-render picks
+up the new value. Putting it in `dev-flags` first didn't work —
+Fulcro's optimised renderer skips components whose props haven't
+changed, and `dev-flags` isn't in any Fulcro query. Lesson preserved
+in [`phases/22-debug-mode-collapse-toggle.md`](./phases/22-debug-mode-collapse-toggle.md).
+
 ### S-pwa-debug-modal — PWA debug info modal
 **Phase:** —
 **Status:** 🆒

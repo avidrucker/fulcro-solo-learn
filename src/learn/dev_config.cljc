@@ -46,7 +46,12 @@
   "Source-of-truth defaults for the dev-toggle booleans. Both default
    `false` so a release build (which drops this whole namespace via
    `^boolean goog.DEBUG` gating at call sites) never accidentally
-   surfaces debug visuals."
+   surfaces debug visuals.
+
+   Disclosure-state for the Settings Debug section (Phase 22) lives
+   in Fulcro state at `[:list/id 1 :ui/debug-mode-expanded?]`, NOT
+   here — Fulcro needs the value in its own state-atom to drive
+   re-renders via the normal optimised path."
   {:debug-css/rainbow? false
    :debug-css/depth?   false})
 

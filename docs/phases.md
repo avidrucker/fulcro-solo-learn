@@ -111,6 +111,10 @@ All 16 in-codebase sub-phases (19a–19p) ✅. Yellow flag is for the user-drive
 
 Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DEBUG` so prod builds drop it via Closure dead-code elimination. Five sub-phases: 21.1 fixtures (`items-5`, `items-26`); 21.2 `dev-config` ns (flags atom + persistence + pure list-cycler); 21.3 migrate `debug-css` plumbing out of `learn.client` to a runtime-watch model; 21.4a pure `cycle-step` orchestrator + thin CLJS `cycle-list!` wrapper; 21.4b Settings UI integration (rainbow/depth checkboxes, dump-state button, cycle button) — browser-manual verified via Playwright snapshots.
 
+## ✅ [Phase 22 — Collapsible Debug section in Settings (S-dev-mode-collapse-toggle)](phases/22-debug-mode-collapse-toggle.md)
+
+UX refinement of Phase 21: the four dev affordances now sit behind a disclosure-toggle button labelled `debug mode (OFF)` / `debug mode (ON)`. Defaults collapsed. Surfaced an architecture lesson worth keeping — `:ui/debug-mode-expanded?` had to live in Fulcro state (not `dev-flags`) because Fulcro's optimised renderer only re-renders when component props change. Browser-manual verified.
+
 ---
 
 ## Queued / next

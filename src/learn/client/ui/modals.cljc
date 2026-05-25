@@ -228,14 +228,19 @@
 
 (defn settings-modal
   "Phase 12.3 / 12.5 — Settings modal. Hosts the language dropdown
-   (Phase 12.5) and is the future home for the PWA debug toggle and
-   any other user preferences.
+   (Phase 12.5) and, in dev builds, the Debug section (Phase 21 /
+   22).
 
    `locale` (Phase 12.4) translates the h2 heading and the language
    label; `i18n/supported-locales` drives the option list and
    `i18n/locale-label` provides the human-readable option text in
-   each language's own script (English / Español / 日本語)."
-  [this theme locale]
+   each language's own script (English / Español / 日本語).
+
+   `debug-mode-expanded?` (Phase 22) — read from
+   `[:list/id 1 :ui/debug-mode-expanded?]` by `TodoList` and passed
+   in here. Controls whether the Debug section's four affordances
+   render below the disclosure-toggle button."
+  [this theme locale debug-mode-expanded?]
   (modal-shell {:on-close    #(close-current-modal! this)
                 :close-label (i18n/tr locale :close/settings)
                 :theme       theme
@@ -277,63 +282,75 @@
                                  :lang  (name loc)}
                           option-style (assoc :style option-style))
               (i18n/locale-label loc))))))
-    ;; Phase 21.4b — Debug section. CLJS-only AND goog.DEBUG-gated so
-    ;; release builds drop the entire body via Closure DCE. English-only
-    ;; (dev surface; not in the i18n translation maps).
+    ;; Phase 21.4b + Phase 22 — collapsible Debug section. CLJS-only AND
+    ;; goog.DEBUG-gated so release builds drop the entire body via
+    ;; Closure DCE. The disclosure-toggle button at the top flips
+    ;; `:debug-ui/expanded?` in `dev-flags`; the four affordances
+    ;; render only when expanded. English-only (dev surface; not in
+    ;; the i18n translation maps).
     #?(:cljs
        (when ^boolean goog.DEBUG
-         (let [flags @dev-config/dev-flags]
+         (let [flags     @dev-config/dev-flags
+               expanded? (boolean debug-mode-expanded?)]
            (dom/section {:className       "pt3 mt2 bt b--moon-gray"
-                         :aria-labelledby "settings-debug-heading"}
-             (dom/h3 {:id        "settings-debug-heading"
-                      :className "pb2 ma0 f6"}
-               "Debug mode")
-             (dom/div {:className "pb2"}
-               (dom/input {:type           "checkbox"
-                           :id             "settings-debug-rainbow"
-                           :defaultChecked (boolean (:debug-css/rainbow? flags))
-                           :onChange       (fn [e]
-                                             (swap! dev-config/dev-flags assoc
-                                               :debug-css/rainbow?
-                                               (-> e .-target .-checked)))})
-               (dom/label {:htmlFor "settings-debug-rainbow" :className "ml2"}
-                 "Rainbow element outlines"))
-             (dom/div {:className "pb3"}
-               (dom/input {:type           "checkbox"
-                           :id             "settings-debug-depth"
-                           :defaultChecked (boolean (:debug-css/depth? flags))
-                           :onChange       (fn [e]
-                                             (swap! dev-config/dev-flags assoc
-                                               :debug-css/depth?
-                                               (-> e .-target .-checked)))})
-               (dom/label {:htmlFor "settings-debug-depth" :className "ml2"}
-                 "Depth background colors"))
-             (dom/div {:className "pb2"}
-               (dom/button {:className  (theme/btn-primary-class theme)
-                            :type       "button"
-                            :title      "Dump Fulcro app state to the DevTools console"
-                            :aria-label "Dump app state to DevTools console"
-                            :onClick    (fn [_]
-                                          (let [state (app/current-state
-                                                        (comp/any->app this))]
-                                            (.log js/console
-                                              (with-out-str
-                                                (cljs.pprint/pprint state)))
-                                            (.dir js/console (clj->js state))))}
-                 "Dump app state"))
-             (dom/div {:className "pb2"}
-               (dom/button {:className  (theme/btn-primary-class theme)
-                            :type       "button"
-                            :title      "Cycle through dev list fixtures (actual → empty → 5 → 26 → actual)"
-                            :aria-label "Cycle list fixture"
-                            :onClick    (fn [_]
-                                          (dev-config/cycle-list!)
-                                          (df/load! (comp/any->app this)
-                                            :all-todos
-                                            (comp/registry-key->class
-                                              'learn.client.ui.components/TodoItem)
-                                            {:target [:list/id 1 :list/todos]}))}
-                 "Cycle list fixture"))))))
+                         :aria-labelledby "settings-debug-toggle"}
+             (dom/button {:id            "settings-debug-toggle"
+                          :type          "button"
+                          :className     (str "bn bg-transparent pa0 pointer f6 b db w-100 tl "
+                                              (theme/theme-text-class theme))
+                          :aria-expanded (str expanded?)
+                          :aria-controls "settings-debug-panel"
+                          :onClick       (fn [_]
+                                           (m/toggle!! this :ui/debug-mode-expanded?))}
+               (str "debug mode (" (if expanded? "ON" "OFF") ")"))
+             (when expanded?
+               (dom/div {:id "settings-debug-panel" :className "pt2"}
+                 (dom/div {:className "pb2"}
+                   (dom/input {:type           "checkbox"
+                               :id             "settings-debug-rainbow"
+                               :defaultChecked (boolean (:debug-css/rainbow? flags))
+                               :onChange       (fn [e]
+                                                 (swap! dev-config/dev-flags assoc
+                                                   :debug-css/rainbow?
+                                                   (-> e .-target .-checked)))})
+                   (dom/label {:htmlFor "settings-debug-rainbow" :className "ml2"}
+                     "Rainbow element outlines"))
+                 (dom/div {:className "pb3"}
+                   (dom/input {:type           "checkbox"
+                               :id             "settings-debug-depth"
+                               :defaultChecked (boolean (:debug-css/depth? flags))
+                               :onChange       (fn [e]
+                                                 (swap! dev-config/dev-flags assoc
+                                                   :debug-css/depth?
+                                                   (-> e .-target .-checked)))})
+                   (dom/label {:htmlFor "settings-debug-depth" :className "ml2"}
+                     "Depth background colors"))
+                 (dom/div {:className "pb2"}
+                   (dom/button {:className  (theme/btn-primary-class theme)
+                                :type       "button"
+                                :title      "Dump Fulcro app state to the DevTools console"
+                                :aria-label "Dump app state to DevTools console"
+                                :onClick    (fn [_]
+                                              (let [state (app/current-state
+                                                            (comp/any->app this))]
+                                                (.log js/console
+                                                  (with-out-str
+                                                    (cljs.pprint/pprint state)))
+                                                (.dir js/console (clj->js state))))}
+                     "Dump app state"))
+                 (dom/div {:className "pb2"}
+                   (dom/button {:className  (theme/btn-primary-class theme)
+                                :type       "button"
+                                :title      "Cycle through dev list fixtures (actual → empty → 5 → 26 → actual)"
+                                :aria-label "Cycle list fixture"
+                                :onClick    (fn [_]
+                                              (dev-config/cycle-list!)
+                                              (df/load! (comp/any->app this)
+                                                :all-todos
+                                                (comp/registry-key->class
+                                                  'learn.client.ui.components/TodoItem)
+                                                {:target [:list/id 1 :list/todos]}))}
+                     "Cycle list fixture"))))))))
     (dom/p {:className "pt2 pb3 ma0 lh-135"} (i18n/tr locale :settings/click-gear))))
 
 ;; ============================================================================
