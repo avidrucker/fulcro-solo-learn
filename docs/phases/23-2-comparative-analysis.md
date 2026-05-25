@@ -112,7 +112,7 @@ The cost is moderate (rename + re-require sweep) and the benefit is small (clear
 
 The reference's curriculum doesn't surface new evidence — branch 10 has no flow comparable to our review chart in complexity, so there's nothing to learn from in that direction.
 
-This *is* a curriculum gap on Tony's side (covered in [`onboarding-rad-curriculum-suggestions.md`](../onboarding-rad-curriculum-suggestions.md) as suggested Branch 12), but for our project it's a settled good decision.
+This *is* a curriculum gap on Tony's side (captured as a suggested Branch 12 in the `branch_proposals.md` doc that lives in the `curriculum-onboarding-rad-project` repo[^proposals]), but for our project it's a settled good decision.
 
 **Verdict:** ✓ — by-design adoption, Phase 8 stands.
 
@@ -204,4 +204,6 @@ Two adjacent micro-items worth surfacing in 23.3 as discretionary:
 
 Everything else is ⊘ (not applicable at scale) or ❌ (already-considered-and-rejected via existing doc artifacts that branch 10 doesn't overturn).
 
-**Headline: this project is mostly idiomatic for its scale.** The reference doesn't surface major refactor opportunities — it surfaces one concrete tooling gap (CI workflow) and one minor mutation cleanup. The bigger story is Bucket B → curriculum feedback, captured separately in [`onboarding-rad-curriculum-suggestions.md`](../onboarding-rad-curriculum-suggestions.md).
+**Headline: this project is mostly idiomatic for its scale.** The reference doesn't surface major refactor opportunities — it surfaces one concrete tooling gap (CI workflow) and one minor mutation cleanup. The bigger story is Bucket B → curriculum feedback, captured separately as `branch_proposals.md` in the `curriculum-onboarding-rad-project` repo[^proposals].
+
+[^proposals]: A draft proposal for two additional curriculum branches (Branch 11 = Guardrails, Branch 12 = Statecharts) was written during this phase and moved to `branch_proposals.md` in the `curriculum-onboarding-rad-project` repo at `~/Documents/Work/curriculum-onboarding-rad-project/branch_proposals.md`. The doc is a stand-alone proposal that doesn't depend on this repo for context.
