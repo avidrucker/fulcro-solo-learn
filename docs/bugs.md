@@ -334,7 +334,7 @@ padding zone — the canvas-bg-leak issue stays fixed.
 
 ## B-14 — Modal close-gutter button doesn't stretch to page bottom when content overflows
 
-**Status:** 🐛 Open
+**Status:** ✅ Fixed in Phase 20 prep (DOM-restructure H1)
 **Reported:** 2026-05-15 by user
 
 ### Symptom
@@ -377,21 +377,41 @@ the close button's hit-target.
    that region).
 6. Actual: click doesn't close the modal.
 
-### Decision
+### Resolution
 
-**Logged but not fixed yet.** Per Phase 19 wrap discussion,
-this slots in after the current priorities (Portuguese
-localization, deferred QA pass, then any next phase). Likely
-fix is to either:
-  - Anchor the overlay relative to `<body>` (or a higher
-    container) rather than `app-container`.
-  - Compute the actual content height and set `min-height`
-    on the overlay to match.
+Fixed via hypothesis H1 (fragment-root DOM restructure +
+modal-shell sizing change), landed across four commits:
 
-The escape-to-close path (Phase 19h) still works for
-dismissible modals, so users with keyboard access have a
-reliable alternative; this only affects mouse users on
-overflowing pages.
+- `809721d` — wip: e2e probe infrastructure
+  (`modal-overflow.spec.js` as a behaviour-level red test,
+  plus geometry / visual probes), local Tachyons + Pesticide
+  for inspection, close-gutter temporarily styled
+  `bg-blue` to make coverage observable in the browser.
+- `58667a9` — experiment H1: `Root` returns a
+  `comp/fragment` (skip-link + wrapper-div containing
+  `<header>` and `<main>` as siblings); `<main>` becomes the
+  positioned ancestor for `modal-shell` and uses
+  `flex-auto` (not `flex-1`) so it grows with content rather
+  than capping at basis-0. `modal-shell`'s outer
+  `top-0 bottom-0 left-0 right-0` swapped for
+  `top-0 left-0 right-0 min-h-100` — floors the overlay at
+  100% of `<main>` while letting it grow to contain inner
+  overflow.
+- `9adc520` — merge of H1 into main. Chosen over H2 for
+  single-source theme/font, easier extensibility for
+  cross-cutting concerns (live regions, app-wide overlays,
+  footer), and to avoid `display: contents` indirection.
+- `2feab35` — finalise: close-gutter button reverted from
+  the dev `bg-blue` probe back to `o-0`; pesticide swapped
+  from the depth variant to the vanilla rainbow-outline
+  variant, gated behind a `learn.client/debug-css?` toggle
+  (default `false`).
+
+Verified by `e2e/modal-overflow.spec.js` (green post-fix) —
+scrolling to the bottom of an overflowing list and clicking
+in the gutter region below the visible overlay now closes
+the modal. Escape-to-close (Phase 19h) continues to work
+unchanged.
 
 ---
 
