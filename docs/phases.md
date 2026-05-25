@@ -115,17 +115,15 @@ Runtime-toggleable "Debug mode" section in the Settings modal, gated on `goog.DE
 
 UX refinement of Phase 21: the four dev affordances now sit behind a disclosure-toggle button labelled `debug mode (OFF)` / `debug mode (ON)`. Defaults collapsed. Surfaced an architecture lesson worth keeping — `:ui/debug-mode-expanded?` had to live in Fulcro state (not `dev-flags`) because Fulcro's optimised renderer only re-renders when component props change. Browser-manual verified.
 
-## 🟡 [Phase 23 — Idiomatic-Fulcro audit](phases/23-idiomatic-review.md)
+## ✅ [Phase 23 — Idiomatic-Fulcro audit](phases/23-idiomatic-review.md)
 
-Code-quality audit comparing this project against Tony Kay's onboarding-rad-project curriculum (branch 10 + curriculum-onboarding-rad-project's lecture path). Three sub-phases: 23.1 reference-repo reconnaissance, 23.2 comparative analysis (with Tony-voice + counterargument per finding), 23.3 prioritized recommendations + low-hanging-fruit shortlist. Each surviving 🔄 recommendation becomes a candidate Phase 24+ implementation.
+Code-quality audit comparing this project against Tony Kay's onboarding-rad-project curriculum (branch 10 + curriculum-onboarding-rad-project's lecture path). Three sub-phases: 23.1 reference-repo reconnaissance, 23.2 comparative analysis (Tony-voice + counterargument per finding), 23.3 prioritized recommendations. Headline: this project is mostly idiomatic for its scale; the audit surfaced one strong 🔄 candidate (CI workflow for the test runner) plus three minor / discretionary / deferred items. Outward-facing byproduct: a Branch 11/12 curriculum proposal in the `curriculum-onboarding-rad-project` repo.
 
 ---
 
 ## Queued / next
 
-Phase 23 active. Other candidates still on the radar:
-
+- **Phase 24 candidate** — CI workflow that runs `clojure -M:test:cljs -m test-runner` on every PR. Highest-ROI item from Phase 23.3; converts the existing `stale-vars-after-refactor` hard rule from discipline-based to automation-based. ~1-3 hours.
 - **Phase 19 Section-B browser-manual a11y sweep** — Lighthouse, axe live-run, NVDA / VoiceOver, keyboard, zoom, reduced-motion, contrast (user-driven; tracked as `S-ux-a11y-review-pass` in [`user_stories.md`](./user_stories.md)).
 - **Phase 20c** — Lighthouse shell scripts + expanded Playwright coverage. Deferred until a real gap warrants it.
 - **New feature work** from [`ideas.md`](./ideas.md) — `S-pwa-debug-modal` (sibling to S-dev-mode-toggles), markdown-export, etc.
-- **Phase 24+** — to be populated from Phase 23.3's recommendations.

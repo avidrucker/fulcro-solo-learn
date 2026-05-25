@@ -1,6 +1,6 @@
 # Phase 23 — Idiomatic-Fulcro audit
 
-**Status:** 🟡 In progress (23.1 ✅, 23.2 ✅, 23.3 next)
+**Status:** ✅ Complete (2026-05-25)
 
 A code-quality audit comparing the AutoFocus Fulcro port against Tony Kay's onboarding-rad-project curriculum (`~/Documents/Work/onboarding-rad-project/` branch `10-report-row-actions`, plus the companion `curriculum-onboarding-rad-project/` lecture path). Goal: surface where this project is or isn't idiomatically the best it could be, and where Pathom 2 / RAD / statecharts could be leveraged more (or less, if they're overkill).
 
@@ -10,7 +10,7 @@ A code-quality audit comparing the AutoFocus Fulcro port against Tony Kay's onbo
 
 - ✅ [23.1 — Reference-repo reconnaissance](23-1-reference-recon.md) — three parallel general-purpose agents (backend / UI / testing-and-quality) catalogued Pathom 2, RAD, statechart, Fulcro UI, testing, Guardrails, and dev-workflow idioms from branch 10 + the curriculum lecture path. Surfaced surprises: no statecharts, no `>defn`, no i18n, no CSS/theme system, no CI YAML in the reference — fulcro-solo-learn uses all five. That asymmetry is the central 23.2 question.
 - ✅ [23.2 — Comparative analysis](23-2-comparative-analysis.md) — Tony-voice + counterargument per major idiom, with verdicts. Headline: this project is mostly idiomatic for its scale. Two real 🔄 candidates (GitHub Action for test runner; `m/returning` for `import-from-text`) plus two minor discretionary items. Bucket B (statecharts / Guardrails / i18n / theme / Playwright) all ✓ by-design — branch 10 doesn't overturn the existing doc-artifact decisions. Curriculum-feedback surface area captured separately as `branch_proposals.md` in the `curriculum-onboarding-rad-project` repo (not this one).
-- ⬜ [23.3 — Prioritized recommendations](23-3-recommendations.md) — the deliverable. Gap list bucketed by effort × value, with the low-hanging-fruit shortlist called out. Each item is a candidate Phase 24+ story.
+- ✅ [23.3 — Prioritized recommendations](23-3-recommendations.md) — 4 candidate items written up as Phase 24+ stories with effort × value bucketing. **Headline recommendation: promote #1 (CI workflow for the master JVM test runner) to Phase 24.** Items #2 (`m/returning` cleanup) and #3 (Guardrails consistency audit) are smaller wins worth doing if convenient. Item #4 (namespace split) deferred until a second entity exists.
 
 After 23.3 lands, individual recommendations become candidate Phase 24+ implementations (each gated on its own TDD red-green plan per CLAUDE.md).
 
