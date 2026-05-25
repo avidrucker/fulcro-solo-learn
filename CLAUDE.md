@@ -53,6 +53,26 @@ Multi-phase learning project; **never skip phases, always TDD red-green-refactor
   chat; don't just choose.
 - **One phase sub-step at a time.** After completing a sub-phase (e.g.
   5J.2), stop and report. Do not chain into 5J.3 without confirmation.
+- **Closure docs land before new work begins.** When a phase / sub-phase
+  / bug-fix / story closes, the closing paperwork is part of *that*
+  work, not a follow-up. By the latest before the next task starts,
+  the relevant docs must reflect what just shipped:
+  - `docs/bugs.md` — flip Status to ✅ and add a Resolution section
+    for any B-ticket fix (template: see B-1 / B-14).
+  - `docs/user_stories.md` — flip ⬜ → ✅ (spec-covered) or 🟢
+    (browser-manual-only) for any closed story.
+  - `docs/phases.md` + a new `docs/phases/NN-*.md` outline for any
+    new phase / sub-phase. Update the phases.md status line and the
+    "Queued / next" section.
+  - `docs/learned_while_making_this.md` — log any non-obvious lesson
+    surfaced during the work (root cause + lesson template, mirroring
+    existing entries). If nothing is worth logging, say so explicitly
+    in chat rather than skipping silently — that forces the judgment
+    call to be visible.
+
+  This is a hard rule precisely because the temptation is to defer:
+  "I'll write it up after the commit / after I push / next session."
+  Deferred docs become *missing* docs.
 
 ## Project layout (memory aid)
 
