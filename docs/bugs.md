@@ -20,7 +20,7 @@ ID stays stable when one is renamed or rescoped.
 
 ## B-15 — "Rainbow element outlines" debug toggle also applies depth visuals; depth toggle becomes a no-op
 
-**Status:** 🔍 Triaged — root cause identified, fix planned
+**Status:** ✅ Fixed
 **Reported:** 2026-05-24 by user (Phase 22 follow-up)
 **Related story:** [`S-dev-mode-toggles`](./user_stories.md)
 
@@ -86,6 +86,32 @@ A scriptable derivation (rather than a hand-edited file) keeps the asset reprodu
 - `scripts/probe-rainbow-toggle.mjs` — toggles each checkbox in isolation; expected pass on the fix.
 - `scripts/probe-rainbow-then-depth.mjs` — rainbow first, then depth; expected pass on the fix.
 - `scripts/probe-computed-styles.mjs` — reads `getComputedStyle` on key elements; expected to show `boxShadow: none` and `backgroundColor: rgba(0,0,0,0)` when only rainbow is on.
+
+### Resolution
+
+Implemented the suggested fix:
+
+- `scripts/build-pesticide-outlines.mjs` (new) — Node script that
+  reads `node_modules/pesticide/css/pesticide.css`, strips every
+  `box-shadow` / `-webkit-box-shadow` / `background-color`
+  declaration, drops the resulting empty rule blocks, and writes
+  `resources/public/css/pesticide-outlines.css`. Kept 99 outline
+  rules, dropped 99 depth-only blocks.
+- `resources/public/css/pesticide-outlines.css` (new, derived) —
+  outlines-only sheet referenced by the rainbow toggle.
+- `learn.dev-config/debug-css-links` — `:debug-css/rainbow?` now
+  points at `css/pesticide-outlines.css`; docstring updated to
+  explain the orthogonality and link back to this entry.
+- `package.json` — `build:pesticide-outlines` npm script + a
+  `postinstall` hook so the derived file regenerates automatically
+  on `npm install`, surviving future pesticide bumps.
+
+User browser-verified the fix visually (rainbow toggle now applies
+only outlines; depth toggle independently applies/removes the
+depth visuals).
+
+Master test runner remained green (134 specs / 894 assertions, 0
+fail / 0 error). No model-layer code touched.
 
 ---
 

@@ -273,9 +273,18 @@
 #?(:cljs
    (def ^:private debug-css-links
      "Marker-id → href map for the dev-CSS link tags this namespace
-      installs and removes. Keys correspond to flag keys in `dev-flags`."
+      installs and removes. Keys correspond to flag keys in `dev-flags`.
+
+      `:debug-css/rainbow?` points at `pesticide-outlines.css` (a
+      derived outlines-only variant — see
+      `scripts/build-pesticide-outlines.mjs`), NOT upstream
+      `pesticide.css`. Upstream ships `pesticide.css` as a combined
+      outlines+depth sheet, which made the rainbow toggle implicitly
+      apply depth visuals and the depth toggle a no-op. Keeping the
+      two layers in separate sheets lets each flag toggle one visual
+      concern orthogonally. See docs/bugs.md B-15."
      {:debug-css/rainbow? {:marker-id "debug-css-pesticide-rainbow"
-                           :href      "css/pesticide.css"}
+                           :href      "css/pesticide-outlines.css"}
       :debug-css/depth?   {:marker-id "debug-css-pesticide-depth"
                            :href      "css/pesticide-depth.css"}}))
 
