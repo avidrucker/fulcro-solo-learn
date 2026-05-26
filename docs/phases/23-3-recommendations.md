@@ -1,8 +1,33 @@
 # Phase 23.3 — Prioritized recommendations
 
-**Status:** ✅ Complete (2026-05-25)
+**Status:** ✅ Complete (2026-05-25) — but see **CORRECTION** below.
 
 Final deliverable of Phase 23. Takes the 🔄 candidates from [23.2's](23-2-comparative-analysis.md) verdict table and prioritizes them by effort × value, with each item written up as a candidate Phase 24+ story. The low-hanging-fruit shortlist for "do these next if you want quick wins" is called out at the bottom.
+
+---
+
+## ⚠ CORRECTION (logged 2026-05-25, post-publication)
+
+**The original headline recommendation in this doc — "#1: Phase 24 CI workflow for master JVM test runner" — is withdrawn.** It was based on an incomplete recon: I glanced at `.github/workflows/` during Phase 23.1, saw `gitleaks.yml`, and concluded no test-runner CI existed. I never opened `.github/workflows/main.yml` (140 lines, present and unchanged during the audit). That workflow already runs the exact pattern I claimed was missing:
+
+```yaml
+- name: Run Clojure tests
+  run: clojure -M:test:cljs -m test-runner
+```
+
+…in a fresh JVM, on every push to `main`, exiting non-zero on any `:fail` or `:error`. The `learned_while_making_this.md` entry on the Phase 12.7 stale-vars-after-refactor incident ("CI's fresh JVM process caught the regression immediately") was already referring to `main.yml`.
+
+**Root-cause for the miss**: asymmetric recon depth — the 23.1 agents deep-dived the *reference* repos (file:line citations throughout), but my claim about what *this* project lacks was based on a one-second glance. The lesson is captured as `learned_while_making_this.md` Mistake C12.
+
+**What this means for the rest of this doc:**
+
+- The #1 section below is left intact as a record but is **WITHDRAWN — no Phase 24 to do.**
+- The "Low-hanging fruit shortlist" is reduced to #3 (Guardrails consistency audit) and the doc's overall headline shifts from *"one high-value refactor candidate exists"* to *"no high-value refactor candidates surface from this audit."*
+- The effort-x-value matrix below should be read with #1's cell crossed out.
+
+The rest of the doc is preserved for the record.
+
+---
 
 ## Effort × value matrix
 
@@ -18,7 +43,7 @@ Everything in the audit landed in the **low-effort column**. That's actually inf
 
 ## #1 — Suggested Phase 24: CI workflow for master JVM test runner
 
-**Verdict:** 🟢 **Strongly recommend promoting.** Highest value-to-effort ratio in the entire audit.
+**Verdict:** ~~🟢 **Strongly recommend promoting.** Highest value-to-effort ratio in the entire audit.~~ **WITHDRAWN — already exists.** See correction at top of doc. `.github/workflows/main.yml`'s `Run Clojure tests` step already does this on every push to `main`.
 
 ### Problem statement
 
@@ -154,16 +179,17 @@ Promote if/when a second entity lands. The current schema has one entity (`:todo
 
 ---
 
-## Low-hanging fruit shortlist
+## Low-hanging fruit shortlist (revised after the correction)
 
-If you want quick wins from this audit, do **these two and stop**:
+The original headline #1 (CI workflow) is withdrawn. The remaining shortlist:
 
-1. **#1 — CI workflow** (Phase 24 candidate). Highest ROI; converts an existing CLAUDE.md hard rule from discipline-based to automation-based. ~1-3 hours.
-2. **#3 — Guardrails consistency audit** (no phase needed; can be done inline during any future model-touching session). ~30-60 min.
+1. **#3 — Guardrails consistency audit** (no phase needed; can be done inline during any future model-touching session). ~30-60 min. Worth doing.
 
 Skip #2 (`m/returning`) unless you're doing other work in `import-from-text` anyway — the duplication is annoying but not painful, and the refactor's value is narrow.
 
 Skip #4 (namespace split) outright — defer to "if/when we add a second entity."
+
+**Revised audit headline**: no high-value refactor candidates surface from this audit. That's the honest result — the project is well-positioned, and the false-positive Phase 24 recommendation made it look otherwise.
 
 ---
 
@@ -185,4 +211,4 @@ Phase 23 deliverables shipped:
 - `23-3-recommendations.md` — what to do next (this doc)
 - `branch_proposals.md` (in `curriculum-onboarding-rad-project`) — outward-facing byproduct
 
-**Recommended next step:** promote #1 (CI workflow) to Phase 24. The other three items don't need phase scaffolding — #3 can be done inline, #2 is a deferred mutation cleanup, #4 is a wait-and-see.
+**Recommended next step (revised after correction):** the #1 recommendation is withdrawn (`main.yml` already does it). The remaining items don't need phase scaffolding — #3 can be done inline during any future session, #2 is a deferred mutation cleanup, #4 is a wait-and-see. **No new phase is launched out of Phase 23's recommendations.** The audit's value was confirmation that the project is mostly idiomatic at its scale, plus the outward-facing `branch_proposals.md` byproduct.

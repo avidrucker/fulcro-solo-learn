@@ -591,6 +591,62 @@ what the skill should have prevented or surfaced.
   missing requires for Fulcro tests are `[com.fulcrologic.fulcro.components
   :as comp]` and `[com.fulcrologic.fulcro.mutations :as m]`."
 
+### Mistake C12 — Recommended a CI workflow that already exists
+
+- **Phase:** 23 (sub-phases 23.1 / 23.2 / 23.3)
+- **Skill tagged:** `improve-codebase-architecture` (also generic
+  "audit / comparative-analysis discipline")
+- **What I said:** In Phase 23.3 — *"GitHub Action running master JVM
+  test runner on every PR... concrete, ~30 LOC YAML, defends the
+  existing stale-vars-after-refactor hard rule with automation.
+  Highest value-to-effort ratio of any item in this audit."* In
+  Phase 23.2 — *"We have one GitHub workflow (`gitleaks` secret
+  scanning)... We don't have a workflow that runs the master JVM
+  test runner on every PR."*
+- **What was wrong:** `.github/workflows/main.yml` (140 lines,
+  present and unchanged during the audit) already runs
+  `clojure -M:test:cljs -m test-runner` on every push to `main`
+  as the first step of the deploy pipeline. The exact pattern I
+  claimed was missing — fresh-JVM test run with `(System/exit 1)`
+  on any `:fail` or `:error`, catching the stale-vars-after-refactor
+  class of bug — was already automated. The retrospective entry in
+  this very file (above, "REPL / stale-vars-after-refactor"
+  Phase 12.7) cites *"CI's fresh JVM process caught the regression
+  immediately"* — referring to that same `main.yml`. I'd read the
+  retrospective when authoring Phase 23.1 and somehow assumed
+  the "CI" being referenced was hypothetical / future.
+- **Why I made it:** Asymmetric recon depth. Phase 23.1 ran three
+  parallel general-purpose agents that deeply catalogued the
+  *reference* repos (file:line citations throughout, ~16 min of
+  agent runtime, ~240K tokens). My claim about what *this* project
+  lacks was based on a one-second glance at `.github/workflows/`
+  that saw `gitleaks.yml` and stopped. I never opened `main.yml`.
+  I never ran the equivalent of the agents' recon against this
+  project's `.github/`, `scripts/`, `e2e/`, or other top-level
+  directories. The audit's confidence was bounded by the
+  *shallowest* read, but I wrote and shipped 23.2 / 23.3 as if
+  it were bounded by the *deepest*.
+- **Correct answer:** The Phase 24 recommendation should never have
+  been written; it was a confident false-positive. The audit's
+  honest result for the CI-related question is "the existing
+  `main.yml` workflow does this already; no new CI is warranted."
+  The user surfaced the miss by asking "what is getting checked
+  where and when *now*?" — which forced me to actually read
+  `main.yml` instead of inferring its absence.
+- **What the skill should say:** Any audit / comparative-analysis
+  skill (and `improve-codebase-architecture` specifically) needs a
+  **symmetric recon discipline**. Rule of thumb: when the audit
+  cites `file:line` for a *reference* pattern, it must cite
+  `file:line` for the corresponding claim about the *audited*
+  project. *"We don't have X"* without a `grep` or file-listing
+  citation is recon-debt that produces false-positive
+  recommendations. The 23.1 agents deep-dived the reference
+  exhaustively; an equivalent agent should have been spawned
+  against fulcro-solo-learn itself with the matching topic list
+  (here: "list every file in `.github/workflows/` and summarize
+  what each does"). Cheap to add, would have caught this miss
+  before 23.2 was even written.
+
 ---
 
 ## Part 3 — Suggested Skills to Add to Claude
