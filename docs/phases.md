@@ -124,6 +124,7 @@ Code-quality audit comparing this project against Tony Kay's onboarding-rad-proj
 ## Queued / next
 
 - **Phase 24 candidate** — CI workflow that runs `clojure -M:test:cljs -m test-runner` on every PR. Highest-ROI item from Phase 23.3; converts the existing `stale-vars-after-refactor` hard rule from discipline-based to automation-based. ~1-3 hours.
+- **Docs hygiene — refresh `docs/README.md`** — the "At a glance" table is missing entries for the ~10 docs added since it was last written: `a11y_audit.md`, `agents/`, `benefits-of-i18n-in-this-project.md`, `dev_scripts.md`, `e2e_test_research.md`, `e2e_tool_research.md`, `infra-notes.md`, `manual_tests.md`, `matt_skills_test_001_results.md`, `phases/` (the split-out per-phase outlines). Same row shape as existing entries (doc, lens, "add to this when..."). Tiny scope — should not need a phase number; one commit. ~30 min.
 - **Phase 19 Section-B browser-manual a11y sweep** — Lighthouse, axe live-run, NVDA / VoiceOver, keyboard, zoom, reduced-motion, contrast (user-driven; tracked as `S-ux-a11y-review-pass` in [`user_stories.md`](./user_stories.md)).
 - **Phase 20c** — Lighthouse shell scripts + expanded Playwright coverage. Deferred until a real gap warrants it.
 - **New feature work** from [`ideas.md`](./ideas.md) — `S-pwa-debug-modal` (sibling to S-dev-mode-toggles), markdown-export, etc.
