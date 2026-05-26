@@ -801,12 +801,16 @@ divergence is spotted.
 
 ---
 
-## Planned (⬜) — will build, not started
+## Originally roadmapped, now implemented (✅)
 
-Stories that are clearly on the roadmap but haven't been built yet.
-Phase assignment is TBD until we slot them. Open bugs that block or
-relate live in [`bugs.md`](./bugs.md) — currently `B-3` (header
-icons clickable during review / delete-confirm).
+Stories that were the "planned but not started" cluster during the
+core build (Phase 7's URL / PWA / import-export sweep, plus Phases 13–18 follow-ons). All shipped — preserved as a historical
+grouping to keep their cross-references intact. Newly-planned work
+goes under the **Nice-to-have** section below, or in a new thematic
+section above when promoted to ⬜.
+
+For currently-open work proposals (🆒 stories, ideas, deferred phases, derived items from the JS port, etc.) see
+[`task_suggestions.md`](./task_suggestions.md).
 
 ### S-url-sync-current-list — URL bar reflects the current list
 **Phase:** 7.16

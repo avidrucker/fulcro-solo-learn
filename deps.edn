@@ -23,7 +23,12 @@
                        "--port-file" ".nrepl-port"]}
   :test  {:extra-paths ["test"]
           :extra-deps  {fulcrologic/fulcro-spec {:mvn/version "3.2.8"}}
-          :jvm-opts    ["-Dguardrails.enabled=true"]}
+          ;; Guardrails: enable instrumentation (1st flag) and point at
+          ;; the test-time config (2nd flag) so contract violations
+          ;; throw — making tests fail loudly. See
+          ;; docs/guardrails_policy.md.
+          :jvm-opts    ["-Dguardrails.enabled=true"
+                        "-Dguardrails.config=guardrails-test.edn"]}
   ;; Browser/CLJS build (Phase 6). shadow-cljs reads this alias from
   ;; shadow-cljs.edn (`:deps {:aliases [:cljs]}`) so JS-side classpath
   ;; matches the JVM-side. ClojureScript itself is pulled transitively

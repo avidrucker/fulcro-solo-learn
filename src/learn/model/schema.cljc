@@ -125,7 +125,12 @@
    :error/not-prioritizable-list
    :error/invalid-review-decision
    ;; Phase 7.12: batch-import textarea is empty or all-whitespace lines.
-   :error/empty-import])
+   :error/empty-import
+   ;; Phase 13 / tasks-io: file-import failure modes (surfaced by the
+   ;; Guardrails policy change, 2026-05-25 — see
+   ;; docs/guardrails_policy.md).
+   :error/non-json
+   :error/bad-json])
 
 ;; Shape returned by a domain function on success.
 (>def ::success-result

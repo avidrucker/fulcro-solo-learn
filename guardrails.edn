@@ -1,0 +1,5 @@
+;; Guardrails default config. Currently empty because dev / REPL contexts
+;; don't enable Guardrails (no -Dguardrails.enabled=true flag outside
+;; the :test alias). Kept as a placeholder for the future case where a
+;; :dev alias enables runtime contracts. See docs/guardrails_policy.md.
+{}

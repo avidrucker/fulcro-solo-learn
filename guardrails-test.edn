@@ -1,0 +1,6 @@
+;; Guardrails test-time config. Selected by deps.edn's :test alias via
+;;   -Dguardrails.config=guardrails-test.edn
+;; Throws on contract violations so tests fail loudly. See
+;; docs/guardrails_policy.md for the policy rationale.
+{:throw?     true
+ :emit-spec? true}
