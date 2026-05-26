@@ -24,7 +24,9 @@
      `list-share-url`    — wrap a segment into a shareable URL"
   (:require
     [clojure.string :as str]
+    [com.fulcrologic.guardrails.malli.core :refer [>defn =>]]
     [learn.i18n.core :as i18n]
+    [learn.model.schema]                              ; loads registry
     [learn.util.normalized :as norm])
   #?(:clj (:import (java.util Base64))))
 
@@ -67,12 +69,13 @@
       (assoc base :was (status->og-string (:todo/was item)))
       base)))
 
-(defn items->og-shape
+(>defn items->og-shape
   "Translate a vector of our items into a vector of OG-shape maps.
    Ids are derived from list position (0, 1, …) — the JS port's
    sequence is order-stable too, so this is information-preserving
    for round-trips through encode → URL → decode."
   [items]
+  [:learn.model.schema/items => [:vector map?]]
   (vec (map-indexed item->og-item items)))
 
 (defn- og-item->item
@@ -97,11 +100,12 @@
                              ;; invariant (`:was` present iff cancelled) holds.
                              :status/new)))))))
 
-(defn og-shape->items
+(>defn og-shape->items
   "Inverse of `items->og-shape`. Returns nil if `og-items` isn't a
    vector or any item fails validation (defensive — corrupt URL =
    caller falls back to seed / localStorage)."
   [og-items]
+  [:any => [:maybe :learn.model.schema/items]]
   (when (sequential? og-items)
     (let [parsed (mapv og-item->item og-items)]
       (when (every? some? parsed) parsed))))
@@ -151,10 +155,11 @@
        (sequential? v) (str "[" (str/join "," (map ->json* v)) "]")
        :else           (str "\"" (escape-str (str v)) "\""))))
 
-(defn items->json
+(>defn items->json
   "Serialize `items` (our shape) to a JSON string in the JS-port-
    compatible OG shape. Empty list produces literal `\"[]\"`."
   [items]
+  [:learn.model.schema/items => string?]
   (let [og (items->og-shape items)]
     #?(:cljs (js/JSON.stringify (clj->js og))
        :clj  (->json* og))))
@@ -282,20 +287,22 @@
 ;; Composition + URL construction
 ;; ============================================================================
 
-(defn items->base64-url-segment
+(>defn items->base64-url-segment
   "Encode our items vector into the URL segment suitable for `?list=<here>`."
   [items]
+  [:learn.model.schema/items => string?]
   (-> items items->json js-url-encode base64-encode))
 
-(defn url-segment->items
+(>defn url-segment->items
   "Decode a URL `?list=` segment back into our items vector. Returns
    nil on any failure (corrupt base64, malformed URL-encoded JSON,
    non-array JSON, item shape validation failure)."
   [segment]
+  [[:maybe string?] => [:maybe :learn.model.schema/items]]
   (when-let [json (some-> segment base64-decode js-url-decode)]
     (some-> (parse-json-array json) og-shape->items)))
 
-(defn list-share-url
+(>defn list-share-url
   "Construct the shareable URL from a browser `origin`, `pathname`, and
    pre-encoded list `segment`. Pure string concat — kept separate so it
    stays testable on JVM (no `js/window` dependency).
@@ -305,8 +312,10 @@
    with no saved locale pick up the URL's lang via Phase 14's
    precedence rule. Nil `locale` is treated as 'don't append'."
   ([origin pathname segment]
+   [string? string? string? => string?]
    (list-share-url origin pathname segment nil))
   ([origin pathname segment locale]
+   [string? string? string? [:maybe keyword?] => string?]
    (cond-> (str origin pathname "?list=" segment)
      locale (str "&lang=" (name locale)))))
 
@@ -321,11 +330,12 @@
 ;; changes.
 ;; ============================================================================
 
-(defn extract-items
+(>defn extract-items
   "Pure: denormalize items at `[:list/id 1]` from a Fulcro state-map.
    Returns an empty vector when the path is absent — used by the
    url-sync watch as the projection to change-detect on."
   [state-map]
+  [:any => :learn.model.schema/items]
   (norm/denormalize-list-items state-map [:list/id 1]))
 
 #?(:cljs
@@ -356,7 +366,7 @@
   [items]
   (mapv #(select-keys % [:todo/text :todo/status :todo/was]) items))
 
-(defn decide-initial-list
+(>defn decide-initial-list
   "Pure: classify what `init` should do given the localStorage items
    and the URL items. Either side may be `nil` (absent) or any vector
    (including `[]`).
@@ -378,6 +388,7 @@
    (or just shared an empty link) shouldn't prompt them to choose
    between content and nothing."
   [local-items url-items]
+  [[:maybe :learn.model.schema/items] [:maybe :learn.model.schema/items] => map?]
   (cond
     ;; B-11: one side empty, the other non-empty → non-empty wins
     (and (some? local-items) (empty? local-items) (seq url-items))
@@ -414,10 +425,11 @@
                 (when (= "list" k) (or v ""))))
         (str/split s #"&")))))
 
-(defn items-from-query-string
+(>defn items-from-query-string
   "Pure: combine `parse-list-param` with `url-segment->items`. Returns
    nil if there's no `?list=` param OR if it fails to decode."
   [query-string]
+  [:any => [:maybe :learn.model.schema/items]]
   (when-let [seg (parse-list-param query-string)]
     (when-not (str/blank? seg)
       (url-segment->items seg))))
@@ -514,7 +526,7 @@
         joined       (str/join "&" with-new)]
     (if (seq joined) (str "?" joined) "")))
 
-(defn locale-decision
+(>defn locale-decision
   "Pure: given a saved-locale (from localStorage) and a url-locale
    (from `?lang=`), return one of:
      {:action :apply :locale <loc>}              — first-time visitor with
@@ -530,6 +542,7 @@
    See `learn.client.lifecycle/install-url-locale-fallback!` for the
    call site. JVM-testable; keeps the lifecycle thin."
   [saved-locale url-locale]
+  [[:maybe keyword?] [:maybe keyword?] => map?]
   (cond
     (and (nil? saved-locale) url-locale)
     {:action :apply :locale url-locale}
@@ -575,12 +588,13 @@
    modern stacks."
   8000)
 
-(defn items-encode-fits?
+(>defn items-encode-fits?
   "Pure: would the URL-encoded representation of `items` fit within
    `MAX_URL_LENGTH`? Returns true if the encoded segment is short
    enough to safely write to the URL, false otherwise. Used by the
    URL-sync watch to decide whether to skip `history.replaceState`."
   [items]
+  [:learn.model.schema/items => boolean?]
   (<= (count (items->base64-url-segment items)) MAX_URL_LENGTH))
 
 (defn install-url-sync!

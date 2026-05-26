@@ -19,6 +19,8 @@
   (:require
     [clojure.edn :as edn]
     [clojure.string :as str]
+    [com.fulcrologic.guardrails.malli.core :refer [>defn =>]]
+    [learn.model.schema]                              ; loads registry
     [learn.util.url-encoding :as url-encoding]))
 
 #?(:clj
@@ -79,7 +81,7 @@
        :clj
        (try-parse-json-clj s))))
 
-(defn parse-tasks-json
+(>defn parse-tasks-json
   "Parse a JSON string into a vector of our items, or return a
    structured error. Result shapes:
      {:ok? true  :items <vector>}                         — success
@@ -97,6 +99,7 @@
    list you previously exported appends a copy with new ids — the
    OG ReactJS port's `addAll` does the same."
   [s]
+  [:any => :learn.model.schema/result]
   (let [parsed (try-parse-json s)]
     (cond
       (= ::parse-failed parsed)
